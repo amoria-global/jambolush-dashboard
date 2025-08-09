@@ -46,7 +46,7 @@ const sampleBookings: Booking[] = [
   {
     id: "4",
     hostName: "Enzo fernandes",
-    propertyName: "Blue Radissong",
+    propertyName: "Blue Radisson",
     date: "2025-10-12",
     location: "Rubavu",
     status: "completed",
