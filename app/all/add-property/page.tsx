@@ -271,7 +271,7 @@ const AddPropertyPage: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/10 backdrop-blur-xs transition-opacity"
           />
           
           <div className="flex items-center justify-center min-h-screen p-4">
