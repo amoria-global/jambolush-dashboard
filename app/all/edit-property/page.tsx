@@ -290,7 +290,7 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
     <div className="min-h-screen bg-gray-50">
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" />
+          <div className="fixed inset-0 bg-black/10 backdrop-blur-xs transition-opacity" />
           
           <div className="flex items-center justify-center min-h-screen p-4">
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">

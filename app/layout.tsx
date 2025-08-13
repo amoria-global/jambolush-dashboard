@@ -1,5 +1,8 @@
 
+import SideBar from "./components/sidebar";
+import TopBar from "./components/topbar";
 import "./styles/globals.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 export default function RootLayout({
   children,
@@ -11,8 +14,12 @@ export default function RootLayout({
       <head>
         <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
       </head>
-      <body>
-        {children}
+      <body className="">
+        <SideBar />
+        <TopBar />
+        <main className={`md:ml-72 p-4 sm:p-6 md:p-10 `}>
+          {children}
+        </main>
       </body>
     </html>
   );

@@ -3,13 +3,13 @@
 import Image from "next/image";
 import { useState } from "react";
 
-export default function Page() {
+export default function TopBar() {
   const [notifications] = useState(9);
   const balance = 3.0;
 
   return (
     <div
-      className="fixed top-4 right-4 left-100 flex items-center justify-between px-6 py-2 bg-white border border-gray-200 rounded-full shadow-lg z-50"
+      className="fixed right-0 left-72 flex items-center justify-between px-6 py-3 bg-white border border-gray-200  shadow-lg z-50"
     >
       {/* Left - Dashboard title */}
       <h1 className="text-xl font-bold text-gray-900 tracking-wide">
