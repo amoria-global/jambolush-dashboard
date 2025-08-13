@@ -1,23 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  FaCalendarPlus,
-  FaEdit,
-  FaShieldAlt,
-  FaUserCircle,
-  FaKey,
-  FaTrash,
-  FaCamera,
-  FaUpload,
-  FaCheck,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaPencilAlt,
-  FaExclamationTriangle,
-  FaSearch
-} from 'react-icons/fa';
 
 // --- INTERFACES ---
 
@@ -368,7 +351,7 @@ const SearchableDropdown = ({ options, value, onChange, disabled }: SearchableDr
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full border rounded-lg px-3 py-2 text-sm text-left flex justify-between items-center transition-colors ${
+        className={`w-full border rounded-base px-3 py-2 text-base text-left flex justify-between items-center transition-colors ${
           disabled
             ? 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
             : 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent bg-white cursor-pointer'
@@ -379,16 +362,16 @@ const SearchableDropdown = ({ options, value, onChange, disabled }: SearchableDr
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 w-full bg-white border rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-20 w-full bg-white border rounded-base mt-1 shadow-base max-h-60 overflow-y-auto">
           <div className="p-2 sticky top-0 bg-white border-b">
             <div className="relative">
-              <FaSearch className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              <i className="bi bi-search absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-base"></i>
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border rounded-md pl-7 pr-2 py-1.5 text-sm"
+                className="w-full border rounded-md pl-7 pr-2 py-1.5 text-base"
                 autoFocus
               />
             </div>
@@ -402,11 +385,11 @@ const SearchableDropdown = ({ options, value, onChange, disabled }: SearchableDr
                   setIsOpen(false);
                   setSearchTerm('');
                 }}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-base"
               >
                 {option.label}
               </li>
-            )) : <li className="px-3 py-2 text-sm text-gray-500">No results found</li>}
+            )) : <li className="px-3 py-2 text-base text-gray-500">No results found</li>}
           </ul>
         </div>
       )}
@@ -610,11 +593,11 @@ export default function UserProfileSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="bg-white rounded-base shadow-md p-6">
           <div className="flex items-center justify-center">
             <div className="animate-spin w-6 h-6 border-2 border-blue-300 border-t-[#083A85] rounded-full mr-2"></div>
-            <span className="text-gray-700 text-sm">Loading user profile...</span>
+            <span className="text-gray-700 text-base">Loading user profile...</span>
           </div>
         </div>
       </div>
@@ -623,12 +606,12 @@ export default function UserProfileSettingsPage() {
 
   if (error) {
     return (
-      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6 max-w-sm w-full text-center">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><FaExclamationTriangle className="text-red-500 text-lg" /></div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Error Loading Profile</h2>
-          <p className="text-gray-600 text-sm mb-4">{error}</p>
-          <button onClick={() => window.location.reload()} className="bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer">Try Again</button>
+      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="bg-white rounded-base shadow-md p-6 max-w-base w-full text-center">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><i className="bi bi-exclamation-triangle text-red-500 text-base"></i></div>
+          <h2 className="text-base font-bold text-gray-900 mb-2">Error Loading Profile</h2>
+          <p className="text-gray-600 text-base mb-4">{error}</p>
+          <button onClick={() => window.location.reload()} className="bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-4 py-2 rounded-base text-base font-semibold transition-all cursor-pointer">Try Again</button>
         </div>
       </div>
     );
@@ -641,13 +624,13 @@ export default function UserProfileSettingsPage() {
   const postalCodeField = getPostalCodeFieldName(currentCountry);
 
   return (
-    <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+    <div className="p-4 pt-15 bg-gradient-to-br from-blue-50 to-indigo-50">
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-3 gap-6">
           
           {/* User Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-base shadow-md overflow-hidden">
               <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 text-center">
                 <h3 className="text-white text-md font-semibold mb-3">Profile Image</h3>
                 <div className="relative mb-4">
@@ -655,48 +638,48 @@ export default function UserProfileSettingsPage() {
                     <img src={previewUrl || user.profile} alt={user.name} className="w-20 h-20 rounded-full mx-auto border-3 border-white/30 shadow-md object-cover"/>
                   ) : (
                     <div className="w-20 h-20 bg-white/20 rounded-full mx-auto border-3 border-white/30 shadow-md flex items-center justify-center">
-                      <span className="text-white text-lg font-bold">{getInitials(user.name)}</span>
+                      <span className="text-white text-base font-bold">{getInitials(user.name)}</span>
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-400 border-3 border-white rounded-full flex items-center justify-center"><FaCheck className="text-white text-xs" /></div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-400 border-3 border-white rounded-full flex items-center justify-center"><i className="bi bi-check text-white text-base"></i></div>
                 </div>
 
                 {isEditing && (
                   <div className="space-y-2">
                     <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" id="image-upload" />
-                    <label htmlFor="image-upload" className="block bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer"><FaCamera className="inline mr-1" /> Choose Image</label>
+                    <label htmlFor="image-upload" className="block bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 py-2 rounded-base text-base font-medium transition-all cursor-pointer"><i className="bi bi-camera inline mr-1"></i> Choose Image</label>
                     {selectedFile && (
                       <div className="space-y-2">
-                        <p className="text-white/80 text-xs">{selectedFile.name}</p>
-                        <button onClick={handleImageUpload} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer"><FaUpload className="inline mr-1" /> Upload Image</button>
+                        <p className="text-white/80 text-base">{selectedFile.name}</p>
+                        <button onClick={handleImageUpload} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-base text-base font-medium transition-all cursor-pointer"><i className="bi bi-upload inline mr-1"></i> Upload Image</button>
                       </div>
                     )}
                   </div>
                 )}
                 {uploadSuccess && (
-                  <div className="mt-2 bg-blue-500/20 border border-blue-400/30 text-blue-100 px-2 py-1 rounded-lg text-xs"><FaCheck className="inline mr-1" /> {uploadSuccess}</div>
+                  <div className="mt-2 bg-blue-500/20 border border-blue-400/30 text-blue-100 px-2 py-1 rounded-base text-base"><i className="bi bi-check inline mr-1"></i> {uploadSuccess}</div>
                 )}
               </div>
 
               <div className="p-4">
                 <div className="text-center mb-4">
-                  <h2 className="text-lg font-bold text-gray-900 mb-1">{user.name}</h2>
-                  <p className="text-gray-500 text-xs mb-3">ID: USER-{user.id.toString().padStart(6, '0')}</p>
+                  <h2 className="text-base font-bold text-gray-900 mb-1">{user.name}</h2>
+                  <p className="text-gray-500 text-base mb-3">ID: USER-{user.id.toString().padStart(6, '0')}</p>
                   <div className="flex items-center justify-center flex-wrap gap-2">
-                    <div className={`inline-flex items-center gap-1 border px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status || '')}`}><div className="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></div>{user.status?.charAt(0).toUpperCase()}{user.status?.slice(1)} Status</div>
-                    <div className={`inline-flex items-center gap-2 border px-2 py-1 rounded-full text-xs font-medium ${getUserTypeColor(user.userType || '')}`}><FaUserCircle className="text-xs" />{user.userType === 'field agent' ? 'Field Agent' : (user.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User')}</div>
+                    <div className={`inline-flex items-center gap-1 border px-2 py-1 rounded-full text-base font-medium ${getStatusColor(user.status || '')}`}><div className="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></div>{user.status?.charAt(0).toUpperCase()}{user.status?.slice(1)} Status</div>
+                    <div className={`inline-flex items-center gap-2 border px-2 py-1 rounded-full text-base font-medium ${getUserTypeColor(user.userType || '')}`}><i className="bi bi-person-circle text-base"></i>{user.userType === 'field agent' ? 'Field Agent' : (user.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User')}</div>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600"><FaEnvelope className="text-[#083A85] text-xs" /><span className="text-xs">{user.email}</span></div>
-                  <div className="flex items-center gap-2 text-gray-600"><FaPhone className="text-[#083A85] text-xs" /><span className="text-xs">{formatPhoneNumber(user.phone || '', user.phoneCountryCode || 'US')}</span></div>
-                  <div className="flex items-start gap-2 text-gray-600"><FaMapMarkerAlt className="text-[#083A85] text-xs mt-0.5" /><span className="text-xs">{getFullAddress()}</span></div>
+                <div className="space-y-2 text-base">
+                  <div className="flex items-center gap-2 text-gray-600"><i className="bi bi-envelope text-[#083A85] text-base"></i><span className="text-base">{user.email}</span></div>
+                  <div className="flex items-center gap-2 text-gray-600"><i className="bi bi-telephone text-[#083A85] text-base"></i><span className="text-base">{formatPhoneNumber(user.phone || '', user.phoneCountryCode || 'US')}</span></div>
+                  <div className="flex items-start gap-2 text-gray-600"><i className="bi bi-geo-alt text-[#083A85] text-base mt-0.5"></i><span className="text-base">{getFullAddress()}</span></div>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                  <button onClick={() => setShowPasswordModal(true)} className="w-full bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer"><FaKey /> Change Password</button>
-                  <button onClick={() => setShowDeleteModal(true)} className="w-full bg-gradient-to-r from-[#F20C8F] to-pink-600 hover:from-pink-700 hover:to-pink-800 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer"><FaTrash /> Delete Account</button>
+                  <button onClick={() => setShowPasswordModal(true)} className="w-full bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-3 py-2 rounded-base text-base font-medium flex items-center justify-center gap-2 cursor-pointer"><i className="bi bi-key"></i> Change Password</button>
+                  <button onClick={() => setShowDeleteModal(true)} className="w-full bg-gradient-to-r from-[#F20C8F] to-pink-600 hover:from-pink-700 hover:to-pink-800 text-white px-3 py-2 rounded-base text-base font-medium flex items-center justify-center gap-2 cursor-pointer"><i className="bi bi-trash"></i> Delete Account</button>
                 </div>
               </div>
             </div>
@@ -704,73 +687,73 @@ export default function UserProfileSettingsPage() {
 
           {/* Details Section */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-base shadow-md overflow-hidden">
               <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white">Profile Information</h3>
-                  {!isEditing && <button onClick={() => setIsEditing(true)} className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 cursor-pointer"><FaPencilAlt className="text-xs" /> Edit</button>}
+                  <h3 className="text-base font-bold text-white">Profile Information</h3>
+                  {!isEditing && <button onClick={() => setIsEditing(true)} className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 py-1.5 rounded-base text-base font-medium flex items-center gap-1 cursor-pointer"><i className="bi bi-pencil text-base"></i> Edit</button>}
                 </div>
               </div>
 
               <div className="p-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   {/* Basic Info */}
-                  <div><label className="block text-gray-700 text-xs font-semibold mb-1">Full Name</label><input type="text" value={user.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>
-                  <div><label className="block text-gray-700 text-xs font-semibold mb-1">User ID</label><input type="text" value={`USER-${user.id.toString().padStart(6, '0')}`} disabled className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 cursor-not-allowed" /></div>
-                  <div><label className="block text-gray-700 text-xs font-semibold mb-1">Email Address</label><input type="email" value={user.email || ''} onChange={(e) => handleFieldChange('email', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>
+                  <div><label className="block text-gray-700 text-base font-semibold mb-1">Full Name</label><input type="text" value={user.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} disabled={!isEditing} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>
+                  <div><label className="block text-gray-700 text-base font-semibold mb-1">User ID</label><input type="text" value={`USER-${user.id.toString().padStart(6, '0')}`} disabled className="w-full bg-gray-50 border border-gray-200 rounded-base px-3 py-2 text-base text-gray-600 cursor-not-allowed" /></div>
+                  <div><label className="block text-gray-700 text-base font-semibold mb-1">Email Address</label><input type="email" value={user.email || ''} disabled className="w-full border rounded-base px-3 py-2 text-base transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed" /></div>
                   <div>
-                    <label className="block text-gray-700 text-xs font-semibold mb-1">Phone Number</label>
+                    <label className="block text-gray-700 text-base font-semibold mb-1">Phone Number</label>
                     <div className="flex gap-2">
                         <div className="w-28">
                             <SearchableDropdown options={phoneCountryOptions} value={user.phoneCountryCode || ''} onChange={(value) => handleFieldChange('phoneCountryCode', value)} disabled={!isEditing}/>
                         </div>
-                        <input type="tel" value={user.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} disabled={!isEditing} placeholder="Phone number" className={`flex-1 border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} />
+                        <input type="tel" value={user.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} disabled={!isEditing} placeholder="Phone number" className={`flex-1 border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} />
                     </div>
                   </div>
 
                   {/* Address Fields */}
-                  <div className="sm:col-span-2"><h4 className="text-gray-700 text-xs font-bold mb-2 border-b pb-1">Address Information</h4></div>
+                  <div className="sm:col-span-2"><h4 className="text-gray-700 text-base font-bold mb-2 border-b pb-1">Address Information</h4></div>
                   <div className="sm:col-span-2">
-                    <label className="block text-gray-700 text-xs font-semibold mb-1">Country</label>
+                    <label className="block text-gray-700 text-base font-semibold mb-1">Country</label>
                     <SearchableDropdown options={countryOptions} value={user.country || ''} onChange={handleCountryChange} disabled={!isEditing} />
                   </div>
 
                   {currentCountry?.addressFields.filter(f => !postalCodeField || f !== postalCodeField).map(field => {
                     const label = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                    if (field === 'state' && currentCountry.states) { return (<div key={field}><label className="block text-gray-700 text-xs font-semibold mb-1">{label}</label><select value={user.state || ''} onChange={(e) => handleFieldChange('state', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="">Select {label}</option>{currentCountry.states.map(s => <option key={s} value={s}>{s}</option>)}</select></div>); }
-                    if (field === 'province' && currentCountry.provinces) { return (<div key={field}><label className="block text-gray-700 text-xs font-semibold mb-1">{label}</label><select value={user.province || ''} onChange={(e) => handleFieldChange('province', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="">Select {label}</option>{currentCountry.provinces.map(p => <option key={p} value={p}>{p}</option>)}</select></div>); }
-                    return (<div key={field}><label className="block text-gray-700 text-xs font-semibold mb-1">{label}</label><input type="text" value={user[field as keyof UserInfo] as string || ''} onChange={(e) => handleFieldChange(field as keyof UserInfo, e.target.value)} disabled={!isEditing} placeholder={`Enter ${label.toLowerCase()}`} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>);
+                    if (field === 'state' && currentCountry.states) { return (<div key={field}><label className="block text-gray-700 text-base font-semibold mb-1">{label}</label><select value={user.state || ''} onChange={(e) => handleFieldChange('state', e.target.value)} disabled={!isEditing} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="">Select {label}</option>{currentCountry.states.map(s => <option key={s} value={s}>{s}</option>)}</select></div>); }
+                    if (field === 'province' && currentCountry.provinces) { return (<div key={field}><label className="block text-gray-700 text-base font-semibold mb-1">{label}</label><select value={user.province || ''} onChange={(e) => handleFieldChange('province', e.target.value)} disabled={!isEditing} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="">Select {label}</option>{currentCountry.provinces.map(p => <option key={p} value={p}>{p}</option>)}</select></div>); }
+                    return (<div key={field}><label className="block text-gray-700 text-base font-semibold mb-1">{label}</label><input type="text" value={user[field as keyof UserInfo] as string || ''} onChange={(e) => handleFieldChange(field as keyof UserInfo, e.target.value)} disabled={!isEditing} placeholder={`Enter ${label.toLowerCase()}`} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>);
                   })}
                   
-                  {postalCodeField && (<div><label className="block text-gray-700 text-xs font-semibold mb-1">{postalCodeLabel}</label><input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={!isEditing} placeholder={`Enter ${postalCodeLabel.toLowerCase()}`} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}/></div>)}
+                  {postalCodeField && (<div><label className="block text-gray-700 text-base font-semibold mb-1">{postalCodeLabel}</label><input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={!isEditing} placeholder={`Enter ${postalCodeLabel.toLowerCase()}`} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}/></div>)}
 
                   {/* Account Settings */}
-                  <div><label className="block text-gray-700 text-xs font-semibold mb-1">Profile Status</label><select value={user.status || 'active'} onChange={(e) => handleFieldChange('status', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="active">Active</option><option value="inactive">Inactive</option><option value="pending">Pending</option></select></div>
-                  <div><label className="block text-gray-700 text-xs font-semibold mb-1">User Type</label><select value={user.userType || 'host'} onChange={(e) => handleFieldChange('userType', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 text-sm transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="host">Host</option><option value="field agent">Field Agent</option></select></div>
+                  <div><label className="block text-gray-700 text-base font-semibold mb-1">Profile Status</label><select value={user.status || 'active'} disabled className="w-full border rounded-base px-3 py-2 text-base transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"><option value="active">Active</option></select></div>
+                  <div><label className="block text-gray-700 text-base font-semibold mb-1">User Type</label><select value={user.userType || 'host'} disabled className="w-full border rounded-base px-3 py-2 text-base transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"><option value="host">Host</option></select></div>
                 </div>
 
                 {isEditing && (
                   <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-200">
-                    <button onClick={() => setIsEditing(false)} className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm cursor-pointer">Cancel</button>
-                    <button onClick={handleSaveChanges} className="px-3 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 transition-all transform hover:scale-105 shadow-md text-sm cursor-pointer">Save Changes</button>
+                    <button onClick={() => setIsEditing(false)} className="px-3 py-2 border border-gray-300 rounded-base text-gray-700 hover:bg-gray-50 transition-colors text-base cursor-pointer">Cancel</button>
+                    <button onClick={handleSaveChanges} className="px-3 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-base hover:from-blue-800 hover:to-blue-900 transition-all transform hover:scale-105 shadow-md text-base cursor-pointer">Update Changes</button>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Profile Activity */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4"><h3 className="text-lg font-bold text-white">Profile Activity</h3></div>
+            <div className="bg-white rounded-base shadow-md overflow-hidden">
+                <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4"><h3 className="text-base font-bold text-white">Profile Activity</h3></div>
                 <div className="p-4">
                     <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-lg p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-[#083A85] rounded-lg flex items-center justify-center"><FaCalendarPlus className="text-white text-sm" /></div><div><h4 className="text-gray-900 font-semibold text-sm">Profile Created</h4><p className="text-gray-600 text-xs">{formatDate(user.created_at)}</p></div></div></div>
-                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"><FaEdit className="text-white text-sm" /></div><div><h4 className="text-gray-900 font-semibold text-sm">Last Updated</h4><p className="text-gray-600 text-xs">{formatDate(user.updated_at)}</p></div></div></div>
-                        <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center"><FaShieldAlt className="text-white text-sm" /></div><div><h4 className="text-gray-900 font-semibold text-sm">Security Status</h4><p className="text-gray-600 text-xs">Two-Factor Auth: Enabled</p></div></div></div>
-                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-lg p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-[#083A85] rounded-lg flex items-center justify-center"><FaUserCircle className="text-white text-sm" /></div><div><h4 className="text-gray-900 font-semibold text-sm">Last Login</h4><p className="text-gray-600 text-xs">{formatDate(user.last_login || user.updated_at)}</p></div></div></div>
+                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-[#083A85] rounded-base flex items-center justify-center"><i className="bi bi-calendar-plus text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Profile Created</h4><p className="text-gray-600 text-base">{formatDate(user.created_at)}</p></div></div></div>
+                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-600 rounded-base flex items-center justify-center"><i className="bi bi-pencil-square text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Last Updated</h4><p className="text-gray-600 text-base">{formatDate(user.updated_at)}</p></div></div></div>
+                        <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-indigo-600 rounded-base flex items-center justify-center"><i className="bi bi-shield-check text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Security Status</h4><p className="text-gray-600 text-base">Two-Factor Auth: Enabled</p></div></div></div>
+                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-[#083A85] rounded-base flex items-center justify-center"><i className="bi bi-person-circle text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Last Login</h4><p className="text-gray-600 text-base">{formatDate(user.last_login || user.updated_at)}</p></div></div></div>
                     </div>
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between items-center text-sm"><span className="text-gray-600">Total Sessions:</span><span className="font-semibold text-gray-900">{user.total_sessions || 0}</span></div>
-                        <div className="flex justify-between items-center text-sm mt-2"><span className="text-gray-600">Account Age:</span><span className="font-semibold text-gray-900">{Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))} days</span></div>
+                    <div className="mt-4 p-3 bg-gray-50 rounded-base">
+                        <div className="flex justify-between items-center text-base"><span className="text-gray-600">Total Sessions:</span><span className="font-semibold text-gray-900">{user.total_sessions || 0}</span></div>
+                        <div className="flex justify-between items-center text-base mt-2"><span className="text-gray-600">Account Age:</span><span className="font-semibold text-gray-900">{Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))} days</span></div>
                     </div>
                 </div>
             </div>
@@ -781,16 +764,16 @@ export default function UserProfileSettingsPage() {
       {/* MODALS */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 rounded-t-lg"><h3 className="text-white font-bold text-lg">Change Password</h3></div>
+          <div className="bg-white rounded-base shadow-xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 rounded-t-base"><h3 className="text-white font-bold text-base">Change Password</h3></div>
             <div className="p-4 space-y-4">
-              <div><label className="block text-gray-700 text-xs font-semibold mb-1">Current Password</label><input type="password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Enter current password"/></div>
-              <div><label className="block text-gray-700 text-xs font-semibold mb-1">New Password</label><input type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Enter new password"/></div>
-              <div><label className="block text-gray-700 text-xs font-semibold mb-1">Confirm New Password</label><input type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Confirm new password"/></div>
+              <div><label className="block text-gray-700 text-base font-semibold mb-1">Current Password</label><input type="password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Enter current password"/></div>
+              <div><label className="block text-gray-700 text-base font-semibold mb-1">New Password</label><input type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Enter new password"/></div>
+              <div><label className="block text-gray-700 text-base font-semibold mb-1">Confirm New Password</label><input type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Confirm new password"/></div>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end space-x-2">
-              <button onClick={() => { setShowPasswordModal(false); setPasswords({ current: '', new: '', confirm: '' }); }} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm cursor-pointer">Cancel</button>
-              <button onClick={handlePasswordChange} className="px-4 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 transition-all text-sm cursor-pointer">Change Password</button>
+              <button onClick={() => { setShowPasswordModal(false); setPasswords({ current: '', new: '', confirm: '' }); }} className="px-4 py-2 border border-gray-300 rounded-base text-gray-700 hover:bg-gray-50 transition-colors text-base cursor-pointer">Cancel</button>
+              <button onClick={handlePasswordChange} className="px-4 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-base hover:from-blue-800 hover:to-blue-900 transition-all text-base cursor-pointer">Change Password</button>
             </div>
           </div>
         </div>
@@ -798,18 +781,18 @@ export default function UserProfileSettingsPage() {
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-[#F20C8F] to-pink-600 p-4 rounded-t-lg"><h3 className="text-white font-bold text-lg">Delete Account</h3></div>
+          <div className="bg-white rounded-base shadow-xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-[#F20C8F] to-pink-600 p-4 rounded-t-base"><h3 className="text-white font-bold text-base">Delete Account</h3></div>
             <div className="p-4">
               <div className="mb-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4"><p className="text-red-700 text-sm"><strong>Warning:</strong> This action cannot be undone. All your data will be permanently deleted.</p></div>
-                <label className="block text-gray-700 text-xs font-semibold mb-1">Type "delete my account" to confirm</label>
-                <input type="text" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#F20C8F] focus:border-transparent" placeholder="delete my account"/>
+                <div className="bg-red-50 border border-red-200 rounded-base p-3 mb-4"><p className="text-red-700 text-base"><strong>Warning:</strong> This action cannot be undone. All your data will be permanently deleted.</p></div>
+                <label className="block text-gray-700 text-base font-semibold mb-1">Type "delete my account" to confirm</label>
+                <input type="text" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#F20C8F] focus:border-transparent" placeholder="delete my account"/>
               </div>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end space-x-2">
-              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmation(''); }} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm cursor-pointer">Cancel</button>
-              <button onClick={handleDeleteAccount} className="px-4 py-2 bg-gradient-to-r from-[#F20C8F] to-pink-600 text-white rounded-lg hover:from-pink-700 hover:to-pink-800 transition-all text-sm cursor-pointer">Delete Account</button>
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmation(''); }} className="px-4 py-2 border border-gray-300 rounded-base text-gray-700 hover:bg-gray-50 transition-colors text-base cursor-pointer">Cancel</button>
+              <button onClick={handleDeleteAccount} className="px-4 py-2 bg-gradient-to-r from-[#F20C8F] to-pink-600 text-white rounded-base hover:from-pink-700 hover:to-pink-800 transition-all text-base cursor-pointer">Delete Account</button>
             </div>
           </div>
         </div>
