@@ -567,9 +567,9 @@ const AssessmentPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-24">
+    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
       {showTimeAlert && (
-        <div className="fixed top-10 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
             <i className="bi bi-exclamation-circle-fill me-3"></i>
             <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
@@ -611,7 +611,7 @@ const AssessmentPage: React.FC = () => {
                   style={{ width: `${((currentStep - 1) * questionsPerPage) / questions.length * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-slate-600 font-medium mt-1.5 block text-right">
+              <span className="text-sm text-slate-600 font-medium mt-1.5 block text-right">
                 Progress: {Math.round(((currentStep - 1) * questionsPerPage) / questions.length * 100)}%
               </span>
             </div>
