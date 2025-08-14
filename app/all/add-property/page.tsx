@@ -389,16 +389,8 @@ const AddPropertyPage: React.FC = () => {
                   <h2 className="text-2xl font-semibold text-gray-900">Add New Property</h2>
                   <p className="text-sm text-gray-600 mt-1">Step {currentStep} of 4</p>
                 </div>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-                >
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+               <button onClick={() => setIsModalOpen(false)} className="cursor-pointer"><i className="bi bi-x w-5 h-5 p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i></button>
               </div>
-
               <div className="px-8 pt-4 pb-2">
                 <div className="flex items-center justify-between relative">
                   {[1, 2, 3, 4].map((step) => (
