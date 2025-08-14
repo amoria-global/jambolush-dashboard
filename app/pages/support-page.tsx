@@ -8,8 +8,8 @@ interface FAQ {
 
 interface Section {
   title: string;
-  icon: React.ReactNode; // Changed from JSX.Element to React.ReactNode
-  faqs?: FAQ[]; // faqs are optional for the contact section
+  icon: React.ReactNode;
+  faqs?: FAQ[];
 }
 
 interface SectionsData {
@@ -21,7 +21,7 @@ const sectionsData: SectionsData = {
   gettingStarted: {
     title: "Getting Started",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
       </svg>
     ),
@@ -34,7 +34,7 @@ const sectionsData: SectionsData = {
   bookingManagement: {
     title: "Booking Management",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
     ),
@@ -47,7 +47,7 @@ const sectionsData: SectionsData = {
   paymentAndBilling: {
     title: "Payment & Billing",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
       </svg>
     ),
@@ -60,7 +60,7 @@ const sectionsData: SectionsData = {
   accountAndProfile: {
     title: "Account & Profile",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
@@ -73,7 +73,7 @@ const sectionsData: SectionsData = {
   troubleshooting: {
     title: "Troubleshooting & FAQs",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9.228a2.44 2.44 0 013.464 0M15.485 16.485a2.44 2.44 0 01-3.464 0M9 11v-5a3 3 0 016 0v5a3 3 0 01-6 0z" />
       </svg>
     ),
@@ -86,19 +86,14 @@ const sectionsData: SectionsData = {
   contact: {
     title: "Contact Support",
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
       </svg>
     ),
   },
 };
 
-/**
- * Helper function to highlight the search term in a string.
- * @param {string} text - The text to search within.
- * @param {string} term - The search term to highlight.
- * @returns {React.ReactNode} The text with the search term wrapped in a <mark> tag.
- */
+// Highlight helper
 const highlightText = (text: string, term: string): React.ReactNode => {
   if (!term) return text;
   const parts = text.split(new RegExp(`(${term})`, 'gi'));
@@ -107,45 +102,38 @@ const highlightText = (text: string, term: string): React.ReactNode => {
   );
 };
 
-/**
- * Reusable component for a single FAQ item.
- * @param {Object} props - The component props.
- * @param {string} props.question - The FAQ question.
- * @param {string} props.answer - The FAQ answer.
- * @param {boolean} props.isOpen - Whether the answer is currently visible.
- * @param {Function} props.onClick - The function to call when the question is clicked.
- * @param {string} props.searchTerm - The current search term to highlight.
- */
+// FAQ Item Component
 const FAQItem = ({ question, answer, isOpen, onClick, searchTerm }: { question: string; answer: string; isOpen: boolean; onClick: () => void; searchTerm: string; }) => {
   const highlightedQuestion = highlightText(question, searchTerm);
   const highlightedAnswer = highlightText(answer, searchTerm);
 
   return (
-    <div className="border-b border-gray-200 py-4">
+    <div className="border-b border-gray-200 py-3">
       <button
         onClick={onClick}
-        className="flex justify-between items-center w-full text-left text-lg font-semibold text-gray-800 focus:outline-none"
+        className="flex justify-between items-center w-full text-left text-base font-semibold text-gray-800 focus:outline-none"
       >
         <span>{highlightedQuestion}</span>
         <span>
           {isOpen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transform rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           )}
         </span>
       </button>
       {isOpen && (
-        <p className="mt-2 text-gray-600 transition-all duration-300 ease-in-out">{highlightedAnswer}</p>
+        <p className="mt-1 text-sm text-gray-600 transition-all duration-300 ease-in-out">{highlightedAnswer}</p>
       )}
     </div>
   );
 };
 
+// Main App
 const App = () => {
   const [activeTab, setActiveTab] = useState('gettingStarted');
   const [openFAQ, setOpenFAQ] = useState<string | null>(null);
@@ -155,7 +143,6 @@ const App = () => {
     setOpenFAQ(openFAQ === question ? null : question);
   };
 
-  // Combine and filter all FAQs for search functionality
   const allFaqs = Object.values(sectionsData).flatMap(section => section.faqs ? section.faqs.map(faq => ({ ...faq, section: section.title })) : []);
   const filteredFaqs = allFaqs.filter(faq =>
     faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -165,8 +152,8 @@ const App = () => {
   const renderContent = () => {
     if (searchTerm) {
       return (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Search Results</h2>
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <h2 className="text-xl font-bold text-gray-800 mb-3">Search Results</h2>
           {filteredFaqs.length > 0 ? (
             <div className="divide-y divide-gray-200">
               {filteredFaqs.map((item) => (
@@ -181,7 +168,7 @@ const App = () => {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600">No results found for "{searchTerm}".</p>
+            <p className="text-sm text-gray-600">No results found for "{searchTerm}".</p>
           )}
         </div>
       );
@@ -192,21 +179,21 @@ const App = () => {
 
     if (activeTab === 'contact') {
       return (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Contact Support</h2>
-          <p className="text-gray-600 mb-4">
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <h2 className="text-xl font-bold text-gray-800 mb-3">Contact Support</h2>
+          <p className="text-sm text-gray-600 mb-3">
             If you can't find the answer you're looking for, please don't hesitate to reach out to our friendly support team.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-800">Email Support</h3>
-              <p className="text-gray-600">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h3 className="text-base font-semibold text-gray-800">Email Support</h3>
+              <p className="text-sm text-gray-600">
                 Email us at <a href="mailto:support@jambolush.com" className="text-[#083A85] hover:underline">support@jambolush.com</a>
               </p>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-800">Phone Support</h3>
-              <p className="text-gray-600">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h3 className="text-base font-semibold text-gray-800">Phone Support</h3>
+              <p className="text-sm text-gray-600">
                 Call us at <a href="tel:+250788437347" className="text-[#083A85] hover:underline">+250 788 437 347</a>
               </p>
             </div>
@@ -216,8 +203,8 @@ const App = () => {
     }
 
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">{section.title}</h2>
+      <div className="bg-white rounded-xl shadow-lg p-4">
+        <h2 className="text-xl font-bold text-gray-800 mb-3">{section.title}</h2>
         <div className="divide-y divide-gray-200">
           {section.faqs && section.faqs.map((item) => (
             <FAQItem
@@ -235,15 +222,17 @@ const App = () => {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-4 sm:p-8 font-sans">
+    <div className="bg-gray-100 min-h-screen p-4 sm:p-6 font-sans">
       <div className="container mx-auto max-w-6xl">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Help & Support</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mt-6 mb-8">Help & Support</h1>
+
+
         
-        <div className="flex flex-col md:flex-row gap-8">
+        <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar Navigation */}
           <div className="md:w-1/4">
-            <div className="bg-white rounded-xl shadow-lg p-4">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Support Topics</h2>
+            <div className="bg-white rounded-xl shadow-lg p-3">
+              <h2 className="text-xl font-bold text-gray-800 mb-3">Support Topics</h2>
               <nav>
                 {Object.keys(sectionsData).map(key => {
                   const section = sectionsData[key];
@@ -256,7 +245,7 @@ const App = () => {
                         setSearchTerm('');
                         setOpenFAQ(null);
                       }}
-                      className={`flex items-center w-full text-left p-3 rounded-lg transition-colors duration-200 ${
+                      className={`flex items-center w-full text-left p-2.5 rounded-lg transition-colors duration-200 ${
                         isActive ? 'bg-[#083A85] text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
@@ -272,7 +261,7 @@ const App = () => {
           {/* Main Content Area */}
           <div className="md:w-3/4">
             {/* Search Bar */}
-            <div className="mb-6">
+            <div className="mb-4">
               <input
                 type="text"
                 placeholder="Search FAQs, topics..."
