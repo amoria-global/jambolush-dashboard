@@ -345,7 +345,7 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
                       <i className="bi bi-slash-circle w-4 h-4 ml-2"></i>
                     </button>
                   )}
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"><i className="bi bi-x w-5 h-5 text-gray-500"></i></button>
+                  <button onClick={() => setIsModalOpen(false)} className="cursor-pointer"><i className="bi bi-x w-5 h-5 p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i></button>
                 </div>
               </div>
 
