@@ -17,7 +17,7 @@ export default function RootLayout({
       <body className="">
         <SideBar />
         <TopBar />
-        <main className={`md:ml-72 p-4 sm:p-6 md:p-10 `}>
+        <main className={`md:ml-72 p-4 sm:p-2 md:p-4 `}>
           {children}
         </main>
       </body>

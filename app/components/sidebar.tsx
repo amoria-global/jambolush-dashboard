@@ -13,7 +13,7 @@ interface NavigationItem {
 
 const SideBar: React.FC = () => {
     // Mock session role - in real app this would come from auth context
-    const [sessionRole, setSessionRole] = useState<UserRole>('user');
+    const [sessionRole, setSessionRole] = useState<UserRole>('host');
     const pathname = usePathname();
     useEffect(() => {
         const sessionUser = localStorage.getItem('sessionUser');
@@ -111,7 +111,7 @@ const SideBar: React.FC = () => {
                             className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
                                 isActive(item.path) 
                                     ? 'text-white font-medium' 
-                                    : 'text-gray-700 hover:text-black'
+                                    : 'text-gray-900 hover:text-black font-medium'
                             }`}
                             style={{
                                 backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
