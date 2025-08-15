@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { X, Upload, Check, ChevronRight, ChevronLeft, MapPin, Home, Calendar, DollarSign } from 'lucide-react';
+
+interface OwnerDetails {
+  names: string;
+  email: string;
+  phone: string;
+  address: string;
+}
 
 interface AvailabilityDates {
   start: string;
@@ -12,6 +18,13 @@ interface ImageFile {
   file: File;
   url: string;
   name: string;
+}
+
+interface VideoFile {
+  file: File;
+  url: string;
+  name: string;
+  size: number;
 }
 
 interface PropertyImages {
@@ -29,6 +42,7 @@ interface PropertyImages {
 }
 
 interface FormData {
+  ownerDetails: OwnerDetails;
   name: string;
   location: string;
   availabilityDates: AvailabilityDates;
@@ -36,6 +50,7 @@ interface FormData {
   type: string;
   features: string[];
   images: PropertyImages;
+  video3D: VideoFile | null;
 }
 
 interface ImageCategory {
@@ -45,9 +60,16 @@ interface ImageCategory {
 }
 
 const AddPropertyPage: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(true); // Auto-open modal
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
   const [formData, setFormData] = useState<FormData>({
+    ownerDetails: {
+      names: '',
+      email: '',
+      phone: '',
+      address: ''
+    },
     name: '',
     location: '',
     availabilityDates: { start: '', end: '' },
@@ -66,11 +88,12 @@ const AddPropertyPage: React.FC = () => {
       gym: [],
       exterior: [],
       childrenPlayroom: []
-    }
+    },
+    video3D: null
   });
 
   const propertyTypes: string[] = [
-    'Apartment', 'House', 'Villa', 'Condo', 'Townhouse', 
+    'Apartment', 'House', 'Villa', 'Condo', 'Townhouse',
     'Penthouse', 'Studio', 'Loft', 'Cottage', 'Bungalow'
   ];
 
@@ -91,51 +114,71 @@ const AddPropertyPage: React.FC = () => {
   const getAllPossibleFeatures = (): string[] => {
     const allFeatures = [
       // Basic Amenities
-      'WiFi', 'Air Conditioning', 'Heating', 'Parking', 'TV', 'Cable TV', 
+      'WiFi', 'Air Conditioning', 'Heating', 'Parking', 'TV', 'Cable TV',
       'Smart TV', 'Sound System', 'Security System', 'Smoke Detector',
-      
+
       // Kitchen & Dining
       'Full Kitchen', 'Kitchenette', 'Refrigerator', 'Microwave', 'Oven',
       'Stove', 'Dishwasher', 'Coffee Maker', 'Toaster', 'Blender',
       'Dining Table', 'Bar Counter', 'Wine Cooler',
-      
+
       // Bathroom
       'Hair Dryer', 'Bathtub', 'Shower', 'Hot Water', 'Towels Provided',
       'Toiletries', 'Bidet', 'Jacuzzi',
-      
+
       // Bedroom & Living
       'King Bed', 'Queen Bed', 'Single Bed', 'Sofa Bed', 'Extra Bedding',
       'Closet', 'Hangers', 'Iron', 'Fireplace', 'Ceiling Fan',
-      
+
       // Outdoor & Leisure
       'Pool', 'Hot Tub', 'Garden', 'BBQ Area', 'Patio', 'Balcony View',
       'Terrace', 'Outdoor Seating', 'Fire Pit', 'Playground',
-      
+
       // Work & Study
       'Dedicated Workspace', 'Desk', 'Ergonomic Chair', 'Monitor',
       'Printer', 'High-Speed Internet', 'Video Conference Setup',
-      
+
       // Laundry & Cleaning
       'Washing Machine', 'Dryer', 'Shared Laundry', 'Ironing Board',
       'Cleaning Service', 'Daily Housekeeping',
-      
+
       // Building Features
       'Elevator', 'Gym Access', 'Pool Access', 'Concierge', 'Doorman',
       'Pet Friendly', 'Wheelchair Accessible', 'Private Entrance',
-      
+
       // Special Features
       'Beach Access', 'Lake View', 'Mountain View', 'City View',
       'Guest House', 'Game Room', 'Home Theater', 'Library',
       'Wine Cellar', 'Sauna', 'Steam Room'
     ];
-    
+
     return allFeatures.sort();
   };
 
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
 
   const capitalizeFirstLetter = (str: string): string => {
     return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleOwnerInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      ownerDetails: {
+        ...prev.ownerDetails,
+        [name]: value
+      }
+    }));
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -166,13 +209,13 @@ const AddPropertyPage: React.FC = () => {
 
   const handleImageUpload = (category: keyof PropertyImages, files: FileList | null) => {
     if (!files) return;
-    
+
     const categoryConfig = imageCategories.find(cat => cat.name === category);
     if (!categoryConfig) return;
-    
+
     const maxImages = categoryConfig.maxImages;
     const fileArray = Array.from(files);
-    
+
     if (formData.images[category].length + fileArray.length > maxImages) {
       alert(`Maximum ${maxImages} images allowed for ${category}`);
       return;
@@ -193,6 +236,56 @@ const AddPropertyPage: React.FC = () => {
     }));
   };
 
+  const handleVideoUpload = (file: File | null) => {
+    if (!file) return;
+
+    const validVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+    if (!validVideoTypes.includes(file.type)) {
+      alert('Please upload a valid video file (MP4, WebM, MOV, AVI)');
+      return;
+    }
+
+    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+    if (file.size > maxSize) {
+      alert('Video file size must be less than 500MB');
+      return;
+    }
+
+    setVideoUploadProgress(0);
+    const interval = setInterval(() => {
+      setVideoUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
+
+    const newVideo: VideoFile = {
+      file,
+      url: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      video3D: newVideo
+    }));
+  };
+
+  const removeVideo = () => {
+    if (formData.video3D?.url) {
+      URL.revokeObjectURL(formData.video3D.url);
+    }
+    setFormData(prev => ({
+      ...prev,
+      video3D: null
+    }));
+    setVideoUploadProgress(0);
+  };
+
   const removeImage = (category: keyof PropertyImages, index: number) => {
     setFormData(prev => ({
       ...prev,
@@ -207,15 +300,20 @@ const AddPropertyPage: React.FC = () => {
     console.log('Property Data:', formData);
     alert('Property added successfully!');
     setIsModalOpen(false);
-    // After closing, you might want to redirect or show success state
     setTimeout(() => {
       resetForm();
-      setIsModalOpen(true); // Re-open for demo purposes
+      setIsModalOpen(true);
     }, 2000);
   };
 
   const resetForm = () => {
     setFormData({
+      ownerDetails: {
+        names: '',
+        email: '',
+        phone: '',
+        address: ''
+      },
       name: '',
       location: '',
       availabilityDates: { start: '', end: '' },
@@ -234,83 +332,83 @@ const AddPropertyPage: React.FC = () => {
         gym: [],
         exterior: [],
         childrenPlayroom: []
-      }
+      },
+      video3D: null
     });
     setCurrentStep(1);
+    setVideoUploadProgress(0);
   };
 
   const isStepValid = (): boolean => {
     if (currentStep === 1) {
-      return !!(formData.name && formData.location && 
+      return !!(formData.ownerDetails.names && formData.ownerDetails.email &&
+               formData.ownerDetails.phone && formData.ownerDetails.address);
+    }
+    if (currentStep === 2) {
+      return !!(formData.name && formData.location &&
              formData.availabilityDates.start && formData.availabilityDates.end &&
              formData.pricePerTwoNights && formData.type);
     }
-    if (currentStep === 2) {
+    if (currentStep === 3) {
       return formData.features.length > 0;
     }
-    if (currentStep === 3) {
-      // Check if all selected categories have maximum images
+    if (currentStep === 4) {
+      if (!formData.video3D) {
+        return false;
+      }
       for (const category of imageCategories) {
         const categoryImages = formData.images[category.name];
         if (categoryImages.length > 0 && categoryImages.length < category.maxImages) {
-          return false; // If any category has been started but not completed, invalid
+          return false;
         }
       }
-      // At least one category must have images
-      const hasAnyImages = imageCategories.some(
-        category => formData.images[category.name].length > 0
-      );
-      return hasAnyImages;
+      return true;
     }
     return true;
   };
 
+  const getStepLabel = (step: number): string => {
+    switch(step) {
+      case 1: return 'Owner Details';
+      case 2: return 'Property Details';
+      case 3: return 'Property Features';
+      case 4: return 'Media Upload';
+      default: return '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div 
-            className="fixed inset-0 bg-black/10 backdrop-blur-xs transition-opacity"
-          />
-          
+          <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
           <div className="flex items-center justify-center min-h-screen p-4">
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              {/* Modal Header */}
               <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between z-10">
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900">Add New Property</h2>
-                  <p className="text-sm text-gray-600 mt-1">Step {currentStep} of 3</p>
+                  <p className="text-sm text-gray-600 mt-1">Step {currentStep} of 4</p>
                 </div>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
+               <button onClick={() => setIsModalOpen(false)} className="cursor-pointer"><i className="bi bi-x w-5 h-5 p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i></button>
               </div>
-
-              {/* Progress Bar */}
               <div className="px-8 pt-4 pb-2">
                 <div className="flex items-center justify-between relative">
-                  {[1, 2, 3].map((step, index) => (
+                  {[1, 2, 3, 4].map((step) => (
                     <div key={step} className="flex items-center flex-1">
                       <div className="flex flex-col items-center">
                         <div className={`
                           w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all
-                          ${currentStep >= step 
-                            ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-lg' 
+                          ${currentStep >= step
+                            ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-lg'
                             : 'bg-gray-200 text-gray-600'}
                         `}>
-                          {currentStep > step ? <Check className="w-5 h-5" /> : step}
+                          {currentStep > step ? '✓' : step}
                         </div>
-                        <span className="text-xs text-gray-600 mt-2 whitespace-nowrap">
-                          {index === 0 && 'Property Details'}
-                          {index === 1 && 'Property Features'}
-                          {index === 2 && 'Upload Images'}
+                        <span className="text-sm font-semibold text-gray-600 mt-2 whitespace-nowrap">
+                          {getStepLabel(step)}
                         </span>
                       </div>
-                      {step < 3 && (
+                      {step < 4 && (
                         <div className={`flex-1 h-1 mx-2 transition-all self-start mt-5 ${
                           currentStep > step ? 'bg-gradient-to-r from-[#083A85] to-[#0a4499]' : 'bg-gray-200'
                         }`} />
@@ -320,13 +418,80 @@ const AddPropertyPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Modal Content */}
               <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 260px)' }}>
-                {/* Step 1: Property Details */}
                 {currentStep === 1 && (
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">
+                        Property Owner Information
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-6">
+                        Please provide the property owner's contact details
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        name="names"
+                        value={formData.ownerDetails.names}
+                        onChange={handleOwnerInputChange}
+                        placeholder="Enter owner's full name"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.ownerDetails.email}
+                        onChange={handleOwnerInputChange}
+                        placeholder="owner@example.com"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.ownerDetails.phone}
+                        onChange={handleOwnerInputChange}
+                        placeholder="+1 (555) 123-4567"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        name="address"
+                        value={formData.ownerDetails.address}
+                        onChange={handleOwnerInputChange}
+                        placeholder="123 Main St, City, State, ZIP"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 2 && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Property Name
                       </label>
                       <input
@@ -335,13 +500,12 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.name}
                         onChange={handleInputChange}
                         placeholder="Enter property name"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <MapPin className="w-4 h-4 inline mr-1" />
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Location
                       </label>
                       <input
@@ -350,14 +514,13 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.location}
                         onChange={handleInputChange}
                         placeholder="City, State"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Calendar className="w-4 h-4 inline mr-1" />
+                        <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                           Available From
                         </label>
                         <input
@@ -369,8 +532,7 @@ const AddPropertyPage: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Calendar className="w-4 h-4 inline mr-1" />
+                        <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                           Available Until
                         </label>
                         <input
@@ -384,8 +546,7 @@ const AddPropertyPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <DollarSign className="w-4 h-4 inline mr-1" />
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Price per 2 Nights
                       </label>
                       <input
@@ -394,13 +555,12 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.pricePerTwoNights}
                         onChange={handleInputChange}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div className="pb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <Home className="w-4 h-4 inline mr-1" />
+                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Property Type
                       </label>
                       <select
@@ -418,8 +578,7 @@ const AddPropertyPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Step 2: Property Features - Now Selectable */}
-                {currentStep === 2 && (
+                {currentStep === 3 && (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -457,7 +616,7 @@ const AddPropertyPage: React.FC = () => {
                               }
                             `}>
                               {formData.features.includes(feature) && (
-                                <Check className="w-3 h-3 text-[#083A85]" />
+                                <span className="text-[#083A85] text-sm">✓</span>
                               )}
                             </div>
                             <span className="text-sm">{feature}</span>
@@ -468,152 +627,261 @@ const AddPropertyPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Step 3: Upload Images */}
-                {currentStep === 3 && (
+                {currentStep === 4 && (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 mb-4">
-                        Upload Property Images
+                        Upload Property Media
                       </h3>
-                      <p className="text-sm text-gray-600 mb-2">
-                        Upload high-quality images for each area of your property
-                      </p>
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-                        <p className="text-sm text-amber-800">
-                          <strong>Important:</strong> Once you start uploading images for a category, you must upload the maximum number of images allowed for that category.
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="space-y-6">
-                      {imageCategories.map(category => {
-                        const currentCount = formData.images[category.name].length;
-                        const isIncomplete = currentCount > 0 && currentCount < category.maxImages;
-                        
-                        return (
-                          <div 
-                            key={category.name} 
-                            className={`border rounded-xl p-4 transition-all ${
-                              isIncomplete 
-                                ? 'border-amber-400 bg-amber-50' 
-                                : 'border-gray-200 bg-white'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-medium text-gray-900">
-                                {category.label}
-                                {isIncomplete && (
-                                  <span className="ml-2 text-sm text-amber-600">
-                                    (Incomplete - {category.maxImages - currentCount} more required)
-                                  </span>
-                                )}
-                              </h4>
-                              <span className={`text-sm ${
-                                currentCount === category.maxImages 
-                                  ? 'text-green-600 font-medium' 
-                                  : 'text-gray-500'
-                              }`}>
-                                {currentCount}/{category.maxImages} images
-                                {currentCount === category.maxImages && ' ✓'}
-                              </span>
+                      <div className="mb-8">
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                          <div className="flex items-start">
+                            <svg className="w-5 h-5 text-red-500 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <p className="text-sm font-medium text-red-800">
+                                3D Property Video - REQUIRED
+                              </p>
+                              <p className="text-sm font-medium text-red-700 mt-1">
+                                You must upload a 3D walkthrough video of your property to proceed. This helps potential renters get a complete view of the space.
+                              </p>
                             </div>
+                          </div>
+                        </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              {formData.images[category.name].map((image, index) => (
-                                <div key={index} className="relative group">
-                                  <img
-                                    src={image.url}
-                                    alt={`${category.label} ${index + 1}`}
-                                    className="w-full h-24 object-cover rounded-lg"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => removeImage(category.name, index)}
-                                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
+                        <div className={`border-2 rounded-xl p-6 transition-all ${
+                          formData.video3D
+                            ? 'border-green-400 bg-green-50'
+                            : 'border-red-400 bg-red-50'
+                        }`}>
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-medium text-gray-900">
+                              3D Property Video
+                              {!formData.video3D && (
+                                <span className="ml-2 text-sm text-red-600">*Required</span>
+                              )}
+                            </h4>
+                            {formData.video3D && (
+                              <span className="text-sm text-green-600 font-medium">✓ Uploaded</span>
+                            )}
+                          </div>
+
+                          {!formData.video3D ? (
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => videoInputRef.current?.click()}
+                                className="w-full py-8 border-2 border-dashed border-red-300 rounded-lg flex flex-col items-center justify-center hover:border-red-400 hover:bg-red-100 transition-all cursor-pointer"
+                              >
+                                <svg className="w-12 h-12 text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-sm font-medium text-gray-700">Click to upload 3D video</span>
+                                <span className="text-sm text-gray-500 mt-1">MP4, WebM, MOV, AVI (Max 500MB)</span>
+                              </button>
+                              <input
+                                ref={videoInputRef}
+                                type="file"
+                                accept="video/*"
+                                onChange={(e) => handleVideoUpload(e.target.files?.[0] || null)}
+                                className="hidden"
+                              />
+                            </div>
+                          ) : (
+                            <div className="bg-white rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="p-2 bg-green-100 rounded-lg">
+                                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">{formData.video3D.name}</p>
+                                    <p className="text-sm text-gray-500">{formatFileSize(formData.video3D.size)}</p>
+                                  </div>
                                 </div>
-                              ))}
-                              
-                              {formData.images[category.name].length < category.maxImages && (
                                 <button
                                   type="button"
-                                  onClick={() => fileInputRefs.current[category.name]?.click()}
-                                  className={`h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
-                                    isIncomplete
-                                      ? 'border-amber-400 bg-amber-50 hover:border-amber-500 hover:bg-amber-100'
-                                      : 'border-gray-300 hover:border-[#083A85] hover:bg-blue-50'
-                                  }`}
+                                  onClick={removeVideo}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                 >
-                                  <Upload className={`w-5 h-5 mb-1 ${
-                                    isIncomplete ? 'text-amber-500' : 'text-gray-400 cursor-pointer'
-                                  }`} />
-                                  <span className={`text-xs ${
-                                    isIncomplete ? 'text-amber-600' : 'text-gray-500 cursor-pointer'
-                                  }`}>
-                                    Upload
-                                  </span>
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
                                 </button>
+                              </div>
+                              {videoUploadProgress > 0 && videoUploadProgress < 100 && (
+                                <div className="mt-3">
+                                  <div className="bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className="bg-gradient-to-r from-[#083A85] to-[#0a4499] h-2 rounded-full transition-all"
+                                      style={{ width: `${videoUploadProgress}%` }}
+                                    />
+                                  </div>
+                                  <p className="text-sm text-gray-500 mt-1">Uploading... {videoUploadProgress}%</p>
+                                </div>
                               )}
                             </div>
+                          )}
+                        </div>
+                      </div>
 
-                            <input
-                              ref={el => {
-                                if (el) fileInputRefs.current[category.name] = el;
-                              }}
-                              type="file"
-                              multiple
-                              accept="image/*"
-                              onChange={(e) => handleImageUpload(category.name, e.target.files)}
-                              className="hidden"
-                            />
-                          </div>
-                        );
-                      })}
+                      <div>
+                        <h4 className="text-lg font-medium text-gray-900 mb-2">
+                          Property Images (Optional)
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Upload high-quality images for different areas of your property
+                        </p>
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                          <p className="text-sm text-amber-800">
+                            <strong>Note:</strong> Images are optional, but if you start uploading for a category, you must complete it with the maximum allowed images.
+                          </p>
+                        </div>
+
+                        <div className="space-y-6">
+                          {imageCategories.map(category => {
+                            const currentCount = formData.images[category.name].length;
+                            const isIncomplete = currentCount > 0 && currentCount < category.maxImages;
+
+                            return (
+                              <div
+                                key={category.name}
+                                className={`border rounded-xl p-4 transition-all ${
+                                  isIncomplete
+                                    ? 'border-amber-400 bg-amber-50'
+                                    : 'border-gray-200 bg-white'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-3">
+                                  <h5 className="font-medium text-gray-900">
+                                    {category.label}
+                                    {isIncomplete && (
+                                      <span className="ml-2 text-sm text-amber-600">
+                                        (Incomplete - {category.maxImages - currentCount} more required)
+                                      </span>
+                                    )}
+                                  </h5>
+                                  <span className={`text-sm ${
+                                    currentCount === category.maxImages
+                                      ? 'text-green-600 font-medium'
+                                      : 'text-gray-500'
+                                  }`}>
+                                    {currentCount}/{category.maxImages} images
+                                    {currentCount === category.maxImages && ' ✓'}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  {formData.images[category.name].map((image, index) => (
+                                    <div key={index} className="relative group">
+                                      <img
+                                        src={image.url}
+                                        alt={`${category.label} ${index + 1}`}
+                                        className="w-full h-24 object-cover rounded-lg"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeImage(category.name, index)}
+                                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                      >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  ))}
+
+                                  {formData.images[category.name].length < category.maxImages && (
+                                    <button
+                                      type="button"
+                                      onClick={() => fileInputRefs.current[category.name]?.click()}
+                                      className={`h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                        isIncomplete
+                                          ? 'border-amber-400 bg-amber-50 hover:border-amber-500 hover:bg-amber-100'
+                                          : 'border-gray-300 hover:border-[#083A85] hover:bg-blue-50'
+                                      }`}
+                                    >
+                                      <svg className={`w-6 h-6 mb-1 ${isIncomplete ? 'text-amber-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                      </svg>
+                                      <span className={`text-sm ${isIncomplete ? 'text-amber-600' : 'text-gray-500'}`}>
+                                        Upload
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+
+                                <input
+                                  ref={el => {
+                                    if (el) fileInputRefs.current[category.name] = el;
+                                  }}
+                                  type="file"
+                                  multiple
+                                  accept="image/*"
+                                  onChange={(e) => handleImageUpload(category.name, e.target.files)}
+                                  className="hidden"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Modal Footer */}
               <div className="sticky bottom-0 bg-white border-t border-gray-200 px-8 py-4 flex items-center justify-between z-10">
                 <button
-  type="button"
-  onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
-  disabled={currentStep === 1}
-  className={`inline-flex items-center px-4 py-2 rounded-full font-medium transition-all ${
-    currentStep === 1 
-      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer'
-  }`}
->
-  <ChevronLeft className="w-4 h-4 mr-1" />
-  Previous
-</button>
+                  type="button"
+                  onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
+                  disabled={currentStep === 1}
+                  className={`inline-flex items-center px-4 py-2 rounded-full font-medium transition-all ${
+                    currentStep === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer'
+                  }`}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </button>
 
-
-                {currentStep < 3 ? (
+                {currentStep < 4 ? (
                   <button
                     type="button"
                     onClick={() => setCurrentStep(prev => prev + 1)}
                     disabled={!isStepValid()}
-                    className={`inline-flex items-center px-6 py-2 rounded-full font-medium cursor-pointer transition-all ${
+                    className={`inline-flex items-center px-6 py-2 rounded-full font-medium transition-all ${
                       isStepValid()
-                        ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] cursor-pointer shadow-lg hover:shadow-xl'
+                        ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
                     Next
-                    <ChevronRight className="w-4 h-4 ml-1" />
+                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    className="inline-flex items-center px-6 py-2 bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white font-medium rounded-full hover:from-[#0a4499] hover:to-[#0c52b8] transition-all cursor-pointer shadow-lg hover:shadow-xl"
+                    disabled={!isStepValid()}
+                    className={`inline-flex items-center px-6 py-2 rounded-full font-medium transition-all ${
+                      isStepValid()
+                        ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl cursor-pointer'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                   >
-                    <Check className="w-4 h-4 mr-1" />
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
                     Add Property
                   </button>
                 )}
@@ -623,7 +891,6 @@ const AddPropertyPage: React.FC = () => {
         </div>
       )}
 
-      {/* Simple background when modal is closed */}
       {!isModalOpen && (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
@@ -632,6 +899,24 @@ const AddPropertyPage: React.FC = () => {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        ::-webkit-scrollbar {
+          width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: #083A85;
+          border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background: #0a4499;
+        }
+      `}</style>
     </div>
   );
 };

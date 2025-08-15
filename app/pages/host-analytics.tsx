@@ -10,7 +10,6 @@ const hostData = {
     { name: 'Database', count: 350 },
     { name: 'Storage', count: 300 },
   ],
-  // Updated monthly data for bookings
   monthlyBookings: [
     { month: 'Jan', count: 120 },
     { month: 'Feb', count: 150 },
@@ -23,160 +22,110 @@ const hostData = {
   totalRevenue: 350000,
   occupancyRate: 85,
   cancellationsThisMonth: 15,
-  // Updated booking sources with new colors
   bookingSources: [
-    { name: 'Field Agent', count: 700, color: '#F20C8F' },
-    { name: 'Direct', count: 1000, color: '#083A85' },
-    { name: 'Referral', count: 800, color: '#1A9F5C' },
+    { name: 'Field Agent', count: 700, color: '#F20C8F' }, // secondary gray
+    { name: 'Direct', count: 1000, color: '#083A85' },     // primary blue
   ],
-  properties: [
-    { id: 'prop-1', name: 'Mountain View Cabin' },
-    { id: 'prop-2', name: 'Downtown Loft' },
-  ],
-  // New data for reviews
   averageRating: 4.8,
   totalReviews: 542,
 };
 
 const recentBookings = [
-  { id: 101, guest: 'Moise caicedo', property: 'Mountain View Cabin', checkIn: '2025-08-15', revenue: 750 },
-  { id: 102, guest: 'Enzo fernandez', property: 'Downtown Loft', checkIn: '2025-08-18', revenue: 450 },
+  { id: 101, guest: 'Moise Caicedo', property: 'Mountain View Cabin', checkIn: '2025-08-15', revenue: 750 },
+  { id: 102, guest: 'Enzo Fernandez', property: 'Downtown Loft', checkIn: '2025-08-18', revenue: 450 },
   { id: 103, guest: 'William Estavao', property: 'Mountain View Cabin', checkIn: '2025-08-20', revenue: 900 },
 ];
 
-// New mock data for recent reviews
 const recentReviews = [
   { id: 1, guest: 'Sarah Connor', rating: 5, comment: 'Amazing stay! Everything was perfect.', date: '2025-08-05' },
   { id: 2, guest: 'Kyle Reese', rating: 4, comment: 'Great location, but the Wi-Fi was a bit slow.', date: '2025-08-01' },
-  { id: 3, guest: 'Muben pablo', rating: 5, comment: 'Hasta la vista, baby! Excellent experience.', date: '2025-07-28' },
+  { id: 3, guest: 'Muben Pablo', rating: 5, comment: 'Hasta la vista, baby! Excellent experience.', date: '2025-07-28' },
 ];
 
 interface StatCardProps {
   title: string;
   value: number | string;
   trend?: string;
-  color?: string;
 }
 
-// Reusable component for displaying a key metric
-const StatCard: React.FC<StatCardProps> = ({ title, value, trend, color = 'bg-blue-500' }) => (
-  <div className={`p-6 rounded-xl shadow-lg text-white flex-1 min-w-[200px] ${color}`}>
-    <h3 className="text-sm uppercase tracking-wide opacity-80">{title}</h3>
-    <p className="text-4xl font-bold mt-2">{value}</p>
-    {trend && <p className="text-sm mt-1 opacity-90">{trend}</p>}
+// White KPI card with smaller fonts
+const StatCard: React.FC<StatCardProps> = ({ title, value, trend }) => (
+  <div className="p-4 rounded-xl shadow hover:shadow-lg transition duration-300 text-gray-800 flex-1 min-w-[160px] bg-white">
+    <h3 className="text-xs uppercase tracking-wide opacity-80">{title}</h3>
+    <p className="text-2xl font-medium mt-1">{value}</p>
+    {trend && <p className="text-xs mt-1 opacity-90">{trend}</p>}
   </div>
 );
 
-interface LineChartProps {
-  data: { month: string; count: number }[];
-}
-
-// Custom SVG Line Chart component
-const LineChart: React.FC<LineChartProps> = ({ data }) => {
-  const chartWidth = 600;
-  const chartHeight = 250;
-  const padding = 40;
-  const innerWidth = chartWidth - 2 * padding;
-  const innerHeight = chartHeight - 2 * padding;
-
+// Line Chart
+const LineChart: React.FC<{ data: { month: string; count: number }[] }> = ({ data }) => {
+  const width = 400;
+  const height = 180;
+  const padding = 30;
   const maxCount = Math.max(...data.map(d => d.count));
-  const xScale = (index: number) => padding + (index / (data.length - 1)) * innerWidth;
-  const yScale = (value: number) => padding + innerHeight - (value / maxCount) * innerHeight;
+
+  const xScale = (index: number) => padding + (index / (data.length - 1)) * (width - 2 * padding);
+  const yScale = (value: number) => height - padding - (value / maxCount) * (height - 2 * padding);
 
   const points = data.map((d, i) => `${xScale(i)},${yScale(d.count)}`).join(' ');
 
   return (
-    <div className="flex justify-center w-full">
-      <svg width={chartWidth} height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="bg-gray-50 rounded-xl shadow-inner">
-        {/* X-axis */}
-        <line x1={padding} y1={padding + innerHeight} x2={padding + innerWidth} y2={padding + innerHeight} stroke="#e2e8f0" strokeWidth="2" />
-        {/* Y-axis */}
-        <line x1={padding} y1={padding} x2={padding} y2={padding + innerHeight} stroke="#e2e8f0" strokeWidth="2" />
-
-        {/* X-axis labels */}
-        {data.map((d, i) => (
-          <text key={d.month} x={xScale(i)} y={padding + innerHeight + 20} textAnchor="middle" className="text-xs fill-gray-500">{d.month}</text>
-        ))}
-
-        {/* Y-axis labels */}
-        {[0, maxCount / 2, maxCount].map(value => (
-          <text key={value} x={padding - 10} y={yScale(value) + 5} textAnchor="end" className="text-xs fill-gray-500">{value}</text>
-        ))}
-
-        {/* Line path */}
-        <polyline points={points} fill="none" stroke="#083A85" strokeWidth="3" />
-
-        {/* Data points with tooltips */}
-        {data.map((d, i) => (
-          <g key={i}>
-            <circle cx={xScale(i)} cy={yScale(d.count)} r="5" fill="#F20C8F" />
-            <title>{`${d.month}: ${d.count} Bookings`}</title>
-          </g>
-        ))}
-      </svg>
-    </div>
+    <svg width={width} height={height}>
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#CBD5E0" strokeWidth="2" />
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#CBD5E0" strokeWidth="2" />
+      <polyline points={points} fill="none" stroke="#003087" strokeWidth="2" />
+      {data.map((d, i) => (
+        <circle key={i} cx={xScale(i)} cy={yScale(d.count)} r={4} fill="#F20C8F">
+          <title>{`${d.month}: ${d.count} Bookings`}</title>
+        </circle>
+      ))}
+      {data.map((d, i) => (
+        <text key={i} x={xScale(i)} y={height - padding + 12} textAnchor="middle" className="text-[10px] fill-gray-500">{d.month}</text>
+      ))}
+      {[0, maxCount / 2, maxCount].map((val, idx) => (
+        <text key={idx} x={padding - 8} y={yScale(val)} textAnchor="end" className="text-[10px] fill-gray-500">{Math.round(val)}</text>
+      ))}
+    </svg>
   );
 };
 
-interface PieChartProps {
-  data: { name: string; count: number; color: string }[];
-}
-
-// Custom SVG Pie Chart component
-const PieChart: React.FC<PieChartProps> = ({ data }) => {
-  const total = data.reduce((sum, { count }) => sum + count, 0);
-  let startAngle = 0;
-  const radius = 80;
+// Pie Chart with percentages
+const PieChart: React.FC<{ data: { name: string; count: number; color: string }[] }> = ({ data }) => {
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  const radius = 70;
   const cx = 100;
   const cy = 100;
-  const strokeWidth = 30;
+  let startAngle = 0;
 
-  const pieSlices = data.map((item, index) => {
+  const slices = data.map((item, i) => {
     const sliceAngle = (item.count / total) * 360;
     const endAngle = startAngle + sliceAngle;
-
-    const startRadians = (startAngle - 90) * Math.PI / 180;
-    const endRadians = (endAngle - 90) * Math.PI / 180;
-
-    const startX = cx + radius * Math.cos(startRadians);
-    const startY = cy + radius * Math.sin(startRadians);
-    const endX = cx + radius * Math.cos(endRadians);
-    const endY = cy + radius * Math.sin(endRadians);
-
-    const largeArcFlag = sliceAngle > 180 ? 1 : 0;
-
-    const d = [
-      `M ${startX} ${startY}`,
-      `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`,
-    ].join(' ');
-
+    const x1 = cx + radius * Math.cos((startAngle - 90) * Math.PI / 180);
+    const y1 = cy + radius * Math.sin((startAngle - 90) * Math.PI / 180);
+    const x2 = cx + radius * Math.cos((endAngle - 90) * Math.PI / 180);
+    const y2 = cy + radius * Math.sin((endAngle - 90) * Math.PI / 180);
+    const largeArc = sliceAngle > 180 ? 1 : 0;
     startAngle = endAngle;
 
     return (
       <path
-        key={index}
-        d={d}
-        fill="none"
-        stroke={item.color}
-        strokeWidth={strokeWidth}
-        className="transition-all duration-300 ease-in-out"
+        key={i}
+        d={`M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+        fill={item.color}
       >
-        <title>{`${item.name}: ${item.count} (${(item.count / total * 100).toFixed(1)}%)`}</title>
+        <title>{`${item.name}: ${((item.count / total) * 100).toFixed(1)}%`}</title>
       </path>
     );
   });
 
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <svg width={200} height={200} viewBox="0 0 200 200">
-        {pieSlices}
-        <circle cx={100} cy={100} r={radius - strokeWidth / 2} fill="white" />
-      </svg>
-      <div className="flex flex-col items-start mt-4">
-        {data.map((item, index) => (
-          <div key={index} className="flex items-center space-x-2">
-            <span className="w-4 h-4 rounded-full" style={{ backgroundColor: item.color }}></span>
-            <span className="text-sm text-gray-700">{item.name}</span>
+    <div className="flex flex-col items-center">
+      <svg width={180} height={180} className="mx-auto">{slices}</svg>
+      <div className="flex flex-col mt-3 space-y-1">
+        {data.map((item, idx) => (
+          <div key={idx} className="flex items-center gap-2 text-sm">
+            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
+            <span>{item.name} ({((item.count / total) * 100).toFixed(1)}%)</span>
           </div>
         ))}
       </div>
@@ -185,129 +134,84 @@ const PieChart: React.FC<PieChartProps> = ({ data }) => {
 };
 
 const StarIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
   </svg>
 );
 
-const App: React.FC = () => {
-  return (
-    <div className="bg-gray-100 min-h-screen p-4 sm:p-8 font-sans">
-      <div className="container mx-auto max-w-6xl">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Host Analytics Dashboard</h1>
-        
-        {/* New Booking and Financial KPI Cards Section */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <StatCard 
-            title="Total Bookings" 
-            value={hostData.totalBookings.toLocaleString()} 
-            color="bg-[#1A9F5C]"
-          />
-          <StatCard 
-            title="Total Revenue" 
-            value={`$${hostData.totalRevenue.toLocaleString()}`} 
-            color="bg-[#083A85]"
-          />
-          <StatCard 
-            title="Occupancy Rate" 
-            value={`${hostData.occupancyRate}%`} 
-            color="bg-[#F20C8F]"
-          />
-          <StatCard 
-            title="Cancellations (This Month)" 
-            value={hostData.cancellationsThisMonth} 
-            color="bg-[#EF4444]"
-          />
-        </div>
+const App: React.FC = () => (
+  <div className="bg-gray-100 min-h-screen pt-20 p-4 sm:p-6 font-sans">
+    <div className="container mx-auto max-w-6xl">
+  <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 mt-4 leading-tight">
+    Host Analytics Dashboard
+  </h1>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Monthly Bookings</h2>
-            <LineChart data={hostData.monthlyBookings} />
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Booking Sources</h2>
-            <div className="flex justify-center items-center h-full">
-              <PieChart data={hostData.bookingSources} />
+  {/* KPI Cards */}
+  <div className="flex flex-wrap gap-4 mb-6">
+    <StatCard title="Total Bookings" value={hostData.totalBookings.toLocaleString()} />
+    <StatCard title="Total Revenue" value={`$${hostData.totalRevenue.toLocaleString()}`} />
+    <StatCard title="Occupancy Rate" value={`${hostData.occupancyRate}%`} />
+    <StatCard title="Cancellations (This Month)" value={hostData.cancellationsThisMonth} />
+  
+</div>
+
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <h2 className="text-lg font-bold text-gray-800 mb-3">Monthly Bookings</h2>
+          <LineChart data={hostData.monthlyBookings} />
+        </div>
+        <div className="bg-white rounded-xl shadow-lg p-4">
+          <h2 className="text-lg font-bold text-gray-800 mb-3">Booking Sources</h2>
+          <PieChart data={hostData.bookingSources} />
+        </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-3">Reviews & Ratings</h2>
+        <div className="flex flex-wrap items-center gap-4 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-4xl font-bold text-gray-800">{hostData.averageRating}</span>
+            <div className="flex text-yellow-400">
+              <StarIcon /><StarIcon /><StarIcon /><StarIcon /><StarIcon />
             </div>
           </div>
-        </div>
-
-        {/* Reviews and Ratings Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Reviews & Ratings</h2>
-          <div className="flex flex-wrap items-center gap-6 mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-5xl font-bold text-gray-800">{hostData.averageRating}</span>
-              <div className="flex text-yellow-400">
-                <StarIcon />
-                <StarIcon />
-                <StarIcon />
-                <StarIcon />
-                <StarIcon />
-              </div>
-            </div>
-            <div className="text-gray-500">
-              <p>Overall rating from {hostData.totalReviews} reviews</p>
-            </div>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Recent Reviews</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comment</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentReviews.map(review => (
-                  <tr key={review.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{review.guest}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-yellow-400">
-                      {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{review.comment}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{review.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Tables Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Recent Bookings</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentBookings.map(booking => (
-                  <tr key={booking.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{booking.guest}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{booking.property}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{booking.checkIn}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${booking.revenue.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="text-gray-500 text-sm">
+            <p>Overall rating from {hostData.totalReviews} reviews</p>
           </div>
         </div>
       </div>
+
+      {/* Recent Bookings Table */}
+      <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-3">Recent Bookings</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Guest</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Check-in</th>
+                <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {recentBookings.map(b => (
+                <tr key={b.id}>
+                  <td className="px-4 py-2 text-gray-900">{b.guest}</td>
+                  <td className="px-4 py-2 text-gray-500">{b.property}</td>
+                  <td className="px-4 py-2 text-gray-500">{b.checkIn}</td>
+                  <td className="px-4 py-2 text-gray-500">${b.revenue.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
-  );
-};
+  </div>
+);
 
 export default App;

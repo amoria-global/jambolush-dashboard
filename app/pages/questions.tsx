@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ChevronLeft, Clock, AlertCircle, CheckCircle, User, Mail, Play, Send } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -474,14 +473,12 @@ const AssessmentPage: React.FC = () => {
     setAnswers(prev => {
       const existing = prev.find(a => a.questionId === questionId);
       if (existing) {
-        const isSelected = existing.selectedOptions.includes(optionIndex);
+        // For single answer: replace the selected option instead of toggling
         return prev.map(a =>
           a.questionId === questionId
             ? {
               ...a,
-              selectedOptions: isSelected
-                ? a.selectedOptions.filter(i => i !== optionIndex)
-                : [...a.selectedOptions, optionIndex]
+              selectedOptions: [optionIndex] // Always set to single option
             }
             : a
         );
@@ -536,7 +533,7 @@ const AssessmentPage: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
           <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Clock className="w-12 h-12 text-red-600" />
+            <i className="bi bi-clock text-red-600" style={{ fontSize: '3rem' }}></i>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Time's Up!</h2>
           <p className="text-gray-600 mb-8">
@@ -555,7 +552,7 @@ const AssessmentPage: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-12 h-12 text-green-600" />
+            <i className="bi bi-check-circle-fill text-green-600" style={{ fontSize: '3rem' }}></i>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Assessment Submitted!</h2>
           <p className="text-gray-600 mb-8">
@@ -570,17 +567,17 @@ const AssessmentPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col">
+    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
       {showTimeAlert && (
-        <div className="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
-            <AlertCircle className="w-5 h-5 mr-3" />
+            <i className="bi bi-exclamation-circle-fill me-3"></i>
             <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
           </div>
         </div>
       )}
 
-      <header className="bg-gradient-to-br from-[#083A85] to-[#0a4499] px-4 sm:px-6 lg:px-8 py-6 sticky top-0 z-10 shadow-md">
+      <header className="bg-gradient-to-br from-[#083A85] to-[#0a4499] px-4 sm:px-6 lg:px-8 py-6 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white tracking-wide">
@@ -595,7 +592,7 @@ const AssessmentPage: React.FC = () => {
           {assessmentStarted && !assessmentCompleted && (
             <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'
               }`}>
-              <Clock className="w-5 h-5 mr-2 text-white" />
+              <i className="bi bi-clock-fill text-white me-2"></i>
               <span className="font-mono text-lg font-medium text-white">
                 {formatTime(timeRemaining)}
               </span>
@@ -614,7 +611,7 @@ const AssessmentPage: React.FC = () => {
                   style={{ width: `${((currentStep - 1) * questionsPerPage) / questions.length * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-slate-600 font-medium mt-1.5 block text-right">
+              <span className="text-sm text-slate-600 font-medium mt-1.5 block text-right">
                 Progress: {Math.round(((currentStep - 1) * questionsPerPage) / questions.length * 100)}%
               </span>
             </div>
@@ -628,11 +625,11 @@ const AssessmentPage: React.FC = () => {
             <div className="space-y-8">
               <div className="bg-blue-50 border-l-4 border-[#083A85] rounded-r-lg p-6">
                 <div className="flex items-center mb-4">
-                  <User className="w-5 h-5 text-[#083A85] mr-3" />
+                  <i className="bi bi-person-fill text-[#083A85] me-3"></i>
                   <span className="font-semibold text-slate-800">{agentInfo.name}</span>
                 </div>
                 <div className="flex items-center">
-                  <Mail className="w-5 h-5 text-[#083A85] mr-3" />
+                  <i className="bi bi-envelope-fill text-[#083A85] me-3"></i>
                   <span className="font-bold text-slate-700">{agentInfo.email}</span>
                 </div>
               </div>
@@ -667,7 +664,7 @@ const AssessmentPage: React.FC = () => {
                   onClick={handleNext}
                   className="cursor-pointer inline-flex place-items-center px-10 py-4 bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white font-bold text-lg rounded-full hover:from-[#0a4499] hover:to-[#0c52b8] transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
                 >
-                  <Play className="w-6 h-6 mr-2" />
+                  <i className="bi bi-play-fill me-2" style={{ fontSize: '1.5rem' }}></i>
                   Start Assessment
                 </button>
               </div>
@@ -701,13 +698,14 @@ const AssessmentPage: React.FC = () => {
                               }`}
                           >
                             <input
-                              type="checkbox"
+                              type="radio"
+                              name={`question-${question.id}`}
                               checked={isSelected}
                               onChange={() => handleAnswerSelect(question.id, optionIdx)}
                               className="sr-only"
                             />
                             <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mr-4 flex items-center justify-center ${isSelected ? 'border-[#083A85] bg-[#083A85]' : 'border-slate-400'}`}>
-                                {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                                {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
                             </div>
                             <span className="text-slate-800 font-semibold">
                               {option}
@@ -734,7 +732,7 @@ const AssessmentPage: React.FC = () => {
 
                 <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6 max-w-md mx-auto">
                   <div className="flex items-center justify-center mb-3">
-                    <CheckCircle className="w-8 h-8 text-green-600 mr-3" />
+                    <i className="bi bi-check-circle-fill text-green-600 me-3" style={{ fontSize: '2rem' }}></i>
                     <span className="text-xl font-bold text-slate-800">
                       {answers.filter(a => a.selectedOptions.length > 0).length} of {questions.length} Questions Answered
                     </span>
@@ -754,7 +752,7 @@ const AssessmentPage: React.FC = () => {
                   onClick={handleSubmit}
                   className="cursor-pointer inline-flex items-center px-10 py-4 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-lg rounded-full hover:from-green-600 hover:to-green-700 transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
                 >
-                  <Send className="w-6 h-6 mr-2" />
+                  <i className="bi bi-send-fill me-2" style={{ fontSize: '1.5rem' }}></i>
                   Submit Assessment
                 </button>
               </div>
@@ -771,7 +769,7 @@ const AssessmentPage: React.FC = () => {
             disabled={currentStep === 0}
             className="cursor-pointer inline-flex items-center px-5 py-2.5 rounded-full font-semibold transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:hover:bg-slate-200"
           >
-            <ChevronLeft className="w-4 h-4 mr-1.5" />
+            <i className="bi bi-chevron-left me-1"></i>
             Previous
           </button>
 
@@ -798,7 +796,7 @@ const AssessmentPage: React.FC = () => {
               className="cursor-pointer inline-flex items-center px-6 py-2.5 rounded-full font-semibold transition-all text-sm text-white bg-gradient-to-br from-[#083A85] to-[#0a4499] hover:from-[#0a4499] hover:to-[#0c52b8] shadow-md hover:shadow-lg disabled:from-slate-400 disabled:to-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
             >
               {currentStep === 0 ? 'Start' : 'Next'}
-              <ChevronRight className="w-4 h-4 ml-1.5" />
+              <i className="bi bi-chevron-right ms-1"></i>
             </button>
           ) : (
             <div style={{ width: '106px' }} />
