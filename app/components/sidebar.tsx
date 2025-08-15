@@ -28,38 +28,38 @@ const SideBar: React.FC = () => {
         user: [
             { label: 'Home', icon: 'bi-house', path: '/' },
             { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
-            { label: 'Tours & Experiences', icon: 'bi-map', path: '/user/tours' },
-            { label: 'My Trips', icon: 'bi-airplane', path: '/user/trips' },
-            { label: 'Payments', icon: 'bi-credit-card', path: '/user/payments' },
-            { label: 'Wishlist', icon: 'bi-heart', path: '/user/wishlist' },
-            { label: 'Settings', icon: 'bi-gear', path: '/user/settings' }
+            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user/tours' },
+            { label: 'My Trips', icon: 'bi-airplane', path: '/all/user/trips' },
+            { label: 'Payments', icon: 'bi-credit-card', path: '/all/user/payments' },
+            { label: 'Wishlist', icon: 'bi-heart', path: '/all/user/wishlist' },
+            { label: 'Settings', icon: 'bi-gear', path: '/all/user/settings' }
         ],
         host: [
-            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/host/dashboard' },
-            { label: 'My Properties', icon: 'bi-building', path: '/host/properties' },
-            { label: 'Bookings', icon: 'bi-calendar3', path: '/host/bookings' },
-            { label: 'Guests', icon: 'bi-people', path: '/host/guests' },
-            { label: 'Earnings', icon: 'bi-cash-coin', path: '/host/earnings' },
-            { label: 'Analytics', icon: 'bi-graph-up', path: '/host/analytics' },
-            { label: 'Settings', icon: 'bi-gear', path: '/host/settings' }
+            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/host/dashboard' },
+            { label: 'My Properties', icon: 'bi-building', path: '/all/host/properties' },
+            { label: 'Bookings', icon: 'bi-calendar3', path: '/all/host/bookings' },
+            { label: 'Guests', icon: 'bi-people', path: '/all/host/guests' },
+            { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/host/earnings' },
+            { label: 'Analytics', icon: 'bi-graph-up', path: '/all/host/analytics' },
+            { label: 'Settings', icon: 'bi-gear', path: '/all/host/settings' }
         ],
         agent: [
-            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/agent/dashboard' },
-            { label: 'Clients', icon: 'bi-people-fill', path: '/agent/clients' },
-            { label: 'Properties', icon: 'bi-building', path: '/agent/properties' },
-            { label: 'Performance', icon: 'bi-trophy', path: '/agent/performance' },
-            { label: 'Earnings', icon: 'bi-cash-coin', path: '/agent/earnings' },
-            { label: 'Settings', icon: 'bi-gear', path: '/agent/settings' }
+            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent/dashboard' },
+            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
+            { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
+            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
+            { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
+            { label: 'Settings', icon: 'bi-gear', path: '/all/agent/settings' }
         ],
         tourguide: [
-            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/tourguide/dashboard' },
-            { label: 'My Tours', icon: 'bi-compass', path: '/tourguide/tours' },
-            { label: 'Schedule', icon: 'bi-calendar2-week', path: '/tourguide/schedule' },
-            { label: 'Guests', icon: 'bi-people', path: '/tourguide/guests' },
-            { label: 'Earnings', icon: 'bi-cash-coin', path: '/tourguide/earnings' },
-            { label: 'Reviews', icon: 'bi-star', path: '/tourguide/reviews' },
-            { label: 'Messages', icon: 'bi-envelope', path: '/tourguide/messages' },
-            { label: 'Settings', icon: 'bi-gear', path: '/tourguide/settings' }
+            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/tourguide/dashboard' },
+            { label: 'My Tours', icon: 'bi-compass', path: '/all/tourguide/tours' },
+            { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/tourguide/schedule' },
+            { label: 'Guests', icon: 'bi-people', path: '/all/tourguide/guests' },
+            { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/tourguide/earnings' },
+            { label: 'Reviews', icon: 'bi-star', path: '/all/tourguide/reviews' },
+            { label: 'Messages', icon: 'bi-envelope', path: '/all/tourguide/messages' },
+            { label: 'Settings', icon: 'bi-gear', path: '/all/tourguide/settings' }
         ]
     };
     
