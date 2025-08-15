@@ -27,7 +27,7 @@ const SideBar: React.FC = () => {
     const navigationItems: Record<UserRole, NavigationItem[]> = {
         user: [
             { label: 'Home', icon: 'bi-house', path: '/' },
-            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/user/bookings' },
+            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
             { label: 'Tours & Experiences', icon: 'bi-map', path: '/user/tours' },
             { label: 'My Trips', icon: 'bi-airplane', path: '/user/trips' },
             { label: 'Payments', icon: 'bi-credit-card', path: '/user/payments' },
