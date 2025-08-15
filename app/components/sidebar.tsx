@@ -13,7 +13,7 @@ interface NavigationItem {
 
 const SideBar: React.FC = () => {
     // Mock session role - in real app this would come from auth context
-    const [sessionRole, setSessionRole] = useState<UserRole>('agent');
+    const [sessionRole, setSessionRole] = useState<UserRole>('user');
     const pathname = usePathname();
     useEffect(() => {
         const sessionUser = localStorage.getItem('sessionUser');
