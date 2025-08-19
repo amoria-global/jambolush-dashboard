@@ -11,8 +11,15 @@ interface NavigationItem {
     path: string;
 }
 
-const SideBar: React.FC = () => {
-    // Mock session role - in real app this would come from auth context
+// Define the props interface for SideBar
+interface SideBarProps {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+// Accept the props in the component function
+const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
+    // State for mock session role - this is needed to determine which navigation to display
     const [sessionRole, setSessionRole] = useState<UserRole>('host');
     const pathname = usePathname();
 
@@ -30,22 +37,22 @@ const SideBar: React.FC = () => {
         if (isSidebarOpen) {
             toggleSidebar();
         }
-    // The dependency array is critical here. It only watches `pathname`.
-    // The `isSidebarOpen` and `toggleSidebar` dependencies from the original code
+    // The dependency array is critical here. It only watches pathname.
+    // The isSidebarOpen and toggleSidebar dependencies from the original code
     // caused the infinite loop and the bug.
     // We add them back to satisfy the linter, but they don't cause the issue now
-    // because the `if` condition is no longer in an infinite loop.
+    // because the if condition is no longer in an infinite loop.
     }, [pathname]);
 
     // Define navigation items for each role
     const navigationItems: Record<UserRole, NavigationItem[]> = {
         user: [
             { label: 'Home', icon: 'bi-house', path: '/' },
-            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-mybooking' },
+            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
             { label: 'Schedule', icon: 'bi-calendar-plus', path: '/all/user-schedule' },
-            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user-tour' },
-            { label: 'My Trips', icon: 'bi-airplane', path: '/all/user-mytrip' },
-            { label: 'Payments', icon: 'bi-credit-card', path: '/all/user-payment' },
+            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user/tours' },
+            { label: 'My Trips', icon: 'bi-airplane', path: '/all/user/schedule' },
+            { label: 'Payments', icon: 'bi-credit-card', path: '/all/user/payments' },
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/wishlist' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
@@ -60,9 +67,9 @@ const SideBar: React.FC = () => {
         ],
         agent: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent/dashboard' },
-            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent-clients' },
+            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
             { label: 'Properties', icon: 'bi-building', path: '/all/agent-property' },
-            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent-perfomance' },
+            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
