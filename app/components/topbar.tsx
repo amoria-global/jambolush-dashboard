@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 
-export default function TopBar() {
+// Props for the TopBar component
+// This allows the TopBar to communicate with a parent component (e.g., the main layout)
+// to toggle the sidebar on mobile.
+interface TopBarProps {
+  onMenuButtonClick: () => void;
+}
+
+export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   // State for managing dropdown visibility
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -41,67 +48,85 @@ export default function TopBar() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
+    // Responsive fixed top bar
+    // It is full-width on small screens and has a left offset on large screens (lg)
     <div
-      className="fixed right-0 left-72 flex items-center justify-between px-6 py-3 bg-white border-b border-gray-400 shadow-lg z-50"
+      className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-400 shadow-lg z-50 transition-all duration-300 lg:left-72"
     >
-      {/* Left - Dashboard title */}
-      <h1 className="text-xl font-bold text-gray-900 tracking-wide">
-        Dashboard
-      </h1>
+      {/* Left side content, including dashboard title and mobile menu button */}
+      <div className="flex items-center gap-4">
+        {/* Mobile menu button, visible only on screens smaller than large (lg) */}
+        <button
+          onClick={onMenuButtonClick}
+          className="lg:hidden p-2 text-gray-600 rounded-md hover:text-[#083A85] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+        >
+          <i className="bi bi-list text-2xl"></i>
+        </button>
+        {/* Dashboard title, adjusted for smaller screens */}
+        <h1 className="text-xl font-bold text-gray-900 tracking-wide sm:text-2xl">
+          Dashboard
+        </h1>
+      </div>
 
       {/* Right side Icons and Profile */}
-      <div className="flex items-center gap-15">
+      <div className="flex items-center gap-x-4 sm:gap-x-6">
         {/* Messages Icon */}
-        <div className="relative cursor-pointer">
-           <i className="bi bi-chat-left-text text-2xl text-black-200 hover:text-[#083A85]"></i>
+        <div className="relative cursor-pointer hidden sm:block"> {/* Hide on extra-small screens */}
+          <i className="bi bi-chat-left-text text-2xl text-black-200 hover:text-[#083A85]"></i>
         </div>
 
         {/* Notifications Dropdown */}
         <div className="relative" ref={notificationsRef}>
-            <div className="relative cursor-pointer" onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}>
-                <i className="bi bi-bell text-2xl text-black-600 hover:text-[#083A85]"></i>
-                {unreadCount > 0 && (
-                <span
-                    className="absolute -top-2 -right-2 flex items-center cursor-pointer justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
-                    style={{ backgroundColor: "#F20C8F" }}
-                >
-                    {unreadCount}
-                </span>
-                )}
-            </div>
-
-            {isNotificationsOpen && (
-                <div className="absolute right-0 mt-4 w-80 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden">
-                    <div className="p-3 bg-gray-50 border-b">
-                        <h6 className="font-semibold text-gray-800">Notifications</h6>
-                    </div>
-                    <div className="divide-y divide-gray-300 max-h-80 overflow-y-auto">
-                        {notifications.map(notification => (
-                             <div key={notification.id} className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 ${!notification.read ? 'bg-blue-50/50' : ''}`}>
-                                <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${!notification.read ? 'bg-blue-500/20 text-blue-600' : 'bg-gray-200 text-gray-600'}`}>
-                                    <i className={`bi ${notification.icon} text-lg`}></i>
-                                </div>
-                                <div className="flex-grow cursor-pointer">
-                                    <p className="text-base text-black-700">{notification.text}</p>
-                                    <p className="text-sm text-gray-700 mt-1">{notification.time}</p>
-                                </div>
-                                {!notification.read && <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>}
-                            </div>
-                        ))}
-                    </div>
-                     <a href="#" className="block text-center p-2 text-base font-medium text-blue-600 hover:bg-gray-100 transition-colors">
-                        View All Notifications
-                    </a>
-                </div>
+          <div className="relative cursor-pointer" onClick={() => {
+            setIsNotificationsOpen(!isNotificationsOpen);
+            setIsProfileOpen(false); // Close profile dropdown when opening notifications
+          }}>
+            <i className="bi bi-bell text-2xl text-black-600 hover:text-[#083A85]"></i>
+            {unreadCount > 0 && (
+              <span
+                className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
+                style={{ backgroundColor: "#F20C8F" }}
+              >
+                {unreadCount}
+              </span>
             )}
+          </div>
+
+          {isNotificationsOpen && (
+            <div className="absolute -left-41 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden">
+              <div className="p-3 bg-gray-50 border-b">
+                <h6 className="font-semibold text-gray-800">Notifications</h6>
+              </div>
+              <div className="divide-y divide-gray-300 max-h-80 overflow-y-auto">
+                {notifications.map(notification => (
+                  <div key={notification.id} className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 ${!notification.read ? 'bg-blue-50/50' : ''}`}>
+                    <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${!notification.read ? 'bg-blue-500/20 text-blue-600' : 'bg-gray-200 text-gray-600'}`}>
+                      <i className={`bi ${notification.icon} text-lg`}></i>
+                    </div>
+                    <div className="flex-grow cursor-pointer">
+                      <p className="text-base text-black-700">{notification.text}</p>
+                      <p className="text-sm text-gray-700 mt-1">{notification.time}</p>
+                    </div>
+                    {!notification.read && <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>}
+                  </div>
+                ))}
+              </div>
+              <a href="#" className="block text-center p-2 text-base font-medium text-blue-600 hover:bg-gray-100 transition-colors">
+                View All Notifications
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Profile Dropdown */}
         <div className="relative" ref={profileRef}>
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 border-2 border-gray-300">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+            setIsProfileOpen(!isProfileOpen);
+            setIsNotificationsOpen(false); // Close notifications dropdown when opening profile
+          }}>
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-200 border-2 border-gray-300">
               <img
-                src="/favicon.ico" // Replace with actual user profile image URL
+                src="/favicon.ico"
                 alt="Profile"
                 width="40"
                 height="40"
@@ -109,11 +134,11 @@ export default function TopBar() {
               />
             </div>
 
-            <div className="flex flex-col leading-tight">
+            <div className="hidden sm:flex flex-col leading-tight"> {/* Hide text on extra-small screens */}
               <span className="font-semibold" style={{ color: "#083A85" }}>
                 Diane Marry
               </span>
-              <span className="text-base text-gray-500">
+              <span className="text-sm text-gray-500">
                 ${balance.toFixed(2)}
               </span>
             </div>
@@ -123,31 +148,31 @@ export default function TopBar() {
 
           {/* Dropdown Card */}
           {isProfileOpen && (
-            <div className="absolute right-0 mt-4 w-56 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden">
-                <div className="p-3 border-b">
-                    <p className="font-bold text-gray-800">Diane Marry</p>
-                    <p className="text-sm text-gray-700">Host Account</p>
-                </div>
-                <div className="py-2">
-                    <a href="/all/profile" className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors">
-                        <i className="bi bi-person-circle w-5 text-black"></i>
-                        <span>Profile</span>
-                    </a>
-                    <a href="#" className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors">
-                        <i className="bi bi-wallet2 w-5 text-black"></i>
-                        <span>Balance & Payments</span>
-                    </a>
-                    <a href="#" className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors">
-                        <i className="bi bi-gear w-5 text-black"></i>
-                        <span>Settings</span>
-                    </a>
-                </div>
-                <div className="border-t p-2">
-                     <a href="#" className="flex items-center gap-3 px-4 py-2 text-base text-red-600 hover:bg-red-50 rounded-md transition-colors">
-                        <i className="bi bi-box-arrow-right w-5"></i>
-                        <span>Logout</span>
-                    </a>
-                </div>
+            <div className="absolute -right-3 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden">
+              <div className="p-3 border-b">
+                <p className="font-bold text-gray-800">Diane Marry</p>
+                <p className="text-sm text-gray-700">Host Account</p>
+              </div>
+              <div className="py-2">
+                <a href="/all/profile" className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors">
+                  <i className="bi bi-person-circle w-5 text-black"></i>
+                  <span>Profile</span>
+                </a>
+                <a href="#" className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors">
+                  <i className="bi bi-wallet2 w-5 text-black"></i>
+                  <span>Balance & Payments</span>
+                </a>
+                <a href="#" className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors">
+                  <i className="bi bi-gear w-5 text-black"></i>
+                  <span>Settings</span>
+                </a>
+              </div>
+              <div className="border-t p-2">
+                <a href="#" className="flex items-center gap-3 px-4 py-2 text-base text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                  <i className="bi bi-box-arrow-right w-5"></i>
+                  <span>Logout</span>
+                </a>
+              </div>
             </div>
           )}
         </div>

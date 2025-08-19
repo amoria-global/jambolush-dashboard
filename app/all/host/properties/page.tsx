@@ -1,10 +1,8 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 
-type PropertyStatus = 'active' | 'pending' | 'checkedin' | 'checkedout' | 'inactive';
-type ViewType = 'grid' | 'table';
-
+// Types
 interface Property {
     id: string;
     title: string;
@@ -12,158 +10,190 @@ interface Property {
     location: string;
     agentId: string;
     agentName: string;
-    status: PropertyStatus;
+    status: 'active' | 'pending' | 'checkedin' | 'checkedout' | 'inactive';
+    propertyType: 'House' | 'Apartment' | 'Villa' | 'Condo';
+    bedrooms: number;
+    bathrooms: number;
+    area: number; // in sqft
+    dateListed: Date;
     clientName?: string;
     clientId?: string;
     image: string;
-    bedrooms: number;
-    bathrooms: number;
-    area: number;
     unavailableUntil?: string;
+    description?: string;
 }
 
-interface StatusCard {
-    label: string;
-    count: number;
-    icon: string;
-    bgColor: string;
-}
+type ViewMode = 'grid' | 'table';
+type SortField = 'title' | 'price' | 'dateListed' | 'area';
+type SortOrder = 'asc' | 'desc';
 
 const HostPropertiesPage: React.FC = () => {
-    const [viewType, setViewType] = useState<ViewType>('grid');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-    const [unavailableDate, setUnavailableDate] = useState('');
-    const itemsPerPage = 12;
+    // Date formatting helper
+    const format = (date: Date, formatStr: string) => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const day = d.getDate();
 
-    // Mock data - replace with API call
-    const properties: Property[] = [
-        {
-            id: 'P001',
-            title: 'Luxury Villa Kilimani',
-            price: 250000,
-            location: 'Kilimani, Nairobi',
-            agentId: 'A001',
-            agentName: 'Jane Mwangi',
-            status: 'active',
-            image: '/api/placeholder/400/300',
-            bedrooms: 4,
-            bathrooms: 3,
-            area: 2500
-        },
-        {
-            id: 'P002',
-            title: 'Modern Apartment Westlands',
-            price: 150000,
-            location: 'Westlands, Nairobi',
-            agentId: 'A002',
-            agentName: 'John Kamau',
-            status: 'checkedin',
-            clientName: 'Michael Smith',
-            clientId: 'C001',
-            image: '/api/placeholder/400/300',
-            bedrooms: 3,
-            bathrooms: 2,
-            area: 1800
-        },
-        {
-            id: 'P003',
-            title: 'Cozy Studio Karen',
-            price: 75000,
-            location: 'Karen, Nairobi',
-            agentId: 'A001',
-            agentName: 'Jane Mwangi',
-            status: 'pending',
-            image: '/api/placeholder/400/300',
-            bedrooms: 1,
-            bathrooms: 1,
-            area: 800
-        },
-        {
-            id: 'P004',
-            title: 'Executive Penthouse CBD',
-            price: 350000,
-            location: 'CBD, Nairobi',
-            agentId: 'A003',
-            agentName: 'Sarah Ochieng',
-            status: 'checkedout',
-            image: '/api/placeholder/400/300',
-            bedrooms: 5,
-            bathrooms: 4,
-            area: 3500
-        },
-        {
-            id: 'P005',
-            title: 'Garden Estate Runda',
-            price: 450000,
-            location: 'Runda, Nairobi',
-            agentId: 'A002',
-            agentName: 'John Kamau',
-            status: 'inactive',
-            unavailableUntil: '2025-09-15',
-            image: '/api/placeholder/400/300',
-            bedrooms: 6,
-            bathrooms: 5,
-            area: 4000
-        },
-        // Add more mock properties for pagination
-    ];
-
-    const statusCards: StatusCard[] = [
-        {
-            label: 'Total Properties',
-            count: properties.length,
-            icon: 'bi-building',
-            bgColor: '#083A85'
-        },
-        {
-            label: 'Active',
-            count: properties.filter(p => p.status === 'active').length,
-            icon: 'bi-check-circle',
-            bgColor: '#10B981'
-        },
-        {
-            label: 'Pending',
-            count: properties.filter(p => p.status === 'pending').length,
-            icon: 'bi-clock',
-            bgColor: '#F59E0B'
-        },
-        {
-            label: 'Checked In',
-            count: properties.filter(p => p.status === 'checkedin').length,
-            icon: 'bi-door-open',
-            bgColor: '#3B82F6'
-        },
-        {
-            label: 'Checked Out',
-            count: properties.filter(p => p.status === 'checkedout').length,
-            icon: 'bi-door-closed',
-            bgColor: '#8B5CF6'
-        },
-        {
-            label: 'Inactive',
-            count: properties.filter(p => p.status === 'inactive').length,
-            icon: 'bi-x-circle',
-            bgColor: '#EF4444'
+        switch (formatStr) {
+            case 'MMM dd, yyyy':
+                return `${months[month]} ${day.toString().padStart(2, '0')}, ${year}`;
+            default:
+                return `${months[month]} ${day}, ${year}`;
         }
-    ];
+    };
 
-    const getStatusBadge = (status: PropertyStatus) => {
-        const statusConfig = {
-            active: { bg: 'bg-green-100', text: 'text-green-800', label: 'Active' },
-            pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-            checkedin: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Checked In' },
-            checkedout: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Checked Out' },
-            inactive: { bg: 'bg-red-100', text: 'text-red-800', label: 'Inactive' }
+    // States
+    const [properties, setProperties] = useState<Property[]>([]);
+    const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(9);
+    const [loading, setLoading] = useState(true);
+    const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [unavailableDate, setUnavailableDate] = useState('');
+    const [goToPageInput, setGoToPageInput] = useState('');
+
+    // Filter states
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [typeFilter, setTypeFilter] = useState<string>('all');
+    const [priceRangeFilter, setPriceRangeFilter] = useState<string>('all');
+
+    // Sort states
+    const [sortField, setSortField] = useState<SortField>('dateListed');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+    // Mock data generation
+    useEffect(() => {
+        const generateMockProperties = (): Property[] => {
+            const statuses: ('active' | 'pending' | 'checkedin' | 'checkedout' | 'inactive')[] =
+                ['active', 'pending', 'checkedin', 'checkedout', 'inactive'];
+            const propertyTypes: ('House' | 'Apartment' | 'Villa' | 'Condo')[] =
+                ['House', 'Apartment', 'Villa', 'Condo'];
+            const propertyNames = [
+                'Luxury Villa Kilimani', 'Modern Apartment Westlands', 'Cozy Studio Karen',
+                'Executive Penthouse CBD', 'Garden Estate Runda', 'Serene Suburb Home'
+            ];
+            const locations = [
+                'Kilimani, Nairobi', 'Westlands, Nairobi', 'Karen, Nairobi',
+                'CBD, Nairobi', 'Runda, Nairobi', 'Lavington, Nairobi'
+            ];
+
+            return Array.from({ length: 28 }, (_, i) => {
+                const dateListed = new Date(2025, 0, Math.floor(Math.random() * 60) + 1);
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                const type = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
+
+                return {
+                    id: `P${String(i + 1).padStart(3, '0')}`,
+                    title: `${propertyNames[Math.floor(Math.random() * propertyNames.length)]}`,
+                    location: `${locations[Math.floor(Math.random() * locations.length)]}`,
+                    image: `https://picsum.photos/seed/${i + 1}/600/400`,
+                    price: Math.floor(Math.random() * 400000) + 50000,
+                    status,
+                    propertyType: type,
+                    bedrooms: Math.floor(Math.random() * 5) + 1,
+                    bathrooms: Math.floor(Math.random() * 4) + 1,
+                    area: Math.floor(Math.random() * 3000) + 800,
+                    dateListed,
+                    agentId: `A${String(Math.floor(Math.random() * 5) + 1).padStart(3, '0')}`,
+                    agentName: ['Jane Mwangi', 'John Kamau', 'Sarah Ochieng'][Math.floor(Math.random()*3)],
+                    description: 'A stunning property with breathtaking views and modern amenities. Features an open-concept living space, gourmet kitchen, and a luxurious master suite.',
+                    ...(status === 'checkedin' && { clientName: 'Michael Smith', clientId: 'C001' }),
+                    ...(status === 'inactive' && { unavailableUntil: '2025-09-15' })
+                };
+            });
         };
-        const config = statusConfig[status];
-        return (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
-                {config.label}
-            </span>
-        );
+
+        setTimeout(() => {
+            setProperties(generateMockProperties());
+            setLoading(false);
+        }, 1200);
+    }, []);
+
+    // Update goToPageInput when currentPage changes
+    useEffect(() => {
+        setGoToPageInput(currentPage.toString());
+    }, [currentPage]);
+
+    // Calculate summary stats
+    const summaryStats = useMemo(() => {
+        return {
+            total: properties.length,
+            active: properties.filter(p => p.status === 'active').length,
+            pending: properties.filter(p => p.status === 'pending').length,
+            checkedIn: properties.filter(p => p.status === 'checkedin').length,
+            checkedOut: properties.filter(p => p.status === 'checkedout').length,
+            inactive: properties.filter(p => p.status === 'inactive').length
+        };
+    }, [properties]);
+
+    // Filter and sort logic
+    useEffect(() => {
+        let filtered = [...properties];
+
+        if (searchTerm) {
+            filtered = filtered.filter(p =>
+                p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.location.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(p => p.status === statusFilter);
+        }
+
+        if (typeFilter !== 'all') {
+            filtered = filtered.filter(p => p.propertyType === typeFilter);
+        }
+
+        if (priceRangeFilter !== 'all') {
+            const [min, max] = priceRangeFilter.split('-').map(Number);
+            filtered = filtered.filter(p => p.price >= min && (max ? p.price <= max : true));
+        }
+
+        filtered.sort((a, b) => {
+            let comparison = 0;
+            switch (sortField) {
+                case 'title':
+                    comparison = a.title.localeCompare(b.title);
+                    break;
+                case 'price':
+                    comparison = a.price - b.price;
+                    break;
+                case 'area':
+                    comparison = a.area - b.area;
+                    break;
+                case 'dateListed':
+                    comparison = a.dateListed.getTime() - b.dateListed.getTime();
+                    break;
+            }
+            return sortOrder === 'asc' ? comparison : -comparison;
+        });
+
+        setFilteredProperties(filtered);
+        setCurrentPage(1);
+    }, [properties, searchTerm, statusFilter, typeFilter, priceRangeFilter, sortField, sortOrder]);
+
+    // Pagination
+    const paginatedProperties = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredProperties.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredProperties, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
+
+    // Handlers
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortOrder('asc');
+        }
     };
 
     const handleEdit = (property: Property) => {
@@ -171,191 +201,277 @@ const HostPropertiesPage: React.FC = () => {
         setUnavailableDate(property.unavailableUntil || '');
         setShowEditModal(true);
     };
-
-    const handleSaveEdit = () => {
-        // Handle save logic here
-        console.log('Saving property:', editingProperty?.id, 'Unavailable until:', unavailableDate);
+    
+    const handleCloseModal = () => {
         setShowEditModal(false);
         setEditingProperty(null);
         setUnavailableDate('');
     };
 
-    // Pagination
-    const totalPages = Math.ceil(properties.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const currentProperties = properties.slice(startIndex, endIndex);
+    const handleSaveEdit = () => {
+        if (!editingProperty) return; // Guard clause
+        console.log('Saving property:', editingProperty.id, 'Unavailable until:', unavailableDate);
+        handleCloseModal();
+    };
+    
+    const handleGoToPage = (value: string) => {
+        const page = parseInt(value);
+        if (!isNaN(page) && page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+        setGoToPageInput(currentPage.toString());
+    };
+
+    // UI Helpers
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'active': return 'bg-green-100 text-green-800';
+            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'checkedin': return 'bg-blue-100 text-blue-800';
+            case 'checkedout': return 'bg-purple-100 text-purple-800';
+            case 'inactive': return 'bg-red-100 text-red-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+    
+    // Extracted Modal Component for clarity
+    const EditModal = () => {
+        if (!editingProperty) {
+            return null; // Explicitly return null if no property is being edited
+        }
+
+        return (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+                    <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Edit Property</h2>
+                            </div>
+                            <button onClick={handleCloseModal} className="text-gray-400 hover:text-red-500 cursor-pointer"><i className="bi bi-x-lg text-xl"></i></button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
+                                <p className="text-base text-gray-900">{editingProperty.title}</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
+                                <span className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusColor(editingProperty.status)}`}>{editingProperty.status}</span>
+                            </div>
+                            <div>
+                                <label htmlFor="unavailable-date" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Set Unavailable Until
+                                </label>
+                                <input
+                                    id="unavailable-date"
+                                    type="date"
+                                    value={unavailableDate}
+                                    onChange={(e) => setUnavailableDate(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                                    min={new Date().toISOString().split('T')[0]}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Leave empty to make property available immediately.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={handleCloseModal}
+                                className="px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg text-base font-medium hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                className="px-4 py-2.5 rounded-lg text-white text-base font-medium"
+                                style={{ backgroundColor: '#F20C8F' }}
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <div className="mt-16">
-           
-            {/* Summary Status Cards */}
-            <div className="px-6 py-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {statusCards.map((card, index) => (
-                        <div key={index} className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: card.bgColor + '20' }}>
-                                    <i className={`bi ${card.icon} text-lg`} style={{ color: card.bgColor }}></i>
-                                </div>
-                                <span className="text-xl font-bold" style={{ color: card.bgColor }}>
-                                    {card.count}
-                                </span>
-                            </div>
-                            <p className="text-sm text-gray-600">{card.label}</p>
-                        </div>
-                    ))}
+        <div className="pt-14 font-sans">
+            <style jsx>{`
+                @keyframes scale-in {
+                  from { transform: scale(0.95); opacity: 0; }
+                  to { transform: scale(1); opacity: 1; }
+                }
+                .animate-scale-in { animation: scale-in 0.2s ease-out; }
+            `}</style>
+            <div className="mx-auto px-2 sm:px-4 lg:px-6 py-8">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">Host Properties</h1>
+                    <p className="text-gray-600 mt-2">Manage your active and completed property listings.</p>
                 </div>
-            </div>
 
-            {/* View Toggle and Actions */}
-            <div className="px-6 pb-4">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => setViewType('grid')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                viewType === 'grid' 
-                                    ? 'text-white' 
-                                    : 'text-gray-600 bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}
-                            style={{ backgroundColor: viewType === 'grid' ? '#083A85' : '' }}
-                        >
-                            <i className="bi bi-grid-3x3-gap-fill mr-2"></i>Grid View
-                        </button>
-                        <button
-                            onClick={() => setViewType('table')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                viewType === 'table' 
-                                    ? 'text-white' 
-                                    : 'text-gray-600 bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}
-                            style={{ backgroundColor: viewType === 'table' ? '#083A85' : '' }}
-                        >
-                            <i className="bi bi-table mr-2"></i>Table View
-                        </button>
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-4 transition-transform hover:scale-105">
+                        <p className="text-base text-gray-600">Total</p>
+                        <p className="text-2xl font-bold text-gray-900">{summaryStats.total}</p>
                     </div>
-                    <button className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: '#F20C8F' }}>
-                        <i className="bi bi-plus-lg mr-2"></i>Add Property
-                    </button>
+                    <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-4 transition-transform hover:scale-105">
+                        <p className="text-base text-gray-600">Active</p>
+                        <p className="text-2xl font-bold text-green-600">{summaryStats.active}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-yellow-50 to-white rounded-lg shadow-lg p-4 transition-transform hover:scale-105">
+                        <p className="text-base text-gray-600">Pending</p>
+                        <p className="text-2xl font-bold text-yellow-600">{summaryStats.pending}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-4 transition-transform hover:scale-105">
+                        <p className="text-base text-gray-600">Checked In</p>
+                        <p className="text-2xl font-bold text-blue-600">{summaryStats.checkedIn}</p>
+                    </div>
+                     <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-4 transition-transform hover:scale-105">
+                        <p className="text-base text-gray-600">Checked Out</p>
+                        <p className="text-2xl font-bold text-purple-600">{summaryStats.checkedOut}</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-red-50 to-white rounded-lg shadow-lg p-4 transition-transform hover:scale-105">
+                        <p className="text-base text-gray-600">Inactive</p>
+                        <p className="text-2xl font-bold text-red-600">{summaryStats.inactive}</p>
+                    </div>
                 </div>
-            </div>
 
-            {/* Properties Listing */}
-            <div className="px-6 pb-6">
-                {viewType === 'grid' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {currentProperties.map((property) => (
-                            <div key={property.id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
-                                <div className="aspect-w-16 aspect-h-12 bg-gray-200">
-                                    <img src={property.image} alt={property.title} className="w-full h-48 object-cover" />
+                {/* Add Property & Filters */}
+                <div className="mb-6 text-right">
+                    <Link href="/all/host/add-property" className="inline-block px-5 py-2.5 rounded-lg text-white text-base font-medium transition-transform hover:scale-105 cursor-pointer" style={{ backgroundColor: '#F20C8F' }}>
+                        <i className="bi bi-plus-lg mr-2"></i>Add Property
+                    </Link>
+                </div>
+                
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="lg:col-span-1">
+                            <label htmlFor="search-input" className="block text-base font-medium text-gray-700 mb-2">Search</label>
+                            <div className="relative">
+                                <input id="search-input" type="text" placeholder="Property title or location..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label htmlFor="status-filter" className="block text-base font-medium text-gray-700 mb-2 cursor-pointer">Status</label>
+                            <select id="status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                                <option value="all">All Statuses</option>
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="checkedin">Checked In</option>
+                                <option value="checkedout">Checked Out</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="type-filter" className="block text-base font-medium text-gray-700 mb-2 cursor-pointer">Property Type</label>
+                            <select id="type-filter" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                                <option value="all">All Types</option>
+                                <option value="House">House</option>
+                                <option value="Apartment">Apartment</option>
+                                <option value="Villa">Villa</option>
+                                <option value="Condo">Condo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="price-filter" className="block text-base font-medium text-gray-700 mb-2 cursor-pointer">Price Range</label>
+                            <select id="price-filter" value={priceRangeFilter} onChange={(e) => setPriceRangeFilter(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                                <option value="all">Any Price</option>
+                                <option value="0-100000">Up to KSh 100k</option>
+                                <option value="100000-250000">KSh 100k - 250k</option>
+                                <option value="250000-500000">KSh 250k - 500k</option>
+                                <option value="500000-">KSh 500k+</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-6 border-t pt-4">
+                        <p className="text-base text-gray-600">
+                            Showing {paginatedProperties.length} of {filteredProperties.length} properties
+                        </p>
+                        <div className="flex gap-2">
+                            <button onClick={() => setViewMode('grid')} className={`px-4 py-2.5 rounded-lg transition-colors text-base font-medium cursor-pointer ${viewMode === 'grid' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}>
+                                <i className="bi bi-grid-3x3-gap-fill mr-2"></i>Grid View
+                            </button>
+                            <button onClick={() => setViewMode('table')} className={`px-4 py-2.5 rounded-lg transition-colors text-base font-medium cursor-pointer ${viewMode === 'table' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} style={{ backgroundColor: viewMode === 'table' ? '#083A85' : undefined }}>
+                                <i className="bi bi-list-task mr-2"></i>List View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Loading & Empty States */}
+                {loading && <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div></div>}
+                {!loading && filteredProperties.length === 0 && (
+                    <div className="bg-white rounded-lg shadow-lg p-12 text-center">
+                        <i className="bi bi-house-slash text-6xl text-gray-300"></i>
+                        <h3 className="text-xl font-medium text-gray-800 mt-4">{properties.length === 0 ? "You have no properties listed" : "No properties found"}</h3>
+                        <p className="text-gray-500 mt-2">{properties.length === 0 ? "Click 'Add Property' to get started" : "Try adjusting your filters or search term."}</p>
+                    </div>
+                )}
+
+                {/* Grid View */}
+                {!loading && viewMode === 'grid' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {paginatedProperties.map((p) => (
+                            <div key={p.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
+                                <div className="relative">
+                                    <img src={p.image} alt={p.title} className="w-full h-56 object-cover" />
+                                    <span className={`absolute top-3 left-3 px-3 py-1 text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(p.status)}`}>{p.status}</span>
                                 </div>
-                                <div className="p-4">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{property.title}</h3>
-                                        {getStatusBadge(property.status)}
+                                <div className="p-4 flex flex-col flex-grow">
+                                    <h3 className="text-lg font-semibold text-gray-900 truncate">{p.title}</h3>
+                                    <p className="text-base text-gray-500 mb-3 truncate">{p.location}</p>
+                                    <p className="text-2xl font-bold text-gray-800 mb-3">KSh {p.price.toLocaleString()}</p>
+                                    <div className="flex justify-around text-center text-base text-gray-600 border-t border-b py-3 my-3">
+                                        <span><i className="bi bi-rulers mr-1"></i>{p.area} sqft</span>
+                                        <span><i className="bi bi-door-open-fill mr-1"></i>{p.bedrooms} beds</span>
+                                        <span><i className="bi bi-droplet-fill mr-1"></i>{p.bathrooms} baths</span>
                                     </div>
-                                    <p className="text-xl font-bold mb-2" style={{ color: '#083A85' }}>
-                                        KSh {property.price.toLocaleString()}
-                                    </p>
-                                    <div className="space-y-1 text-sm text-gray-600">
-                                        <p className="flex items-center">
-                                            <i className="bi bi-geo-alt mr-2"></i>{property.location}
-                                        </p>
-                                        <p className="flex items-center">
-                                            <i className="bi bi-person mr-2"></i>{property.agentName} (ID: {property.agentId})
-                                        </p>
-                                        {property.status === 'checkedin' && property.clientName && (
-                                            <p className="flex items-center justify-between">
-                                                <span className="flex items-center">
-                                                    <i className="bi bi-person-check mr-2"></i>{property.clientName}
-                                                </span>
-                                                <Link href={`/clients/${property.clientId}`} className="text-blue-600 hover:underline text-xs">
-                                                    View
-                                                </Link>
-                                            </p>
-                                        )}
-                                        {property.unavailableUntil && (
-                                            <p className="flex items-center text-red-600">
-                                                <i className="bi bi-calendar-x mr-2"></i>Until {property.unavailableUntil}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                                        <div className="flex items-center space-x-3 text-xs text-gray-500">
-                                            <span><i className="bi bi-door-open mr-1"></i>{property.bedrooms} Beds</span>
-                                            <span><i className="bi bi-droplet mr-1"></i>{property.bathrooms} Baths</span>
-                                        </div>
-                                        <button
-                                            onClick={() => handleEdit(property)}
-                                            className="text-sm font-medium hover:opacity-80"
-                                            style={{ color: '#F20C8F' }}
-                                        >
-                                            <i className="bi bi-pencil-square mr-1"></i>Edit
-                                        </button>
+                                    <div className="mt-auto flex gap-2">
+                                        <button onClick={() => handleEdit(p)} className="flex-1 text-center px-3 py-2.5 text-white rounded-lg transition-colors text-base font-medium cursor-pointer" style={{ backgroundColor: '#083A85' }}><i className="bi bi-pencil-square mr-1"></i>Edit</button>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
-                ) : (
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                )}
+
+                {/* List View */}
+                {!loading && viewMode === 'table' && (
+                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead style={{ backgroundColor: '#083A85' }}>
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Property</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Price</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Location</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Agent</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Client</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Actions</th>
+                                        <th className="px-6 py-4 text-left text-base font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                                        <th className="px-6 py-4 text-left"><button onClick={() => handleSort('price')} className="text-base font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1 hover:text-gray-800 cursor-pointer">Price <i className={`bi bi-arrow-${sortField === 'price' ? (sortOrder === 'asc' ? 'up' : 'down') : 'down-up'}`}></i></button></th>
+                                        <th className="px-6 py-4 text-left text-base font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-left"><button onClick={() => handleSort('dateListed')} className="text-base font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1 hover:text-gray-800 cursor-pointer">Date Listed <i className={`bi bi-arrow-${sortField === 'dateListed' ? (sortOrder === 'asc' ? 'up' : 'down') : 'down-up'}`}></i></button></th>
+                                        <th className="px-6 py-4 text-right text-base font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-100">
-                                    {currentProperties.map((property) => (
-                                        <tr key={property.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3">
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {paginatedProperties.map((p) => (
+                                        <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center">
-                                                    <img src={property.image} alt={property.title} className="w-10 h-10 rounded-lg object-cover mr-3" />
+                                                    <img src={p.image} alt={p.title} className="w-28 h-20 rounded-md object-cover mr-4" />
                                                     <div>
-                                                        <p className="text-sm font-medium text-gray-900">{property.title}</p>
-                                                        <p className="text-xs text-gray-500">ID: {property.id}</p>
+                                                        <div className="text-base font-semibold text-gray-900">{p.title}</div>
+                                                        <div className="text-base text-gray-500">{p.location}</div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3">
-                                                <p className="text-sm font-semibold" style={{ color: '#083A85' }}>
-                                                    KSh {property.price.toLocaleString()}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600">{property.location}</td>
-                                            <td className="px-4 py-3">
-                                                <p className="text-sm text-gray-900">{property.agentName}</p>
-                                                <p className="text-xs text-gray-500">ID: {property.agentId}</p>
-                                            </td>
-                                            <td className="px-4 py-3">{getStatusBadge(property.status)}</td>
-                                            <td className="px-4 py-3">
-                                                {property.status === 'checkedin' && property.clientName ? (
-                                                    <div>
-                                                        <p className="text-sm text-gray-900">{property.clientName}</p>
-                                                        <Link href={`/clients/${property.clientId}`} className="text-xs text-blue-600 hover:underline">
-                                                            View Details
-                                                        </Link>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-sm text-gray-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <button
-                                                    onClick={() => handleEdit(property)}
-                                                    className="text-sm font-medium hover:opacity-80"
-                                                    style={{ color: '#F20C8F' }}
-                                                >
-                                                    <i className="bi bi-pencil-square mr-1"></i>Edit
-                                                </button>
+                                            <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-800">KSh {p.price.toLocaleString()}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>{p.status}</span></td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600">{format(p.dateListed, 'MMM dd, yyyy')}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-medium">
+                                                <button onClick={() => handleEdit(p)} className="text-green-600 hover:text-green-900 cursor-pointer" title="Edit property"><i className="bi bi-pencil-fill"></i></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -364,117 +480,79 @@ const HostPropertiesPage: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Pagination Controls */}
+                {!loading && totalPages > 1 && (
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-2 rounded-lg transition-colors ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'}`}
+                            >
+                                <i className="bi bi-chevron-left"></i>
+                            </button>
+
+                            <div className="hidden sm:flex items-center gap-1">
+                                {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = index + 1;
+                                    } else if (currentPage <= 3) {
+                                        pageNum = index + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + index;
+                                    } else {
+                                        pageNum = currentPage - 2 + index;
+                                    }
+
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${currentPage === pageNum ? 'text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                                            style={{ backgroundColor: currentPage === pageNum ? '#083A85' : undefined }}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className={`px-3 py-2 rounded-lg transition-colors ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'}`}
+                            >
+                                <i className="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-base text-gray-600">Go to page:</span>
+                            <input
+                                type="number"
+                                min="1"
+                                max={totalPages}
+                                value={goToPageInput}
+                                onChange={(e) => setGoToPageInput(e.target.value)}
+                                onBlur={(e) => handleGoToPage(e.target.value)}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleGoToPage((e.target as HTMLInputElement).value);
+                                    }
+                                }}
+                                className="w-16 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-base text-gray-600">of {totalPages}</span>
+                        </div>
+                    </div>
+                )}
+                
+                {/* Render the modal only when showEditModal is true */}
+                {showEditModal && <EditModal />}
+
             </div>
-
-            {/* Pagination */}
-            <div className="px-6 pb-6">
-                <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                        Showing {startIndex + 1} to {Math.min(endIndex, properties.length)} of {properties.length} properties
-                    </p>
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <i className="bi bi-chevron-left"></i>
-                        </button>
-                        {[...Array(totalPages)].map((_, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setCurrentPage(index + 1)}
-                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                                    currentPage === index + 1
-                                        ? 'text-white'
-                                        : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                }`}
-                                style={{ backgroundColor: currentPage === index + 1 ? '#083A85' : '' }}
-                            >
-                                {index + 1}
-                            </button>
-                        ))}
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-1 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <i className="bi bi-chevron-right"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Edit Modal */}
-            {showEditModal && editingProperty && (
-                <div className="fixed bg-black/10 backdrop-blur-xs flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold" style={{ color: '#083A85' }}>Edit Property</h2>
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                className="text-gray-400 hover:text-gray-600"
-                            >
-                                <i className="bi bi-x-lg text-xl"></i>
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                                <p className="text-sm text-gray-900">{editingProperty.title}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
-                                {getStatusBadge(editingProperty.status)}
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Set Unavailable Until
-                                </label>
-                                <input
-                                    type="date"
-                                    value={unavailableDate}
-                                    onChange={(e) => setUnavailableDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                    min={new Date().toISOString().split('T')[0]}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Leave empty to make property available immediately
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end space-x-3 mt-6">
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveEdit}
-                                className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-                                style={{ backgroundColor: '#F20C8F' }}
-                            >
-                                Save Changes
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Footer */}
-            <footer className="bg-white border-t border-gray-200 mt-12">
-                <div className="px-6 py-4">
-                    <div className="flex justify-between items-center">
-                        <p className="text-sm text-gray-600">© 2025 Jambolush. All rights reserved.</p>
-                        <div className="flex items-center space-x-4">
-                            <Link href="/help" className="text-sm text-gray-600 hover:text-gray-900">Help</Link>
-                            <Link href="/terms" className="text-sm text-gray-600 hover:text-gray-900">Terms</Link>
-                            <Link href="/privacy" className="text-sm text-gray-600 hover:text-gray-900">Privacy</Link>
-                        </div>
-                    </div>
-                </div>
-            </footer>
         </div>
     );
 };
