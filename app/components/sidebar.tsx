@@ -13,7 +13,7 @@ interface NavigationItem {
 
 const SideBar: React.FC = () => {
     // Mock session role - in real app this would come from auth context
-    const [sessionRole, setSessionRole] = useState<UserRole>('host');
+    const [sessionRole, setSessionRole] = useState<UserRole>('agent'); // Default role, can be changed based on user session
     const pathname = usePathname();
     useEffect(() => {
         const sessionUser = localStorage.getItem('sessionUser');
@@ -27,11 +27,11 @@ const SideBar: React.FC = () => {
     const navigationItems: Record<UserRole, NavigationItem[]> = {
         user: [
             { label: 'Home', icon: 'bi-house', path: '/' },
-            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
+            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-mybooking' },
             { label: 'Schedule', icon: 'bi-calendar-plus', path: '/all/user-schedule' },
-            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user/tours' },
-            { label: 'My Trips', icon: 'bi-airplane', path: '/all/user/schedule' },
-            { label: 'Payments', icon: 'bi-credit-card', path: '/all/user/payments' },
+            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user-tour' },
+            { label: 'My Trips', icon: 'bi-airplane', path: '/all/user-mytrip' },
+            { label: 'Payments', icon: 'bi-credit-card', path: '/all/user-payment' },
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/wishlist' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
@@ -46,9 +46,9 @@ const SideBar: React.FC = () => {
         ],
         agent: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent/dashboard' },
-            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
+            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent-clients' },
             { label: 'Properties', icon: 'bi-building', path: '/all/agent-property' },
-            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
+            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent-perfomance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
