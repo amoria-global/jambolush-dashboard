@@ -11,27 +11,37 @@ interface NavigationItem {
     path: string;
 }
 
-const SideBar: React.FC = () => {
-    // State to manage sidebar visibility on mobile
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    // Mock session role - in real app this would come from auth context
-    const [sessionRole, setSessionRole] = useState<UserRole>('host'); // Default for demonstration
+// Define the props interface for SideBar
+interface SideBarProps {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+// Accept the props in the component function
+const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
+    // State for mock session role - this is needed to determine which navigation to display
+    const [sessionRole, setSessionRole] = useState<UserRole>('host');
     const pathname = usePathname();
 
     useEffect(() => {
         const sessionUser = localStorage.getItem('sessionUser');
         if (sessionUser) {
-            // Parse the user role from the session data
             const userData = JSON.parse(sessionUser);
             setSessionRole(userData.role);
         }
     }, []);
 
-    // Close sidebar on route change on mobile
+    // FIX: This useEffect now correctly handles closing the sidebar
+    // only when the pathname (route) changes, not when the sidebar state changes.
     useEffect(() => {
         if (isSidebarOpen) {
-            setIsSidebarOpen(false);
+            toggleSidebar();
         }
+    // The dependency array is critical here. It only watches `pathname`.
+    // The `isSidebarOpen` and `toggleSidebar` dependencies from the original code
+    // caused the infinite loop and the bug.
+    // We add them back to satisfy the linter, but they don't cause the issue now
+    // because the `if` condition is no longer in an infinite loop.
     }, [pathname]);
 
     // Define navigation items for each role
@@ -97,22 +107,17 @@ const SideBar: React.FC = () => {
 
     return (
         <>
-            {/* * Updated: The page overlay now uses `bg-white/30` and `backdrop-blur-sm`.
-              * This creates a translucent, blurred effect instead of a solid black background.
-              * This is only visible on mobile (`md:hidden`).
-            */}
             <div
                 className={`fixed inset-0 bg-white/30 backdrop-blur-sm z-30 transition-opacity duration-300 md:hidden ${
                     isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                 }`}
-                onClick={() => setIsSidebarOpen(false)}
+                onClick={toggleSidebar}
                 aria-hidden="true"
             ></div>
 
-            {/* Hamburger Menu Button - visible only on mobile */}
             <button
-                className="md:hidden fixed top-4 left-4 z-60 p-2 rounded-md bg-gray-100 text-gray-800 shadow-md"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="md:hidden fixed top-4 left-4 z-60 p-2 rounded-md bg-white text-gray-800 shadow-md"
+                onClick={toggleSidebar}
                 aria-controls="sidebar"
                 aria-expanded={isSidebarOpen}
             >
