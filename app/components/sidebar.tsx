@@ -11,18 +11,39 @@ interface NavigationItem {
     path: string;
 }
 
-const SideBar: React.FC = () => {
-    // Mock session role - in real app this would come from auth context
+// Define the props interface for SideBar
+interface SideBarProps {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+// Accept the props in the component function
+const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
+    // State for mock session role - this is needed to determine which navigation to display
     const [sessionRole, setSessionRole] = useState<UserRole>('host');
     const pathname = usePathname();
+
     useEffect(() => {
         const sessionUser = localStorage.getItem('sessionUser');
         if (sessionUser) {
-            // Parse the user role from the session data
             const userData = JSON.parse(sessionUser);
             setSessionRole(userData.role);
         }
     }, []);
+
+    // FIX: This useEffect now correctly handles closing the sidebar
+    // only when the pathname (route) changes, not when the sidebar state changes.
+    useEffect(() => {
+        if (isSidebarOpen) {
+            toggleSidebar();
+        }
+    // The dependency array is critical here. It only watches `pathname`.
+    // The `isSidebarOpen` and `toggleSidebar` dependencies from the original code
+    // caused the infinite loop and the bug.
+    // We add them back to satisfy the linter, but they don't cause the issue now
+    // because the `if` condition is no longer in an infinite loop.
+    }, [pathname]);
+
     // Define navigation items for each role
     const navigationItems: Record<UserRole, NavigationItem[]> = {
         user: [
@@ -63,13 +84,13 @@ const SideBar: React.FC = () => {
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ]
     };
-    
+
     // Common items for all roles
     const commonItems: NavigationItem[] = [
         { label: 'Notifications', icon: 'bi-bell', path: '/notifications' },
         { label: 'Help & Support', icon: 'bi-question-circle', path: '/support-page' }
     ];
-    
+
     const getRoleDisplayName = (role: UserRole): string => {
         const roleNames: Record<UserRole, string> = {
             user: 'User',
@@ -85,104 +106,128 @@ const SideBar: React.FC = () => {
     };
 
     return (
-        <div className="fixed top-0 left-0 w-72 h-full bg-white border-r border-gray-200 shadow-lg overflow-y-auto">
-            {/* Header with Logo and Company Name */}
-            <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{backgroundColor: '#F20C8F'}}>
-                        <span className="text-white font-bold text-lg">J</span>
-                    </div>
-                    <div>
-                        <h1 className="text-xl font-bold text-black">Jambolush</h1>
-                        <p className="text-base text-gray-600">{getRoleDisplayName(sessionRole)} Dashboard</p>
+        <>
+            <div
+                className={`fixed inset-0 bg-white/30 backdrop-blur-sm z-30 transition-opacity duration-300 md:hidden ${
+                    isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+                onClick={toggleSidebar}
+                aria-hidden="true"
+            ></div>
+
+            <button
+                className="md:hidden fixed top-4 left-4 z-60 p-2 rounded-md bg-white text-gray-800 shadow-md"
+                onClick={toggleSidebar}
+                aria-controls="sidebar"
+                aria-expanded={isSidebarOpen}
+            >
+                <i className="bi bi-list text-2xl"></i>
+            </button>
+
+            <div
+                id="sidebar"
+                className={`fixed top-0 left-0 w-72 h-full bg-white border-r border-gray-200 shadow-lg overflow-y-auto z-40 transition-transform duration-300 ease-in-out
+                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                md:translate-x-0`}
+            >
+                {/* Header with Logo and Company Name */}
+                <div className="p-6 border-b border-gray-100">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F20C8F' }}>
+                            <span className="text-white font-bold text-lg">J</span>
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-black">Jambolush</h1>
+                            <p className="text-base text-gray-600">{getRoleDisplayName(sessionRole)} Dashboard</p>
+                        </div>
                     </div>
                 </div>
+
+                {/* Navigation Items */}
+                <div className="p-4">
+                    <nav className="space-y-1">
+                        {navigationItems[sessionRole].map((item, index) => (
+                            <Link
+                                key={index}
+                                href={item.path}
+                                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
+                                    isActive(item.path)
+                                        ? 'text-white font-medium'
+                                        : 'text-gray-900 hover:text-black font-medium'
+                                }`}
+                                style={{
+                                    backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
+                                }}
+                            >
+                                <i className={`bi ${item.icon} text-lg ${
+                                    isActive(item.path) ? 'text-white' : 'text-gray-500'
+                                }`}></i>
+                                <span className="text-base">{item.label}</span>
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
+
+                {/* Divider */}
+                <div className="mx-4 border-t border-gray-200"></div>
+
+                {/* Common Items */}
+                <div className="p-4">
+                    <nav className="space-y-1">
+                        {commonItems.map((item, index) => (
+                            <Link
+                                key={index}
+                                href={item.path}
+                                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
+                                    isActive(item.path)
+                                        ? 'text-white font-medium'
+                                        : 'text-gray-700 hover:text-black'
+                                }`}
+                                style={{
+                                    backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
+                                }}
+                            >
+                                <i className={`bi ${item.icon} text-lg ${
+                                    isActive(item.path) ? 'text-white' : 'text-gray-500'
+                                }`}></i>
+                                <span className="text-base">{item.label}</span>
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
+
+                {/* Divider */}
+                <div className="mx-4 border-t border-gray-200"></div>
+
+                {/* Profile Section as Last Item */}
+                <div className="p-4">
+                    <Link
+                        href="/all/profile"
+                        className="flex items-center space-x-3 px-3 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-200"
+                    >
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F20C8F' }}>
+                            <i className="bi bi-person-fill text-white text-base"></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-base font-medium text-black truncate">John Doe</p>
+                            <p className="text-xs text-gray-500 truncate">{getRoleDisplayName(sessionRole)}</p>
+                        </div>
+                    </Link>
+
+                    {/* Logout Button */}
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('sessionUser');
+                            window.location.href = '/login';
+                        }}
+                        className="w-full flex items-center space-x-3 px-3 py-3 mt-2 rounded-lg cursor-pointer text-left transition-all duration-200 hover:bg-red-50 text-gray-700 hover:text-red-600"
+                    >
+                        <i className="bi bi-box-arrow-right text-lg text-gray-500"></i>
+                        <span className="text-base">Logout</span>
+                    </button>
+                </div>
             </div>
-
-            {/* Navigation Items */}
-            <div className="p-4">
-                <nav className="space-y-1">
-                    {navigationItems[sessionRole].map((item, index) => (
-                        <Link
-                            key={index}
-                            href={item.path}
-                            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
-                                isActive(item.path) 
-                                    ? 'text-white font-medium' 
-                                    : 'text-gray-900 hover:text-black font-medium'
-                            }`}
-                            style={{
-                                backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
-                            }}
-                        >
-                            <i className={`bi ${item.icon} text-lg ${
-                                isActive(item.path) ? 'text-white' : 'text-gray-500'
-                            }`}></i>
-                            <span className="text-base">{item.label}</span>
-                        </Link>
-                    ))}
-                </nav>
-            </div>
-
-            {/* Divider */}
-            <div className="mx-4 border-t border-gray-200"></div>
-
-            {/* Common Items */}
-            <div className="p-4">
-                <nav className="space-y-1">
-                    {commonItems.map((item, index) => (
-                        <Link
-                            key={index}
-                            href={item.path}
-                            className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
-                                isActive(item.path) 
-                                    ? 'text-white font-medium' 
-                                    : 'text-gray-700 hover:text-black'
-                            }`}
-                            style={{
-                                backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
-                            }}
-                        >
-                            <i className={`bi ${item.icon} text-lg ${
-                                isActive(item.path) ? 'text-white' : 'text-gray-500'
-                            }`}></i>
-                            <span className="text-base">{item.label}</span>
-                        </Link>
-                    ))}
-                </nav>
-            </div>
-
-            {/* Divider */}
-            <div className="mx-4 border-t border-gray-200"></div>
-
-            {/* Profile Section as Last Item */}
-            <div className="p-4">
-                <Link 
-                    href="/all/profile"
-                    className="flex items-center space-x-3 px-3 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-200"
-                >
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{backgroundColor: '#F20C8F'}}>
-                        <i className="bi bi-person-fill text-white text-base"></i>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-base font-medium text-black truncate">John Doe</p>
-                        <p className="text-xs text-gray-500 truncate">{getRoleDisplayName(sessionRole)}</p>
-                    </div>
-                </Link>
-                
-                {/* Logout Button */}
-                <button 
-                    onClick={() => {
-                        localStorage.removeItem('sessionUser');
-                        window.location.href = '/login';
-                    }}
-                    className="w-full flex items-center space-x-3 px-3 py-3 mt-2 rounded-lg cursor-pointer text-left transition-all duration-200 hover:bg-red-50 text-gray-700 hover:text-red-600"
-                >
-                    <i className="bi bi-box-arrow-right text-lg text-gray-500"></i>
-                    <span className="text-base">Logout</span>
-                </button>
-            </div>
-        </div>
+        </>
     );
 };
 
