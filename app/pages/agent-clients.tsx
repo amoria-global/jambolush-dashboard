@@ -166,11 +166,22 @@ const AgentClientsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<keyof Client>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid'); // default grid
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [goToPageInput, setGoToPageInput] = useState('');
+  const [propertyFilter, setPropertyFilter] = useState<string>('all');
 
   const pageSize = 8;
 
-  useEffect(() => setCurrentPage(1), [activeTab, searchTerm, startDate, endDate]);
+  useEffect(() => setCurrentPage(1), [activeTab, searchTerm, startDate, endDate, propertyFilter]);
+
+  // Update goToPageInput when currentPage changes
+  useEffect(() => {
+    setGoToPageInput(currentPage.toString());
+  }, [currentPage]);
+
+  const uniqueProperties = useMemo(() => {
+    return [...new Set(MOCK_CLIENTS.map(c => c.propertyName))];
+  }, []);
 
   const filteredAndSortedClients = useMemo(() => {
     let result = MOCK_CLIENTS.filter(client => {
@@ -180,7 +191,8 @@ const AgentClientsPage: React.FC = () => {
                             client.propertyName.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDateRange = (!startDate || client.bookingDate >= startDate) &&
                                (!endDate || client.bookingDate <= endDate);
-      return matchesTab && matchesSearch && matchesDateRange;
+      const matchesProperty = propertyFilter === 'all' || client.propertyName === propertyFilter;
+      return matchesTab && matchesSearch && matchesDateRange && matchesProperty;
     });
 
     result.sort((a, b) => {
@@ -192,7 +204,7 @@ const AgentClientsPage: React.FC = () => {
     });
 
     return result;
-  }, [activeTab, searchTerm, startDate, endDate, sortBy, sortOrder]);
+  }, [activeTab, searchTerm, startDate, endDate, propertyFilter, sortBy, sortOrder]);
 
   const totalClients = filteredAndSortedClients.length;
   const totalPages = Math.ceil(totalClients / pageSize);
@@ -202,6 +214,7 @@ const AgentClientsPage: React.FC = () => {
   }, [filteredAndSortedClients, currentPage, pageSize]);
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
+  
   const getAvatarColor = (id: string) => {
     const colors = [
       'bg-gradient-to-br from-purple-500 to-purple-600',
@@ -234,233 +247,319 @@ const AgentClientsPage: React.FC = () => {
     }
   };
 
+  const handleGoToPage = (value: string) => {
+    const page = parseInt(value);
+    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+    setGoToPageInput(currentPage.toString());
+  };
+
   const ClientCard: React.FC<{ client: Client }> = ({ client }) => (
-    <div className="group relative bg-white backdrop-blur-md border border-gray-200/50 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 p-4 hover:-translate-y-0.5 hover:scale-[1.02]">
-      {/* Status Badge - Top Right */}
-      <div className="absolute top-3 right-3">
-        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(client.status)}`}>
+    <div className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
+      <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 h-20">
+        <span className={`absolute top-3 left-3 px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
           {client.status}
         </span>
-      </div>
-
-      <div className="flex items-start space-x-3 mb-4">
-        <div className={`w-12 h-12 rounded-lg ${getAvatarColor(client.id)} flex items-center justify-center shadow`}>
+        <div className={`absolute -bottom-6 left-4 w-12 h-12 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow-lg`}>
           <span className="text-white text-sm font-bold">{getInitials(client.name)}</span>
         </div>
-        <div className="flex-1 pr-16"> {/* Added right padding to avoid status badge overlap */}
-          <h3 className="text-base font-bold text-[#083A85] group-hover:text-pink-500 transition-colors">{client.name}</h3>
-          <p className="text-sm text-gray-500 mt-1">{client.email}</p>
-          <p className="text-sm text-gray-500">{client.phone}</p>
-        </div>
       </div>
-
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600 font-medium">Property</span>
-          <span className="font-semibold text-gray-900 text-right text-xs">{client.propertyName}</span>
+      
+      <div className="p-4 pt-8 flex flex-col flex-grow">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
+        <p className="text-sm text-gray-500 mb-1">{client.email}</p>
+        <p className="text-sm text-gray-500 mb-4">{client.phone}</p>
+        
+        <div className="text-sm text-gray-600 border-t border-b py-3 my-3 space-y-2">
+          <div className="flex justify-between">
+            <span>Property:</span>
+            <span className="font-medium text-gray-900 text-right truncate ml-2">{client.propertyName}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Guests:</span>
+            <span className="font-medium text-gray-900">{client.numberOfGuests} people</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Check-in:</span>
+            <span className="font-medium text-gray-900">{new Date(client.checkInDate).toLocaleDateString()}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Check-out:</span>
+            <span className="font-medium text-gray-900">{new Date(client.checkOutDate).toLocaleDateString()}</span>
+          </div>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600 font-medium">Guests</span>
-          <span className="font-semibold text-gray-900">{client.numberOfGuests} people</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600 font-medium">House Payment</span>
-          <span className="font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600 font-medium">Amount/Client</span>
-          <span className="font-bold text-green-600">${client.amountPerClient}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600 font-medium">Check-in</span>
-          <span className="text-gray-700 font-semibold text-xs">{new Date(client.checkInDate).toLocaleDateString()}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600 font-medium">Check-out</span>
-          <span className="text-gray-700 font-semibold text-xs">{new Date(client.checkOutDate).toLocaleDateString()}</span>
+        
+        <div className="mt-auto">
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <p className="text-lg font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</p>
+              <p className="text-sm text-green-600">${client.amountPerClient}/client</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
-      <div className="container mx-auto max-w-7xl">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-[#083A85] mb-1">Client Management</h1>
-            <p className="text-gray-600 text-sm">Monitor and manage your client portfolio</p>
-          </div>
+    <div className="pt-14">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Client Management</h1>
+          <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search clients, emails, or properties..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none"
-              />
+        {/* Filters Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Client name, email, or property..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <svg className="absolute left-3 top-3 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select 
+                value={activeTab} 
+                onChange={(e) => setActiveTab(e.target.value as 'All' | Client['status'])}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              >
+                <option value="All">All Status</option>
+                <option value="Checked In">Checked In</option>
+                <option value="Checked Out">Checked Out</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Property</label>
+              <select 
+                value={propertyFilter} 
+                onChange={(e) => setPropertyFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              >
+                <option value="all">All Properties</option>
+                {uniqueProperties.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Booking Date Range</label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-6 gap-4">
+            <p className="text-sm text-gray-600">
+              Showing {paginatedClients.length} of {totalClients} clients
+            </p>
             <div className="flex gap-2">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none"
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none"
-              />
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 ${
+                  viewMode === 'grid' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Grid View
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 ${
+                  viewMode === 'list' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                List View
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Status Tabs */}
-        <div className="flex flex-wrap gap-2 mb-4 bg-white/50 backdrop-blur-sm rounded-xl p-2 shadow-sm border border-gray-200/50">
-          {(['All', 'Checked In', 'Checked Out', 'Pending'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 font-semibold rounded-lg transition-all duration-200 cursor-pointer hover:scale-105 ${
-                activeTab === tab
-                  ? 'bg-[#083A85] text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
-              }`}
-            >
-              {tab} {tab !== 'All' && 'Clients'}
-            </button>
-          ))}
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex justify-end mb-4 space-x-2">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`px-4 py-2 font-semibold rounded-lg transition-all duration-200 cursor-pointer hover:scale-105 ${
-              viewMode === 'grid' 
-                ? 'bg-[#083A85] text-white shadow-md' 
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Grid View
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`px-4 py-2 font-semibold rounded-lg transition-all duration-200 cursor-pointer hover:scale-105 ${
-              viewMode === 'table' 
-                ? 'bg-[#083A85] text-white shadow-md' 
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Table View
-          </button>
         </div>
 
         {/* Content */}
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {paginatedClients.length > 0 ? (
-              paginatedClients.map(client => <ClientCard key={client.id} client={client} />)
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">No clients found</h3>
-                <p className="text-gray-500">Try adjusting your search criteria or filters</p>
-              </div>
-            )}
+        {totalClients === 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <h3 className="text-xl font-medium text-gray-900 mt-4">No clients found</h3>
+            <p className="text-gray-600 mt-2">Try adjusting your filters or search criteria</p>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('name')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Client Info</span>
-                        {sortBy === 'name' && (
-                          <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('propertyName')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Property & Guests</span>
-                        {sortBy === 'propertyName' && (
-                          <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('checkInDate')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Check-in/Out Dates</span>
-                        {sortBy === 'checkInDate' && (
-                          <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('housePayment')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Payment Details</span>
-                        {sortBy === 'housePayment' && (
-                          <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => handleSort('status')}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>Status</span>
-                        {sortBy === 'status' && (
-                          <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </th>
+        )}
 
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedClients.length > 0 ? (
-                    paginatedClients.map((client, index) => (
+        {totalClients > 0 && (
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+              {paginatedClients.map(client => <ClientCard key={client.id} client={client} />)}
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+              {/* Mobile List View */}
+              <div className="block sm:hidden">
+                <div className="divide-y divide-gray-200">
+                  {paginatedClients.map((client) => (
+                    <div key={client.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow`}>
+                            <span className="text-white text-sm font-bold">{getInitials(client.name)}</span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{client.name}</div>
+                            <div className="text-xs text-gray-500">{client.email}</div>
+                          </div>
+                        </div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(client.status)}`}>
+                          {client.status}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-gray-500">Property:</span>
+                          <div className="font-medium text-gray-900 truncate">{client.propertyName}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Guests:</span>
+                          <div className="font-medium text-gray-900">{client.numberOfGuests}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">House Payment:</span>
+                          <div className="font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Per Client:</span>
+                          <div className="font-bold text-green-600">${client.amountPerClient}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Check-in:</span>
+                          <div className="font-medium text-gray-700">{new Date(client.checkInDate).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Check-out:</span>
+                          <div className="font-medium text-gray-700">{new Date(client.checkOutDate).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('name')} 
+                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                        >
+                          <span>Client Info</span>
+                          {sortBy === 'name' && (
+                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('propertyName')} 
+                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                        >
+                          <span>Property & Guests</span>
+                          {sortBy === 'propertyName' && (
+                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('checkInDate')} 
+                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                        >
+                          <span>Check-in/Out Dates</span>
+                          {sortBy === 'checkInDate' && (
+                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('housePayment')} 
+                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                        >
+                          <span>Payment Details</span>
+                          {sortBy === 'housePayment' && (
+                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('status')} 
+                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
+                        >
+                          <span>Status</span>
+                          {sortBy === 'status' && (
+                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </button>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedClients.map((client, index) => (
                       <tr key={client.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow mr-3`}>
+                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow mr-3 flex-shrink-0`}>
                               <span className="text-white text-sm font-bold">{getInitials(client.name)}</span>
                             </div>
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">{client.name}</div>
-                              <div className="text-xs text-gray-500">{client.email}</div>
-                              <div className="text-xs text-gray-400">{client.phone}</div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-gray-900 truncate">{client.name}</div>
+                              <div className="text-xs text-gray-500 truncate">{client.email}</div>
+                              <div className="text-xs text-gray-400 truncate">{client.phone}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{client.propertyName}</div>
+                          <div className="text-sm font-medium text-gray-900 truncate max-w-[150px]">{client.propertyName}</div>
                           <div className="text-xs text-gray-500">{client.numberOfGuests} guests</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="text-xs sm:text-sm text-gray-900">
                             <div><strong>In:</strong> {new Date(client.checkInDate).toLocaleDateString()}</div>
                             <div><strong>Out:</strong> {new Date(client.checkOutDate).toLocaleDateString()}</div>
                           </div>
@@ -475,50 +574,77 @@ const AgentClientsPage: React.FC = () => {
                           </span>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
-                        <div className="text-gray-500">
-                          <h3 className="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
-                          <p>Try adjusting your search criteria or filters</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-4">
-          <div className="text-sm text-gray-700">
-            Showing <span className="font-medium">{((currentPage - 1) * pageSize) + 1}</span> to{' '}
-            <span className="font-medium">{Math.min(currentPage * pageSize, totalClients)}</span> of{' '}
-            <span className="font-medium">{totalClients}</span> clients
-          </div>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
-              disabled={currentPage === 1} 
-              className="px-4 py-2 bg-[#083A85] text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:scale-105 transition-all duration-200 hover:bg-blue-700 disabled:hover:scale-100 disabled:hover:bg-[#083A85]"
-            >
-              Previous
-            </button>
-            <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg">
-              Page {currentPage} of {totalPages}
+        {totalPages > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                disabled={currentPage === 1} 
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = (totalPages <= 5 || currentPage <= 3) ? i + 1 : 
+                                 (currentPage >= totalPages - 2) ? totalPages - 4 + i : 
+                                 currentPage - 2 + i;
+                  return (
+                    <button 
+                      key={i} 
+                      onClick={() => setCurrentPage(pageNum)} 
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                        currentPage === pageNum 
+                          ? 'text-white' 
+                          : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                      }`} 
+                      style={{ backgroundColor: currentPage === pageNum ? '#083A85' : undefined }}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                disabled={currentPage === totalPages} 
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
-            <button 
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
-              disabled={currentPage === totalPages || totalClients === 0} 
-              className="px-4 py-2 bg-[#083A85] text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer hover:scale-105 transition-all duration-200 hover:bg-blue-700 disabled:hover:scale-100 disabled:hover:bg-[#083A85]"
-            >
-              Next
-            </button>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-700">Go to page:</span>
+              <input 
+                type="number" 
+                min="1" 
+                max={totalPages} 
+                value={goToPageInput} 
+                onChange={(e) => setGoToPageInput(e.target.value)} 
+                onBlur={(e) => handleGoToPage(e.target.value)} 
+                onKeyPress={(e) => e.key === 'Enter' && handleGoToPage((e.target as HTMLInputElement).value)} 
+                className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              />
+              <span className="text-sm text-gray-700">of {totalPages}</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
