@@ -20,7 +20,7 @@ interface SideBarProps {
 // Accept the props in the component function
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     // State for mock session role - this is needed to determine which navigation to display
-    const [sessionRole, setSessionRole] = useState<UserRole>('host');
+    const [sessionRole, setSessionRole] = useState<UserRole>('agent');
     const pathname = usePathname();
 
     useEffect(() => {
@@ -69,7 +69,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent/dashboard' },
             { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
             { label: 'Properties', icon: 'bi-building', path: '/all/agent-property' },
-            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
+            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent-perfomance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
