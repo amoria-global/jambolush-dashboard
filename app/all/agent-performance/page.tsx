@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import AgentPerformanceSummary from '../../pages/agent-perfomance';
+import AgentPerformanceSummary from '../../pages/agent-performance';
 export default function AgentPerformance() {
   return <AgentPerformanceSummary />;
 }

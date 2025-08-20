@@ -51,7 +51,7 @@ const UserMyBookings: React.FC = () => {
   // States
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid'); // MODIFICATION: Grid view is now the default
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
@@ -236,10 +236,12 @@ const UserMyBookings: React.FC = () => {
 
   return (
     <div className="pt-14">
-      <div className="mx-auto px-2 py-8">
+      {/* MODIFICATION: Added responsive padding for better spacing on all devices */}
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
+          {/* MODIFICATION: Responsive font size for the main heading */}
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Bookings</h1>
           <p className="text-gray-600 mt-2">Here you can manage and track all your property bookings.</p>
         </div>
 
@@ -282,20 +284,22 @@ const UserMyBookings: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="flex justify-between items-center mt-6">
+          {/* MODIFICATION: This container now stacks vertically on mobile for better readability */}
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-6 gap-4">
             <p className="text-base text-gray-600">
               Showing {paginatedBookings.length} of {filteredBookings.length} bookings
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setViewMode('list')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}>
-                <i className="bi bi-list-ul mr-2"></i>List View
-              </button>
+              {/* MODIFICATION: Grid view button is now first */}
               <button onClick={() => setViewMode('grid')}
                 className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${viewMode === 'grid' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}>
                 <i className="bi bi-grid-3x3-gap mr-2"></i>Grid View
+              </button>
+              <button onClick={() => setViewMode('list')}
+                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${viewMode === 'list' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}>
+                <i className="bi bi-list-ul mr-2"></i>List View
               </button>
             </div>
           </div>
