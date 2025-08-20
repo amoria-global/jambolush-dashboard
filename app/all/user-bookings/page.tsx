@@ -1,4 +1,4 @@
-import BookingsDashboard from '../../pages/user-mybooking';
+import BookingsDashboard from '../../pages/user-bookings';
 const UserBookingDashboardPage = () => {
   return (
     <div>
