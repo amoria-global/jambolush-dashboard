@@ -165,7 +165,7 @@ const ToursDashboard: FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans antialiased">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8 font-sans antialiased mt-8">
       <div className="w-full max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-800 mb-2">Tours Dashboard</h1>
         <p className="text-gray-600 mb-8">Manage all your tours and experiences in one place.</p>
