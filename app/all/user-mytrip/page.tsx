@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, FC } from 'react';
-import AgentClientsPage from "../../pages/user-mytrip";
+import AgentClientsPage from "../../pages/guest/user-mytrip";
 
 const ClientsDashboard: FC = () => {
   return (
