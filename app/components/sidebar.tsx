@@ -20,7 +20,7 @@ interface SideBarProps {
 // Accept the props in the component function
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     // State for mock session role - this is needed to determine which navigation to display
-    const [sessionRole, setSessionRole] = useState<UserRole>('agent');
+    const [sessionRole, setSessionRole] = useState<UserRole>('user');
     const pathname = usePathname();
 
     useEffect(() => {
@@ -50,7 +50,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Home', icon: 'bi-house', path: '/' },
             { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
             { label: 'Schedule', icon: 'bi-calendar-plus', path: '/all/user-schedule' },
-            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user/tours' },
+            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user-tour' },
             { label: 'My Trips', icon: 'bi-airplane', path: '/all/user/schedule' },
             { label: 'Payments', icon: 'bi-credit-card', path: '/all/user/payments' },
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/wishlist' },
@@ -69,7 +69,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent/dashboard' },
             { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
             { label: 'Properties', icon: 'bi-building', path: '/all/agent-property' },
-            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent-perfomance' },
+            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent-performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
