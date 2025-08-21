@@ -79,8 +79,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/guide-schedule' },
             { label: 'Guests', icon: 'bi-people', path: '/all/tourguide/guests' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/tourguide/earnings' },
-            { label: 'Reviews', icon: 'bi-star', path: '/all/tourguide/reviews' },
-            { label: 'Messages', icon: 'bi-envelope', path: '/all/tourguide/messages' },
+            { label: 'Reviews', icon: 'bi-star', path: '/all/tour-guide-reviews' },
+            { label: 'Messages', icon: 'bi-envelope', path: '/all/messages' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ]
     };
