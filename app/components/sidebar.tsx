@@ -20,7 +20,7 @@ interface SideBarProps {
 // Accept the props in the component function
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     // State for mock session role - this is needed to determine which navigation to display
-    const [sessionRole, setSessionRole] = useState<UserRole>('tourguide'); // Default to 'tourguide' for testing purposes
+    const [sessionRole, setSessionRole] = useState<UserRole>('host'); // Default to 'tourguide' for testing purposes
     const pathname = usePathname();
 
     useEffect(() => {
