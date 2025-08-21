@@ -51,7 +51,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     // Responsive fixed top bar
     // It is full-width on small screens and has a left offset on large screens (lg)
     <div
-      className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-400 shadow-lg z-50 transition-all duration-300 lg:left-72"
+      className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-400 shadow-lg z-30 transition-all duration-300 lg:left-72"
     >
       {/* Left side content, including dashboard title and mobile menu button */}
       <div className="flex items-center gap-4">

@@ -11,51 +11,191 @@ interface NavigationItem {
     path: string;
 }
 
-// Define the props interface for SideBar
 interface SideBarProps {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }
 
-// Accept the props in the component function
+interface UserSession {
+    role: UserRole;
+    name: string;
+}
+
+// Role Selection Modal Component
+const RoleSelectionModal: React.FC<{
+    isOpen: boolean;
+    onLogin: (role: UserRole, name: string) => void;
+}> = ({ isOpen, onLogin }) => {
+    const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+    const [userName, setUserName] = useState('');
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+    const roleOptions = [
+        { value: 'user' as UserRole, label: 'User', icon: 'bi-person', description: 'Book accommodations and tours' },
+        { value: 'host' as UserRole, label: 'Host', icon: 'bi-building', description: 'Manage properties and bookings' },
+        { value: 'agent' as UserRole, label: 'Agent', icon: 'bi-briefcase', description: 'Help clients find properties' },
+        { value: 'tourguide' as UserRole, label: 'Tour Guide', icon: 'bi-compass', description: 'Create and manage tours' }
+    ];
+
+    const handleLogin = () => {
+        if (!selectedRole || !userName.trim()) return;
+        
+        setIsLoggingIn(true);
+        // Simulate login process
+        setTimeout(() => {
+            onLogin(selectedRole, userName.trim());
+            setIsLoggingIn(false);
+        }, 1000);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full">
+                {/* Modal Header */}
+                <div className="p-4 border-b border-gray-100">
+                    <div className="flex items-center space-x-2 mb-1">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F20C8F' }}>
+                            <span className="text-white font-bold text-sm">J</span>
+                        </div>
+                        <h2 className="text-lg font-bold text-gray-900">Welcome to Jambolush</h2>
+                    </div>
+                    <p className="text-sm text-gray-600">Choose your role to get started</p>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-4">
+                    {/* Name Input */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Your Name
+                        </label>
+                        <input
+                            type="text"
+                            value={userName}
+                            onChange={(e) => setUserName(e.target.value)}
+                            placeholder="Enter your name"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    {/* Role Selection */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Select Your Role
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {roleOptions.map((role) => (
+                                <div
+                                    key={role.value}
+                                    onClick={() => setSelectedRole(role.value)}
+                                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                                        selectedRole === role.value
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <div className="text-center">
+                                        <i className={`bi ${role.icon} text-lg ${
+                                            selectedRole === role.value ? 'text-blue-600' : 'text-gray-500'
+                                        }`}></i>
+                                        <h3 className={`text-sm font-medium mt-1 ${
+                                            selectedRole === role.value ? 'text-blue-900' : 'text-gray-900'
+                                        }`}>
+                                            {role.label}
+                                        </h3>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Login Button */}
+                    <button
+                        onClick={handleLogin}
+                        disabled={!selectedRole || !userName.trim() || isLoggingIn}
+                        className={`w-full py-2.5 px-4 rounded-lg font-medium transition-all duration-200 ${
+                            !selectedRole || !userName.trim() || isLoggingIn
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                    >
+                        {isLoggingIn ? (
+                            <div className="flex items-center justify-center space-x-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>Logging in...</span>
+                            </div>
+                        ) : (
+                            'Login'
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
-    // State for mock session role - this is needed to determine which navigation to display
-    const [sessionRole, setSessionRole] = useState<UserRole>('host'); // Default to 'tourguide' for testing purposes
+    const [sessionRole, setSessionRole] = useState<UserRole | null>(null);
+    const [userName, setUserName] = useState<string>('');
+    const [showModal, setShowModal] = useState(false);
     const pathname = usePathname();
 
     useEffect(() => {
         const sessionUser = localStorage.getItem('sessionUser');
         if (sessionUser) {
-            const userData = JSON.parse(sessionUser);
-            setSessionRole(userData.role);
+            try {
+                const userData: UserSession = JSON.parse(sessionUser);
+                setSessionRole(userData.role);
+                setUserName(userData.name || 'User');
+                setShowModal(false);
+            } catch (error) {
+                // Invalid session data, clear it
+                localStorage.removeItem('sessionUser');
+                setSessionRole(null);
+                setShowModal(true);
+            }
+        } else {
+            setSessionRole(null);
+            setShowModal(true);
         }
     }, []);
 
-    // FIX: This useEffect now correctly handles closing the sidebar
-    // only when the pathname (route) changes, not when the sidebar state changes.
     useEffect(() => {
         if (isSidebarOpen) {
             toggleSidebar();
         }
-    // The dependency array is critical here. It only watches pathname.
-    // The isSidebarOpen and toggleSidebar dependencies from the original code
-    // caused the infinite loop and the bug.
-    // We add them back to satisfy the linter, but they don't cause the issue now
-    // because the if condition is no longer in an infinite loop.
     }, [pathname]);
+
+    const handleLogin = (role: UserRole, name: string) => {
+        const userData: UserSession = { role, name };
+        localStorage.setItem('sessionUser', JSON.stringify(userData));
+        setSessionRole(role);
+        setUserName(name);
+        setShowModal(false);
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('sessionUser');
+        setSessionRole(null);
+        setUserName('');
+        setShowModal(true);
+    };
 
     // Define navigation items for each role
     const navigationItems: Record<UserRole, NavigationItem[]> = {
         user: [
-            { label: 'Home', icon: 'bi-house', path: '/' },
-            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
-            { label: 'My Trips', icon: 'bi-airplane', path: '/all/user-schedule' },
-            { label: 'Payments', icon: 'bi-credit-card', path: '/all/user/payments' },
-            { label: 'Wishlist', icon: 'bi-heart', path: '/all/wishlist' },
-            { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
+            { label: 'Home', icon: 'bi-house', path: '/all/guest' },
+            { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/guest/bookings' },
+            { label: 'Schedule', icon: 'bi-calendar-plus', path: '/all/guest/schedule' },
+            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/guest/tour' },
+            { label: 'Payments', icon: 'bi-credit-card', path: '/all/guest/payments' },
+            { label: 'Wishlist', icon: 'bi-heart', path: '/all/guest/wishlist' },
+            { label: 'Settings', icon: 'bi-gear', path: '/all/guest/settings' }
         ],
         host: [
-            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/host/dashboard' },
+            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/host/' },
             { label: 'My Properties', icon: 'bi-building', path: '/all/host/properties' },
             { label: 'Bookings', icon: 'bi-calendar3', path: '/all/host/bookings' },
             { label: 'Guests', icon: 'bi-people', path: '/all/host/guests' },
@@ -64,17 +204,18 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
         agent: [
-            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent/dashboard' },
-            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent-clients' },
-            { label: 'Properties', icon: 'bi-building', path: '/all/agent-property' },
-            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent-performance' },
+            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent' },
+            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
+            { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
+            { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
+            { label: 'Settings', icon: 'bi-gear', path: '/all/settings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
         tourguide: [
-            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/tourguide/dashboard' },
+            { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/tourguide' },
             { label: 'My Tours', icon: 'bi-compass', path: '/all/tourguide/tours' },
-            { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/guide-schedule' },
+            { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/tourguide/schedule' },
             { label: 'Guests', icon: 'bi-people', path: '/all/tourguide/guests' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/tourguide/earnings' },
             { label: 'Reviews', icon: 'bi-star', path: '/all/tour-guide-reviews' },
@@ -85,6 +226,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
     // Common items for all roles
     const commonItems: NavigationItem[] = [
+        { label: 'Profile', icon: 'bi-person', path: '/all/profile' },
         { label: 'Notifications', icon: 'bi-bell', path: '/all/notifications' },
         { label: 'Help & Support', icon: 'bi-question-circle', path: '/all/support-page' }
     ];
@@ -102,6 +244,11 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const isActive = (path: string): boolean => {
         return pathname === path;
     };
+
+    // Show modal if no session
+    if (!sessionRole) {
+        return <RoleSelectionModal isOpen={showModal} onLogin={handleLogin} />;
+    }
 
     return (
         <>
@@ -207,17 +354,14 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                             <i className="bi bi-person-fill text-white text-base"></i>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-base font-medium text-black truncate">John Doe</p>
+                            <p className="text-base font-medium text-black truncate">{userName}</p>
                             <p className="text-xs text-gray-500 truncate">{getRoleDisplayName(sessionRole)}</p>
                         </div>
                     </Link>
 
                     {/* Logout Button */}
                     <button
-                        onClick={() => {
-                            localStorage.removeItem('sessionUser');
-                            window.location.href = '/login';
-                        }}
+                        onClick={handleLogout}
                         className="w-full flex items-center space-x-3 px-3 py-3 mt-2 rounded-lg cursor-pointer text-left transition-all duration-200 hover:bg-red-50 text-gray-700 hover:text-red-600"
                     >
                         <i className="bi bi-box-arrow-right text-lg text-gray-500"></i>
@@ -225,6 +369,9 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Role Selection Modal */}
+            <RoleSelectionModal isOpen={showModal} onLogin={handleLogin} />
         </>
     );
 };
