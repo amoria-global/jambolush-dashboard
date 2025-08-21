@@ -325,97 +325,104 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/10 backdrop-blur-xs transition-opacity" />
-          <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between z-10">
+          <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
+            <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-[95vw] sm:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between z-10">
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900">{getModalTitle()}</h2>
-                  <p className="text-sm text-gray-600 mt-1">Step {currentStep} of 4</p>
+                  <h2 className="text-lg sm:text-2xl font-semibold text-gray-900">{getModalTitle()}</h2>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">Step {currentStep} of 4</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   {isEditMode && !isEditing && (
-                    <button onClick={() => setIsEditing(true)} className="inline-flex items-center px-4 py-2 rounded-full font-medium transition-all bg-[#083A85] text-white hover:bg-[#0a4499] text-sm shadow-sm cursor-pointer">
-                      <span>Edit</span>
-                      <i className="bi bi-pencil w-4 h-4 ml-2"></i>
+                    <button onClick={() => setIsEditing(true)} className="inline-flex items-center px-2 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium transition-all bg-[#083A85] text-white hover:bg-[#0a4499] text-xs sm:text-sm shadow-sm cursor-pointer">
+                      <span className="hidden sm:inline">Edit</span>
+                      <span className="sm:hidden">Edit</span>
+                      <i className="bi bi-pencil w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2"></i>
                     </button>
                   )}
                   {isEditMode && isEditing && (
-                     <button onClick={handleCancelEdit} className="inline-flex items-center px-4 py-2 rounded-full font-medium transition-all bg-red-100 text-red-600 hover:bg-red-200 text-sm cursor-pointer">
-                      <span>Cancel</span>
-                      <i className="bi bi-slash-circle w-4 h-4 ml-2"></i>
+                     <button onClick={handleCancelEdit} className="inline-flex items-center px-2 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium transition-all bg-red-100 text-red-600 hover:bg-red-200 text-xs sm:text-sm cursor-pointer">
+                      <span className="hidden sm:inline">Cancel</span>
+                      <span className="sm:hidden">Cancel</span>
+                      <i className="bi bi-slash-circle w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2"></i>
                     </button>
                   )}
-                  <button onClick={() => setIsModalOpen(false)} className="cursor-pointer"><i className="bi bi-x w-5 h-5 p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i></button>
+                  <button onClick={() => setIsModalOpen(false)} className="cursor-pointer">
+                    <i className="bi bi-x w-4 h-4 sm:w-5 sm:h-5 p-2 sm:p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i>
+                  </button>
                 </div>
               </div>
 
-              <div className="px-8 pt-4 pb-2">
+              {/* Step Indicator */}
+              <div className="px-4 sm:px-8 pt-4 pb-2">
                 <div className="flex items-center justify-between relative">
                    {[1, 2, 3, 4].map((step, index) => (
                     <div key={step} className="flex items-center flex-1">
                       <div className="flex flex-col items-center">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all ${currentStep >= step ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-lg' : 'bg-gray-200 text-gray-600'}`}>
-                          {currentStep > step ? <i className="bi bi-check w-5 h-5"></i> : step}
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-medium transition-all text-xs sm:text-sm ${currentStep >= step ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-lg' : 'bg-gray-200 text-gray-600'}`}>
+                          {currentStep > step ? <i className="bi bi-check w-4 h-4 sm:w-5 sm:h-5"></i> : step}
                         </div>
-                        <span className="text-sm font-semibold text-gray-600 mt-2 whitespace-nowrap">
+                        <span className="text-xs sm:text-sm font-semibold text-gray-600 mt-1 sm:mt-2 whitespace-nowrap text-center leading-tight">
                           {['Owner Details', 'Property Details', 'Property Features', 'Media Upload'][index]}
                         </span>
                       </div>
-                      {step < 4 && <div className={`flex-1 h-1 mx-2 transition-all self-start mt-5 ${currentStep > step ? 'bg-gradient-to-r from-[#083A85] to-[#0a4499]' : 'bg-gray-200'}`} />}
+                      {step < 4 && <div className={`flex-1 h-0.5 sm:h-1 mx-1 sm:mx-2 transition-all self-start mt-4 sm:mt-5 ${currentStep > step ? 'bg-gradient-to-r from-[#083A85] to-[#0a4499]' : 'bg-gray-200'}`} />}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 260px)' }}>
+              {/* Content */}
+              <div className="px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px)' }}>
                 {currentStep === 1 && (
-                  <div className="space-y-6">
-                     <h3 className="text-lg font-medium text-gray-900">Property Owner Information</h3>
+                  <div className="space-y-4 sm:space-y-6">
+                     <h3 className="text-base sm:text-lg font-medium text-gray-900">Property Owner Information</h3>
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-person w-4 h-4 inline mr-2"></i>Full Name</label>
-                      <input type="text" name="names" value={formData.ownerDetails.names} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="Enter owner's full name" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-person w-4 h-4 inline mr-2"></i>Full Name</label>
+                      <input type="text" name="names" value={formData.ownerDetails.names} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="Enter owner's full name" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-envelope w-4 h-4 inline mr-2"></i>Email Address</label>
-                      <input type="email" name="email" value={formData.ownerDetails.email} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="owner@example.com" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-envelope w-4 h-4 inline mr-2"></i>Email Address</label>
+                      <input type="email" name="email" value={formData.ownerDetails.email} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="owner@example.com" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-phone w-4 h-4 inline mr-2"></i>Phone Number</label>
-                      <input type="tel" name="phone" value={formData.ownerDetails.phone} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="+1 (555) 123-4567" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-phone w-4 h-4 inline mr-2"></i>Phone Number</label>
+                      <input type="tel" name="phone" value={formData.ownerDetails.phone} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="+1 (555) 123-4567" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-map w-4 h-4 inline mr-2"></i>Address</label>
-                      <input type="text" name="address" value={formData.ownerDetails.address} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="123 Main St, City, State, ZIP" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer"><i className="bi bi-map w-4 h-4 inline mr-2"></i>Address</label>
+                      <input type="text" name="address" value={formData.ownerDetails.address} onChange={handleOwnerInputChange} disabled={!isEditing} placeholder="123 Main St, City, State, ZIP" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
                   </div>
                 )}
                 {currentStep === 2 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2">Property Name</label>
-                      <input type="text" name="name" value={formData.name} onChange={handleInputChange} disabled={!isEditing} placeholder="Enter property name" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">Property Name</label>
+                      <input type="text" name="name" value={formData.name} onChange={handleInputChange} disabled={!isEditing} placeholder="Enter property name" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2"><i className="bi bi-geo-alt w-4 h-4 inline mr-1"></i>Location</label>
-                      <input type="text" name="location" value={formData.location} onChange={handleInputChange} disabled={!isEditing} placeholder="City, State" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2"><i className="bi bi-geo-alt w-4 h-4 inline mr-1"></i>Location</label>
+                      <input type="text" name="location" value={formData.location} onChange={handleInputChange} disabled={!isEditing} placeholder="City, State" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-base font-semibold text-gray-700 mb-2"><i className="bi bi-calendar w-4 h-4 inline mr-1"></i>Available From</label>
-                        <input type="date" name="startDate" value={formData.availabilityDates.start} onChange={handleInputChange} disabled={!isEditing} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2"><i className="bi bi-calendar w-4 h-4 inline mr-1"></i>Available From</label>
+                        <input type="date" name="startDate" value={formData.availabilityDates.start} onChange={handleInputChange} disabled={!isEditing} className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base" />
                       </div>
                       <div>
-                        <label className="block text-base font-semibold text-gray-700 mb-2"><i className="bi bi-calendar w-4 h-4 inline mr-1"></i>Available Until</label>
-                        <input type="date" name="endDate" value={formData.availabilityDates.end} onChange={handleInputChange} disabled={!isEditing} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2"><i className="bi bi-calendar w-4 h-4 inline mr-1"></i>Available Until</label>
+                        <input type="date" name="endDate" value={formData.availabilityDates.end} onChange={handleInputChange} disabled={!isEditing} className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2"><i className="bi bi-currency-dollar w-4 h-4 inline mr-1"></i>Price per 2 Nights</label>
-                      <input type="number" name="pricePerTwoNights" value={formData.pricePerTwoNights} onChange={handleInputChange} disabled={!isEditing} placeholder="0.00" className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold" />
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2"><i className="bi bi-currency-dollar w-4 h-4 inline mr-1"></i>Price per 2 Nights</label>
+                      <input type="number" name="pricePerTwoNights" value={formData.pricePerTwoNights} onChange={handleInputChange} disabled={!isEditing} placeholder="0.00" className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:font-bold text-sm sm:text-base" />
                     </div>
                     <div className="pb-4">
-                      <label className="block text-base font-semibold text-gray-700 mb-2"><i className="bi bi-house w-4 h-4 inline mr-1"></i>Property Type</label>
-                      <select name="type" value={formData.type} onChange={handleInputChange} disabled={!isEditing} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all appearance-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2"><i className="bi bi-house w-4 h-4 inline mr-1"></i>Property Type</label>
+                      <select name="type" value={formData.type} onChange={handleInputChange} disabled={!isEditing} className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all appearance-none bg-white disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base">
                         <option value="">Select property type</option>
                         {propertyTypes.map(type => (<option key={type} value={type}>{type}</option>))}
                       </select>
@@ -423,18 +430,18 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
                   </div>
                 )}
                 {currentStep === 3 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select Property Features</h3>
-                      <p className="text-sm text-gray-600 mb-4">Choose all the features and amenities available at your property</p>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4"><p className="text-sm text-blue-800">Selected: {formData.features.length} feature{formData.features.length !== 1 ? 's' : ''}</p></div>
+                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Select Property Features</h3>
+                      <p className="text-xs sm:text-sm text-gray-600 mb-4">Choose all the features and amenities available at your property</p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4"><p className="text-xs sm:text-sm text-blue-800">Selected: {formData.features.length} feature{formData.features.length !== 1 ? 's' : ''}</p></div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {getAllPossibleFeatures().map(feature => (
-                        <div key={feature} onClick={() => handleFeatureToggle(feature)} className={`flex items-center p-3 rounded-xl transition-all select-none ${!isEditing ? 'cursor-not-allowed' : 'cursor-pointer'} ${formData.features.includes(feature) ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-md' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                        <div key={feature} onClick={() => handleFeatureToggle(feature)} className={`flex items-center p-2 sm:p-3 rounded-xl transition-all select-none ${!isEditing ? 'cursor-not-allowed' : 'cursor-pointer'} ${formData.features.includes(feature) ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-md' : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'}`}>
                           <div className="flex items-center">
-                            <div className={`w-5 h-5 rounded border-2 mr-2 flex items-center justify-center flex-shrink-0 ${formData.features.includes(feature) ? 'border-white bg-white' : 'border-gray-400'}`}>{formData.features.includes(feature) && (<i className="bi bi-check w-3 h-3 text-[#083A85]"></i>)}</div>
-                            <span className="text-sm">{feature}</span>
+                            <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded border-2 mr-2 flex items-center justify-center flex-shrink-0 ${formData.features.includes(feature) ? 'border-white bg-white' : 'border-gray-400'}`}>{formData.features.includes(feature) && (<i className="bi bi-check w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#083A85]"></i>)}</div>
+                            <span className="text-xs sm:text-sm leading-tight">{feature}</span>
                           </div>
                         </div>
                       ))}
@@ -442,40 +449,40 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
                   </div>
                 )}
                 {currentStep === 4 && (
-                   <div className="space-y-8">
+                   <div className="space-y-6 sm:space-y-8">
                     {/* Video Upload Section */}
                     <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">3D Property Video</h3>
-                        <div className={`border-2 rounded-xl p-6 transition-all ${formData.video3D ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}>
+                        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">3D Property Video</h3>
+                        <div className={`border-2 rounded-xl p-4 sm:p-6 transition-all ${formData.video3D ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}>
                             {!formData.video3D ? (
                                 isEditing ? (
                                     <>
-                                        <button type="button" onClick={() => videoInputRef.current?.click()} className="w-full py-8 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-[#083A85] hover:bg-blue-50 transition-all cursor-pointer">
-                                            <i className="bi bi-camera-video w-12 h-12 text-gray-400 mb-3" style={{ fontSize: '2.5rem' }}></i>
-                                            <span className="text-sm font-medium text-gray-700">Click to upload 3D video</span>
-                                            <span className="text-sm text-gray-500 mt-1">MP4, WebM, MOV, AVI (Max 500MB)</span>
+                                        <button type="button" onClick={() => videoInputRef.current?.click()} className="w-full py-6 sm:py-8 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-[#083A85] hover:bg-blue-50 transition-all cursor-pointer">
+                                            <i className="bi bi-camera-video w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mb-2 sm:mb-3" style={{ fontSize: '2rem' }}></i>
+                                            <span className="text-xs sm:text-sm font-medium text-gray-700">Click to upload 3D video</span>
+                                            <span className="text-xs sm:text-sm text-gray-500 mt-1 text-center">MP4, WebM, MOV, AVI (Max 500MB)</span>
                                         </button>
                                         <input ref={videoInputRef} type="file" accept="video/*" onChange={(e) => handleVideoUpload(e.target.files?.[0] || null)} className="hidden" />
                                     </>
-                                ) : <p className="text-sm text-gray-500 text-center">No 3D video has been uploaded for this property.</p>
+                                ) : <p className="text-xs sm:text-sm text-gray-500 text-center">No 3D video has been uploaded for this property.</p>
                             ) : (
-                                <div className="bg-white rounded-lg p-4">
+                                <div className="bg-white rounded-lg p-3 sm:p-4">
                                     <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="p-2 bg-green-100 rounded-lg"><i className="bi bi-film w-8 h-8 text-green-600" style={{ fontSize: '1.8rem' }}></i></div>
-                                            <div>
-                                                <p className="text-sm font-medium text-gray-900 break-all">{formData.video3D.name}</p>
-                                                <p className="text-sm text-gray-500">{formatFileSize(formData.video3D.size)}</p>
+                                        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                                            <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg flex-shrink-0"><i className="bi bi-film w-6 h-6 sm:w-8 sm:h-8 text-green-600" style={{ fontSize: '1.5rem' }}></i></div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-xs sm:text-sm font-medium text-gray-900 break-all">{formData.video3D.name}</p>
+                                                <p className="text-xs sm:text-sm text-gray-500">{formatFileSize(formData.video3D.size)}</p>
                                             </div>
                                         </div>
                                         {isEditing && (
-                                            <button type="button" onClick={removeVideo} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"><i className="bi bi-trash w-5 h-5"></i></button>
+                                            <button type="button" onClick={removeVideo} className="p-1.5 sm:p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"><i className="bi bi-trash w-4 h-4 sm:w-5 sm:h-5"></i></button>
                                         )}
                                     </div>
                                     {videoUploadProgress > 0 && videoUploadProgress < 100 && (
                                         <div className="mt-3">
                                             <div className="bg-gray-200 rounded-full h-2"><div className="bg-gradient-to-r from-[#083A85] to-[#0a4499] h-2 rounded-full transition-all" style={{ width: `${videoUploadProgress}%` }} /></div>
-                                            <p className="text-sm text-gray-500 mt-1">Uploading... {videoUploadProgress}%</p>
+                                            <p className="text-xs sm:text-sm text-gray-500 mt-1">Uploading... {videoUploadProgress}%</p>
                                         </div>
                                     )}
                                 </div>
@@ -484,24 +491,24 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
                     </div>
                     {/* Image Upload Section */}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Property Images (Optional)</h3>
-                      <div className="space-y-6">
+                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">Property Images (Optional)</h3>
+                      <div className="space-y-4 sm:space-y-6">
                         {imageCategories.map(category => (
-                          <div key={category.name} className="border rounded-xl p-4 transition-all border-gray-200 bg-white">
+                          <div key={category.name} className="border rounded-xl p-3 sm:p-4 transition-all border-gray-200 bg-white">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-medium text-gray-900">{category.label}</h4>
-                              <span className={`text-sm ${formData.images[category.name].length === category.maxImages ? 'text-green-600 font-medium' : 'text-gray-500'}`}>{formData.images[category.name].length}/{category.maxImages} images {formData.images[category.name].length === category.maxImages && '✓'}</span>
+                              <h4 className="text-sm sm:text-base font-medium text-gray-900">{category.label}</h4>
+                              <span className={`text-xs sm:text-sm ${formData.images[category.name].length === category.maxImages ? 'text-green-600 font-medium' : 'text-gray-500'}`}>{formData.images[category.name].length}/{category.maxImages} images {formData.images[category.name].length === category.maxImages && '✓'}</span>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
                               {formData.images[category.name].map((image, index) => (
                                 <div key={image.url} className="relative group">
-                                  <img src={image.url} alt={`${category.label} ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
-                                  {isEditing && (<button type="button" onClick={() => removeImage(category.name, index)} className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><i className="bi bi-x w-3 h-3"></i></button>)}
+                                  <img src={image.url} alt={`${category.label} ${index + 1}`} className="w-full h-20 sm:h-24 object-cover rounded-lg" />
+                                  {isEditing && (<button type="button" onClick={() => removeImage(category.name, index)} className="absolute top-1 right-1 p-0.5 sm:p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><i className="bi bi-x w-3 h-3"></i></button>)}
                                 </div>
                               ))}
                               {isEditing && formData.images[category.name].length < category.maxImages && (
-                                <button type="button" onClick={() => fileInputRefs.current[category.name]?.click()} className="h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all border-gray-300 hover:border-[#083A85] hover:bg-blue-50 cursor-pointer">
-                                  <i className="bi bi-upload w-5 h-5 mb-1 text-gray-400"></i>
+                                <button type="button" onClick={() => fileInputRefs.current[category.name]?.click()} className="h-20 sm:h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all border-gray-300 hover:border-[#083A85] hover:bg-blue-50 cursor-pointer">
+                                  <i className="bi bi-upload w-4 h-4 sm:w-5 sm:h-5 mb-1 text-gray-400"></i>
                                   <span className="text-xs text-gray-500">Upload</span>
                                 </button>
                               )}
@@ -514,17 +521,23 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
                   </div>
                 )}
               </div>
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-8 py-4 flex items-center justify-between z-10">
-                <button type="button" onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))} disabled={currentStep === 1 || !isEditing} className="inline-flex items-center px-4 py-2 rounded-full font-medium transition-all bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed cursor-pointer">
-                  <i className="bi bi-chevron-left w-4 h-4 mr-1"></i>Previous
+
+              {/* Footer */}
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between z-10">
+                <button type="button" onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))} disabled={currentStep === 1 || !isEditing} className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium transition-all bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed cursor-pointer text-xs sm:text-sm">
+                  <i className="bi bi-chevron-left w-3 h-3 sm:w-4 sm:h-4 mr-1"></i>
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
                 </button>
                 {currentStep < 4 ? (
-                  <button type="button" onClick={() => setCurrentStep(prev => prev + 1)} disabled={!isStepValid() || !isEditing} className="inline-flex items-center px-6 py-2 rounded-full font-medium transition-all bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer">
-                    Next<i className="bi bi-chevron-right w-4 h-4 ml-1"></i>
+                  <button type="button" onClick={() => setCurrentStep(prev => prev + 1)} disabled={!isStepValid() || !isEditing} className="inline-flex items-center px-4 sm:px-6 py-1.5 sm:py-2 rounded-full font-medium transition-all bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer text-xs sm:text-sm">
+                    Next<i className="bi bi-chevron-right w-3 h-3 sm:w-4 sm:h-4 ml-1"></i>
                   </button>
                 ) : (
-                  <button type="button" onClick={handleSubmit} disabled={!isStepValid() || !isEditing} className="inline-flex items-center px-6 py-2 text-white font-medium rounded-full transition-all shadow-lg hover:shadow-xl bg-gradient-to-br from-[#083A85] to-[#0a4499] hover:from-[#0a4499] hover:to-[#0c52b8] disabled:bg-gray-300 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer">
-                    <i className="bi bi-check w-4 h-4 mr-1"></i>{isEditMode ? 'Save Changes' : 'Add Property'}
+                  <button type="button" onClick={handleSubmit} disabled={!isStepValid() || !isEditing} className="inline-flex items-center px-4 sm:px-6 py-1.5 sm:py-2 text-white font-medium rounded-full transition-all shadow-lg hover:shadow-xl bg-gradient-to-br from-[#083A85] to-[#0a4499] hover:from-[#0a4499] hover:to-[#0c52b8] disabled:bg-gray-300 disabled:cursor-not-allowed disabled:shadow-none cursor-pointer text-xs sm:text-sm">
+                    <i className="bi bi-check w-3 h-3 sm:w-4 sm:h-4 mr-1"></i>
+                    <span className="hidden sm:inline">{isEditMode ? 'Save Changes' : 'Add Property'}</span>
+                    <span className="sm:hidden">{isEditMode ? 'Save' : 'Add'}</span>
                   </button>
                 )}
               </div>
@@ -533,15 +546,18 @@ const AddPropertyPage: React.FC<AddPropertyPageProps> = ({ existingProperty = nu
         </div>
       )}
       {!isModalOpen && (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen p-4">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Action Completed Successfully!</h2>
-            <p className="text-gray-600">The modal will reopen shortly for demonstration...</p>
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Action Completed Successfully!</h2>
+            <p className="text-sm sm:text-base text-gray-600">The modal will reopen shortly for demonstration...</p>
           </div>
         </div>
       )}
        <style jsx global>{`
-        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar { width: 8px; }
+        @media (min-width: 640px) {
+          ::-webkit-scrollbar { width: 12px; }
+        }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #083A85; border-radius: 6px; }
         ::-webkit-scrollbar-thumb:hover { background: #0a4499; }

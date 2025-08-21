@@ -382,34 +382,63 @@ const AddPropertyPage: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
-          <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between z-10">
+          <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
+            <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex items-center justify-between z-10">
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900">Add New Property</h2>
-                  <p className="text-sm text-gray-600 mt-1">Step {currentStep} of 4</p>
+                  <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">Add New Property</h2>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">Step {currentStep} of 4</p>
                 </div>
-               <button onClick={() => setIsModalOpen(false)} className="cursor-pointer"><i className="bi bi-x w-5 h-5 p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i></button>
+               <button onClick={() => setIsModalOpen(false)} className="cursor-pointer">
+                 <div className="w-8 h-8 sm:w-10 sm:h-10 p-2 sm:p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors flex items-center justify-center">
+                   <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                   </svg>
+                 </div>
+               </button>
               </div>
-              <div className="px-8 pt-4 pb-2">
+              
+              {/* Mobile Stepper - Horizontal dots */}
+              <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-4 sm:hidden">
+                <div className="flex items-center justify-center space-x-2">
+                  {[1, 2, 3, 4].map((step) => (
+                    <div key={step} className="flex flex-col items-center">
+                      <div className={`
+                        w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all
+                        ${currentStep >= step
+                          ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-lg'
+                          : 'bg-gray-200 text-gray-600'}
+                      `}>
+                        {currentStep > step ? '✓' : step}
+                      </div>
+                      <span className="text-xs font-medium text-gray-600 mt-1 text-center">
+                        {getStepLabel(step).split(' ')[0]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Desktop Stepper */}
+              <div className="hidden sm:block px-4 sm:px-6 lg:px-8 pt-4 pb-2">
                 <div className="flex items-center justify-between relative">
                   {[1, 2, 3, 4].map((step) => (
                     <div key={step} className="flex items-center flex-1">
                       <div className="flex flex-col items-center">
                         <div className={`
-                          w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all
+                          w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base font-medium transition-all
                           ${currentStep >= step
                             ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-lg'
                             : 'bg-gray-200 text-gray-600'}
                         `}>
                           {currentStep > step ? '✓' : step}
                         </div>
-                        <span className="text-sm font-semibold text-gray-600 mt-2 whitespace-nowrap">
+                        <span className="text-xs sm:text-sm font-semibold text-gray-600 mt-2 whitespace-nowrap text-center">
                           {getStepLabel(step)}
                         </span>
                       </div>
                       {step < 4 && (
-                        <div className={`flex-1 h-1 mx-2 transition-all self-start mt-5 ${
+                        <div className={`flex-1 h-1 mx-1 sm:mx-2 transition-all self-start mt-4 sm:mt-5 ${
                           currentStep > step ? 'bg-gradient-to-r from-[#083A85] to-[#0a4499]' : 'bg-gray-200'
                         }`} />
                       )}
@@ -418,20 +447,20 @@ const AddPropertyPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 260px)' }}>
+              <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px)' }}>
                 {currentStep === 1 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">
                         Property Owner Information
                       </h3>
-                      <p className="text-sm text-gray-600 mb-6">
+                      <p className="text-sm text-gray-600 mb-4 sm:mb-6">
                         Please provide the property owner's contact details
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Full Name
                       </label>
                       <input
@@ -440,12 +469,12 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.ownerDetails.names}
                         onChange={handleOwnerInputChange}
                         placeholder="Enter owner's full name"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Email Address
                       </label>
                       <input
@@ -454,12 +483,12 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.ownerDetails.email}
                         onChange={handleOwnerInputChange}
                         placeholder="owner@example.com"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Phone Number
                       </label>
                       <input
@@ -468,12 +497,12 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.ownerDetails.phone}
                         onChange={handleOwnerInputChange}
                         placeholder="+1 (555) 123-4567"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Address
                       </label>
                       <input
@@ -482,16 +511,16 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.ownerDetails.address}
                         onChange={handleOwnerInputChange}
                         placeholder="123 Main St, City, State, ZIP"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
                   </div>
                 )}
 
                 {currentStep === 2 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Property Name
                       </label>
                       <input
@@ -500,12 +529,12 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.name}
                         onChange={handleInputChange}
                         placeholder="Enter property name"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Location
                       </label>
                       <input
@@ -514,13 +543,13 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.location}
                         onChange={handleInputChange}
                         placeholder="City, State"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                           Available From
                         </label>
                         <input
@@ -528,11 +557,11 @@ const AddPropertyPage: React.FC = () => {
                           name="startDate"
                           value={formData.availabilityDates.start}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
                         />
                       </div>
                       <div>
-                        <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                           Available Until
                         </label>
                         <input
@@ -540,13 +569,13 @@ const AddPropertyPage: React.FC = () => {
                           name="endDate"
                           value={formData.availabilityDates.end}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
+                          className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Price per 2 Nights
                       </label>
                       <input
@@ -555,19 +584,19 @@ const AddPropertyPage: React.FC = () => {
                         value={formData.pricePerTwoNights}
                         onChange={handleInputChange}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold"
                       />
                     </div>
 
                     <div className="pb-4">
-                      <label className="block text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                      <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                         Property Type
                       </label>
                       <select
                         name="type"
                         value={formData.type}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all appearance-none bg-white cursor-pointer"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all appearance-none bg-white cursor-pointer"
                       >
                         <option value="">Select property type</option>
                         {propertyTypes.map(type => (
@@ -579,47 +608,47 @@ const AddPropertyPage: React.FC = () => {
                 )}
 
                 {currentStep === 3 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                         Select Property Features
                       </h3>
                       <p className="text-sm text-gray-600 mb-4">
                         Choose all the features and amenities available at your property
                       </p>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg sm:rounded-xl p-3 mb-4">
                         <p className="text-sm text-blue-800">
                           Selected: {formData.features.length} feature{formData.features.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                       {getAllPossibleFeatures().map(feature => (
                         <div
                           key={feature}
                           onClick={() => handleFeatureToggle(feature)}
                           className={`
-                            flex items-center p-3 rounded-xl cursor-pointer transition-all select-none
+                            flex items-center p-2 sm:p-3 rounded-lg sm:rounded-xl cursor-pointer transition-all select-none
                             ${formData.features.includes(feature)
                               ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white shadow-md'
                               : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
                             }
                           `}
                         >
-                          <div className="flex items-center">
+                          <div className="flex items-center w-full">
                             <div className={`
-                              w-5 h-5 rounded border-2 mr-2 flex items-center justify-center flex-shrink-0
+                              w-4 h-4 sm:w-5 sm:h-5 rounded border-2 mr-2 flex items-center justify-center flex-shrink-0
                               ${formData.features.includes(feature)
                                 ? 'border-white bg-white'
                                 : 'border-gray-400'
                               }
                             `}>
                               {formData.features.includes(feature) && (
-                                <span className="text-[#083A85] text-sm">✓</span>
+                                <span className="text-[#083A85] text-xs sm:text-sm">✓</span>
                               )}
                             </div>
-                            <span className="text-sm">{feature}</span>
+                            <span className="text-xs sm:text-sm leading-tight">{feature}</span>
                           </div>
                         </div>
                       ))}
@@ -628,43 +657,43 @@ const AddPropertyPage: React.FC = () => {
                 )}
 
                 {currentStep === 4 && (
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">
                         Upload Property Media
                       </h3>
 
-                      <div className="mb-8">
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                      <div className="mb-6 sm:mb-8">
+                        <div className="bg-red-50 border border-red-200 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
                           <div className="flex items-start">
-                            <svg className="w-5 h-5 text-red-500 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                             </svg>
                             <div>
-                              <p className="text-sm font-medium text-red-800">
+                              <p className="text-xs sm:text-sm font-medium text-red-800">
                                 3D Property Video - REQUIRED
                               </p>
-                              <p className="text-sm font-medium text-red-700 mt-1">
+                              <p className="text-xs sm:text-sm font-medium text-red-700 mt-1">
                                 You must upload a 3D walkthrough video of your property to proceed. This helps potential renters get a complete view of the space.
                               </p>
                             </div>
                           </div>
                         </div>
 
-                        <div className={`border-2 rounded-xl p-6 transition-all ${
+                        <div className={`border-2 rounded-lg sm:rounded-xl p-4 sm:p-6 transition-all ${
                           formData.video3D
                             ? 'border-green-400 bg-green-50'
                             : 'border-red-400 bg-red-50'
                         }`}>
-                          <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-lg font-medium text-gray-900">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                            <h4 className="text-sm sm:text-lg font-medium text-gray-900">
                               3D Property Video
                               {!formData.video3D && (
-                                <span className="ml-2 text-sm text-red-600">*Required</span>
+                                <span className="ml-2 text-xs sm:text-sm text-red-600">*Required</span>
                               )}
                             </h4>
                             {formData.video3D && (
-                              <span className="text-sm text-green-600 font-medium">✓ Uploaded</span>
+                              <span className="text-xs sm:text-sm text-green-600 font-medium">✓ Uploaded</span>
                             )}
                           </div>
 
@@ -673,13 +702,13 @@ const AddPropertyPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => videoInputRef.current?.click()}
-                                className="w-full py-8 border-2 border-dashed border-red-300 rounded-lg flex flex-col items-center justify-center hover:border-red-400 hover:bg-red-100 transition-all cursor-pointer"
+                                className="w-full py-6 sm:py-8 border-2 border-dashed border-red-300 rounded-lg flex flex-col items-center justify-center hover:border-red-400 hover:bg-red-100 transition-all cursor-pointer"
                               >
-                                <svg className="w-12 h-12 text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-8 h-8 sm:w-12 sm:h-12 text-red-400 mb-2 sm:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
-                                <span className="text-sm font-medium text-gray-700">Click to upload 3D video</span>
-                                <span className="text-sm text-gray-500 mt-1">MP4, WebM, MOV, AVI (Max 500MB)</span>
+                                <span className="text-xs sm:text-sm font-medium text-gray-700">Click to upload 3D video</span>
+                                <span className="text-xs sm:text-sm text-gray-500 mt-1">MP4, WebM, MOV, AVI (Max 500MB)</span>
                               </button>
                               <input
                                 ref={videoInputRef}
@@ -690,25 +719,25 @@ const AddPropertyPage: React.FC = () => {
                               />
                             </div>
                           ) : (
-                            <div className="bg-white rounded-lg p-4">
+                            <div className="bg-white rounded-lg p-3 sm:p-4">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <div className="p-2 bg-green-100 rounded-lg">
-                                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                                  <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+                                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                     </svg>
                                   </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">{formData.video3D.name}</p>
-                                    <p className="text-sm text-gray-500">{formatFileSize(formData.video3D.size)}</p>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{formData.video3D.name}</p>
+                                    <p className="text-xs sm:text-sm text-gray-500">{formatFileSize(formData.video3D.size)}</p>
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={removeVideo}
-                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                                 </button>
@@ -721,7 +750,7 @@ const AddPropertyPage: React.FC = () => {
                                       style={{ width: `${videoUploadProgress}%` }}
                                     />
                                   </div>
-                                  <p className="text-sm text-gray-500 mt-1">Uploading... {videoUploadProgress}%</p>
+                                  <p className="text-xs sm:text-sm text-gray-500 mt-1">Uploading... {videoUploadProgress}%</p>
                                 </div>
                               )}
                             </div>
@@ -730,19 +759,19 @@ const AddPropertyPage: React.FC = () => {
                       </div>
 
                       <div>
-                        <h4 className="text-lg font-medium text-gray-900 mb-2">
+                        <h4 className="text-sm sm:text-lg font-medium text-gray-900 mb-2">
                           Property Images (Optional)
                         </h4>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-4">
                           Upload high-quality images for different areas of your property
                         </p>
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
-                          <p className="text-sm text-amber-800">
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl p-3 mb-4">
+                          <p className="text-xs sm:text-sm text-amber-800">
                             <strong>Note:</strong> Images are optional, but if you start uploading for a category, you must complete it with the maximum allowed images.
                           </p>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
                           {imageCategories.map(category => {
                             const currentCount = formData.images[category.name].length;
                             const isIncomplete = currentCount > 0 && currentCount < category.maxImages;
@@ -750,22 +779,22 @@ const AddPropertyPage: React.FC = () => {
                             return (
                               <div
                                 key={category.name}
-                                className={`border rounded-xl p-4 transition-all ${
+                                className={`border rounded-lg sm:rounded-xl p-3 sm:p-4 transition-all ${
                                   isIncomplete
                                     ? 'border-amber-400 bg-amber-50'
                                     : 'border-gray-200 bg-white'
                                 }`}
                               >
-                                <div className="flex items-center justify-between mb-3">
-                                  <h5 className="font-medium text-gray-900">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-1">
+                                  <h5 className="text-sm font-medium text-gray-900">
                                     {category.label}
                                     {isIncomplete && (
-                                      <span className="ml-2 text-sm text-amber-600">
+                                      <span className="block sm:inline ml-0 sm:ml-2 text-xs text-amber-600">
                                         (Incomplete - {category.maxImages - currentCount} more required)
                                       </span>
                                     )}
                                   </h5>
-                                  <span className={`text-sm ${
+                                  <span className={`text-xs sm:text-sm ${
                                     currentCount === category.maxImages
                                       ? 'text-green-600 font-medium'
                                       : 'text-gray-500'
@@ -775,13 +804,13 @@ const AddPropertyPage: React.FC = () => {
                                   </span>
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                                   {formData.images[category.name].map((image, index) => (
                                     <div key={index} className="relative group">
                                       <img
                                         src={image.url}
                                         alt={`${category.label} ${index + 1}`}
-                                        className="w-full h-24 object-cover rounded-lg"
+                                        className="w-full h-20 sm:h-24 object-cover rounded-lg"
                                       />
                                       <button
                                         type="button"
@@ -799,16 +828,16 @@ const AddPropertyPage: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => fileInputRefs.current[category.name]?.click()}
-                                      className={`h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
+                                      className={`h-20 sm:h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
                                         isIncomplete
                                           ? 'border-amber-400 bg-amber-50 hover:border-amber-500 hover:bg-amber-100'
                                           : 'border-gray-300 hover:border-[#083A85] hover:bg-blue-50'
                                       }`}
                                     >
-                                      <svg className={`w-6 h-6 mb-1 ${isIncomplete ? 'text-amber-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg className={`w-4 h-4 sm:w-6 sm:h-6 mb-1 ${isIncomplete ? 'text-amber-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                       </svg>
-                                      <span className={`text-sm ${isIncomplete ? 'text-amber-600' : 'text-gray-500'}`}>
+                                      <span className={`text-xs ${isIncomplete ? 'text-amber-600' : 'text-gray-500'}`}>
                                         Upload
                                       </span>
                                     </button>
@@ -835,21 +864,22 @@ const AddPropertyPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-8 py-4 flex items-center justify-between z-10">
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between z-10">
                 <button
                   type="button"
                   onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
                   disabled={currentStep === 1}
-                  className={`inline-flex items-center px-4 py-2 rounded-full font-medium transition-all ${
+                  className={`inline-flex items-center px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-all ${
                     currentStep === 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer'
                   }`}
                 >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
-                  Previous
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
                 </button>
 
                 {currentStep < 4 ? (
@@ -857,14 +887,14 @@ const AddPropertyPage: React.FC = () => {
                     type="button"
                     onClick={() => setCurrentStep(prev => prev + 1)}
                     disabled={!isStepValid()}
-                    className={`inline-flex items-center px-6 py-2 rounded-full font-medium transition-all ${
+                    className={`inline-flex items-center px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
                       isStepValid()
                         ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
                     Next
-                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
@@ -873,16 +903,17 @@ const AddPropertyPage: React.FC = () => {
                     type="button"
                     onClick={handleSubmit}
                     disabled={!isStepValid()}
-                    className={`inline-flex items-center px-6 py-2 rounded-full font-medium transition-all ${
+                    className={`inline-flex items-center px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
                       isStepValid()
                         ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Add Property
+                    <span className="hidden sm:inline">Add Property</span>
+                    <span className="sm:hidden">Add</span>
                   </button>
                 )}
               </div>
@@ -892,16 +923,17 @@ const AddPropertyPage: React.FC = () => {
       )}
 
       {!isModalOpen && (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen p-4">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Property Added Successfully!</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Property Added Successfully!</h2>
             <p className="text-gray-600">Redirecting...</p>
           </div>
         </div>
       )}
+      
       <style jsx global>{`
         ::-webkit-scrollbar {
-          width: 12px;
+          width: 8px;
         }
 
         ::-webkit-scrollbar-track {
@@ -910,11 +942,17 @@ const AddPropertyPage: React.FC = () => {
 
         ::-webkit-scrollbar-thumb {
           background: #083A85;
-          border-radius: 6px;
+          border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
           background: #0a4499;
+        }
+
+        @media (max-width: 640px) {
+          ::-webkit-scrollbar {
+            width: 4px;
+          }
         }
       `}</style>
     </div>

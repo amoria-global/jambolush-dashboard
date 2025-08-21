@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import FAQApp from "../../pages/support-page"; 
+import HelpSupportCenter from "../../pages/support-page";
 
-export default function FAQ() {
-  return <FAQApp />;
+export default function Support() {
+  return <HelpSupportCenter />;
 }

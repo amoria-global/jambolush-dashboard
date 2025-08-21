@@ -402,7 +402,7 @@ const AgentPropertiesPage: React.FC = () => {
                             {paginatedProperties.map((p) => (
                                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
+                                        <div className="flex-1 items-center">
                                             <img src={p.imageUrl} alt={p.propertyName} className="w-28 h-20 rounded-md object-cover mr-4"/>
                                             <div>
                                                 <div className="text-base font-semibold text-gray-900">{p.propertyName}</div>
