@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, FC } from 'react';
-import BookingsTable from "../../pages/guest/user-tour";
+import BookingsTable from "../../../pages/guest/user-tour";
 export default function DashboardPage() {
   return (
     <div className="p-6">
