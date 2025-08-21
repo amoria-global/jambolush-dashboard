@@ -1,286 +1,810 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
-// Define interfaces for type safety
+// Types
 interface FAQ {
+  id: string;
   question: string;
   answer: string;
+  category: string;
+  tags: string[];
+  helpful: number;
+  lastUpdated: Date;
+  priority: 'high' | 'medium' | 'low';
 }
 
-interface Section {
+interface SupportTicket {
+  id: string;
+  subject: string;
+  description: string;
+  category: string;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  status: 'open' | 'in-progress' | 'resolved' | 'closed';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Article {
+  id: string;
   title: string;
-  icon: React.ReactNode;
-  faqs?: FAQ[];
+  content: string;
+  category: string;
+  readTime: number;
+  views: number;
+  lastUpdated: Date;
 }
 
-interface SectionsData {
-  [key: string]: Section;
-}
+type ViewMode = 'FAQS' | 'articles' | 'contact' | 'tickets';
+type SortField = 'relevance' | 'date' | 'popularity' | 'category';
 
-// Mock data for FAQ sections
-const sectionsData: SectionsData = {
-  gettingStarted: {
-    title: "Getting Started",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-      </svg>
-    ),
-    faqs: [
-      { question: "How do I create an account or log in?", answer: "To create a new account, click the 'Sign Up' button on the homepage and follow the prompts. If you already have an account, click 'Log In' and enter your credentials." },
-      { question: "How to view booking status/history?", answer: "Your booking history is available in the 'My Bookings' section of your profile. Here you can see past and upcoming bookings, as well as their current status." },
-      { question: "How to search for bookings?", answer: "You can search for specific bookings using the search bar at the top of the 'My Bookings' page. You can search by guest name, property name, or booking ID." },
-    ]
-  },
-  bookingManagement: {
-    title: "Booking Management",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    ),
-    faqs: [
-      { question: "How to modify or cancel bookings?", answer: "Modifying or canceling a booking can be done from the 'My Bookings' page. Select the booking you wish to change and follow the on-screen instructions. Note that cancellation policies may apply." },
-      { question: "What is the refund policy?", answer: "Refund policies vary based on the property and cancellation timing. You can view the specific policy for your booking on the booking details page." },
-      { question: "How to check booking confirmation and receipts?", answer: "After a successful booking, a confirmation email is sent to you. You can also find a copy of your receipt and confirmation on the booking details page." },
-    ]
-  },
-  paymentAndBilling: {
-    title: "Payment & Billing",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-      </svg>
-    ),
-    faqs: [
-      { question: "What payment methods are accepted?", answer: "We accept all major credit cards, as well as PayPal. You can add or update your payment information in your 'Account Settings'." },
-      { question: "What to do if a payment fails?", answer: "If your payment fails, please check that your payment information is correct. If the problem persists, contact your bank or credit card provider." },
-      { question: "How to update payment information?", answer: "You can update your saved payment methods in the 'Payment & Billing' section of your account settings." },
-    ]
-  },
-  accountAndProfile: {
-    title: "Account & Profile",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-      </svg>
-    ),
-    faqs: [
-      { question: "How do I update my profile information?", answer: "You can update your profile by navigating to the 'Settings' page. Click on 'Edit Profile' to change your personal details, password, and other preferences." },
-      { question: "How to reset my password?", answer: "If you forget your password, click 'Forgot Password' on the login screen. We will send a password reset link to your registered email address." },
-      { question: "Tips for account security?", answer: "We recommend using a strong, unique password and enabling two-factor authentication for added security." },
-    ]
-  },
-  troubleshooting: {
-    title: "Troubleshooting & FAQs",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9.228a2.44 2.44 0 013.464 0M15.485 16.485a2.44 2.44 0 01-3.464 0M9 11v-5a3 3 0 016 0v5a3 3 0 01-6 0z" />
-      </svg>
-    ),
-    faqs: [
-      { question: "My booking is not showing up, what should I do?", answer: "There might be a slight delay in data synchronization. Please try refreshing the page. If the issue persists, contact our support team with your booking details." },
-      { question: "I haven't received a confirmation email.", answer: "Please check your spam or junk folder. If it's not there, it's possible there was a typo in your email address. Contact our support team for assistance." },
-      { question: "I was double-booked, how do I fix this?", answer: "In the rare event of a double booking, please contact support immediately. We will work quickly to resolve the issue and ensure you are properly accommodated." },
-    ]
-  },
-  contact: {
-    title: "Contact Support",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-[#F20C8F]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-};
+const HelpSupportCenter: React.FC = () => {
+  // Date formatting helper
+  const format = (date: Date, formatStr: string = 'MMM dd, yyyy') => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const day = d.getDate();
 
-// Highlight helper
-const highlightText = (text: string, term: string): React.ReactNode => {
-  if (!term) return text;
-  const parts = text.split(new RegExp(`(${term})`, 'gi'));
-  return parts.map((part, index) =>
-    new RegExp(term, 'i').test(part) ? <mark key={index} className="bg-yellow-200">{part}</mark> : part
-  );
-};
+    switch(formatStr) {
+      case 'MMM dd, yyyy':
+        return `${months[month]} ${day.toString().padStart(2, '0')}, ${year}`;
+      case 'MMM dd':
+        return `${months[month]} ${day.toString().padStart(2, '0')}`;
+      default:
+        return `${months[month]} ${day}, ${year}`;
+    }
+  };
 
-// FAQ Item Component
-const FAQItem = ({ question, answer, isOpen, onClick, searchTerm }: { question: string; answer: string; isOpen: boolean; onClick: () => void; searchTerm: string; }) => {
-  const highlightedQuestion = highlightText(question, searchTerm);
-  const highlightedAnswer = highlightText(answer, searchTerm);
+  // States
+  const [activeView, setActiveView] = useState<ViewMode>('FAQS');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortField, setSortField] = useState<SortField>('relevance');
+  const [loading, setLoading] = useState(true);
+  const [openFAQ, setOpenFAQ] = useState<string | null>(null);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(12);
+
+  // Data states
+  const [FAQS, setFAQS] = useState<FAQ[]>([]);
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+
+  // New ticket form
+  const [newTicket, setNewTicket] = useState({
+    subject: '',
+    description: '',
+    category: 'general',
+    priority: 'medium' as 'urgent' | 'high' | 'medium' | 'low'
+  });
+
+  // BACK-END PLACEHOLDER: Mock data generation remains unchanged
+  useEffect(() => {
+    const generateMockData = () => {
+      const categories = ['Getting Started', 'Booking Management', 'Payment & Billing', 'Account & Profile', 'Troubleshooting', 'Property Management'];
+      const priorities = ['high', 'medium', 'low'] as const;
+      
+      // Generate FAQS
+      const mockFAQS: FAQ[] = [
+        {
+          id: 'faq-1',
+          question: 'How do I create an account or log in?',
+          answer: 'To create a new account, click the "Sign Up" button on the homepage and follow the prompts. If you already have an account, click "Log In" and enter your credentials. You can also sign in using your Google or Facebook account for faster access.',
+          category: 'Getting Started',
+          tags: ['account', 'login', 'signup', 'authentication'],
+          helpful: 245,
+          lastUpdated: new Date(2025, 0, 15),
+          priority: 'high'
+        },
+        {
+          id: 'faq-2',
+          question: 'How to view booking status and history?',
+          answer: 'Your booking history is available in the "My Bookings" section of your profile. Here you can see past and upcoming bookings, track their current status, view receipts, and manage cancellations or modifications.',
+          category: 'Booking Management',
+          tags: ['bookings', 'history', 'status', 'tracking'],
+          helpful: 189,
+          lastUpdated: new Date(2025, 0, 12),
+          priority: 'high'
+        },
+        {
+          id: 'faq-3',
+          question: 'What payment methods are accepted?',
+          answer: 'We accept all major credit cards (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay, and bank transfers. You can add or update your payment information in your Account Settings under the Payment & Billing section.',
+          category: 'Payment & Billing',
+          tags: ['payment', 'credit card', 'paypal', 'billing'],
+          helpful: 156,
+          lastUpdated: new Date(2025, 0, 10),
+          priority: 'high'
+        },
+        {
+          id: 'faq-4',
+          question: 'How to modify or cancel bookings?',
+          answer: 'Modifying or canceling a booking can be done from the "My Bookings" page. Select the booking you wish to change and follow the on-screen instructions. Note that cancellation policies may apply and vary by property.',
+          category: 'Booking Management',
+          tags: ['cancel', 'modify', 'change', 'refund'],
+          helpful: 134,
+          lastUpdated: new Date(2025, 0, 8),
+          priority: 'medium'
+        },
+        {
+          id: 'faq-5',
+          question: 'How to reset my password?',
+          answer: 'If you forget your password, click "Forgot Password" on the login screen. We will send a password reset link to your registered email address. Follow the instructions in the email to create a new password.',
+          category: 'Account & Profile',
+          tags: ['password', 'reset', 'forgot', 'security'],
+          helpful: 98,
+          lastUpdated: new Date(2025, 0, 5),
+          priority: 'medium'
+        },
+        {
+          id: 'faq-6',
+          question: 'My booking is not showing up, what should I do?',
+          answer: 'There might be a slight delay in data synchronization. Please try refreshing the page and clearing your browser cache. If the issue persists, contact our support team with your booking confirmation number.',
+          category: 'Troubleshooting',
+          tags: ['booking', 'missing', 'sync', 'technical'],
+          helpful: 76,
+          lastUpdated: new Date(2025, 0, 3),
+          priority: 'medium'
+        }
+      ];
+
+      // Generate Articles
+      const mockArticles: Article[] = [
+        {
+          id: 'art-1',
+          title: 'Complete Guide to Making Your First Booking',
+          content: 'Step-by-step guide to help you navigate our platform and make your first successful booking...',
+          category: 'Getting Started',
+          readTime: 5,
+          views: 1245,
+          lastUpdated: new Date(2025, 0, 18)
+        },
+        {
+          id: 'art-2',
+          title: 'Understanding Our Cancellation Policies',
+          content: 'Detailed explanation of different cancellation policies and how they affect your bookings...',
+          category: 'Booking Management',
+          readTime: 8,
+          views: 892,
+          lastUpdated: new Date(2025, 0, 16)
+        },
+        {
+          id: 'art-3',
+          title: 'Payment Security and Best Practices',
+          content: 'Learn about our security measures and how to keep your payment information safe...',
+          category: 'Payment & Billing',
+          readTime: 6,
+          views: 567,
+          lastUpdated: new Date(2025, 0, 14)
+        }
+      ];
+
+      // Generate Sample Tickets
+      const mockTickets: SupportTicket[] = [
+        {
+          id: 'TKT-001',
+          subject: 'Payment failed for booking',
+          description: 'My payment was declined but I\'m not sure why...',
+          category: 'Payment & Billing',
+          priority: 'high',
+          status: 'in-progress',
+          createdAt: new Date(2025, 0, 20),
+          updatedAt: new Date(2025, 0, 20)
+        }
+      ];
+
+      setFAQS(mockFAQS);
+      setArticles(mockArticles);
+      setTickets(mockTickets);
+      setLoading(false);
+    };
+
+    setTimeout(generateMockData, 800);
+  }, []);
+
+  // Filter and sort logic
+  const filteredContent = useMemo(() => {
+    let content: any[] = [];
+    
+    switch (activeView) {
+      case 'FAQS':
+        content = FAQS;
+        break;
+      case 'articles':
+        content = articles;
+        break;
+      case 'tickets':
+        content = tickets;
+        break;
+      default:
+        content = FAQS;
+    }
+
+    // Apply search filter
+    if (searchTerm) {
+      content = content.filter((item: any) => {
+        const searchFields = activeView === 'FAQS' 
+          ? [item.question, item.answer, ...item.tags]
+          : activeView === 'articles'
+          ? [item.title, item.content]
+          : [item.subject, item.description];
+        
+        return searchFields.some((field: string) => 
+          field.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      });
+    }
+
+    // Apply category filter
+    if (categoryFilter !== 'all') {
+      content = content.filter((item: any) => item.category === categoryFilter);
+    }
+
+    // Apply sorting
+    content.sort((a: any, b: any) => {
+      switch (sortField) {
+        case 'date':
+          const dateA = a.lastUpdated || a.updatedAt || a.createdAt;
+          const dateB = b.lastUpdated || b.updatedAt || b.createdAt;
+          return dateB.getTime() - dateA.getTime();
+        case 'popularity':
+          return (b.helpful || b.views || 0) - (a.helpful || a.views || 0);
+        case 'category':
+          return a.category.localeCompare(b.category);
+        default:
+          return 0;
+      }
+    });
+
+    return content;
+  }, [activeView, FAQS, articles, tickets, searchTerm, categoryFilter, sortField]);
+
+  // Pagination
+  const paginatedContent = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredContent.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredContent, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredContent.length / itemsPerPage);
+
+  // Get unique categories
+  const categories = useMemo(() => {
+    const allCategories = [...FAQS, ...articles, ...tickets].map(item => item.category);
+    return [...new Set(allCategories)];
+  }, [FAQS, articles, tickets]);
+
+  // Handlers
+  const handleFAQClick = (faqId: string) => {
+    setOpenFAQ(openFAQ === faqId ? null : faqId);
+  };
+
+  const handleTicketSubmit = () => {
+    if (!newTicket.subject || !newTicket.description) return;
+
+    const ticket: SupportTicket = {
+      id: `TKT-${String(tickets.length + 1).padStart(3, '0')}`,
+      ...newTicket,
+      status: 'open',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setTickets(prev => [ticket, ...prev]);
+    setNewTicket({ subject: '', description: '', category: 'general', priority: 'medium' });
+    setShowTicketModal(false);
+    alert('Support ticket submitted successfully!');
+  };
+
+  const highlightText = (text: string, term: string): React.ReactNode => {
+    if (!term) return text;
+    const parts = text.split(new RegExp(`(${term})`, 'gi'));
+    return parts.map((part, index) =>
+      new RegExp(term, 'i').test(part) ? 
+        <mark key={index} className="bg-yellow-200 px-1 rounded">{part}</mark> : part
+    );
+  };
+
+  // Status color helpers
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return 'bg-blue-100 text-blue-800';
+      case 'in-progress': return 'bg-yellow-100 text-yellow-800';
+      case 'resolved': return 'bg-green-100 text-green-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <div className="border-b border-gray-200 py-3">
-      <button
-        onClick={onClick}
-        className="flex justify-between items-center w-full text-left text-base font-semibold text-gray-800 focus:outline-none"
-      >
-        <span>{highlightedQuestion}</span>
-        <span>
-          {isOpen ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform rotate-180 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+    <div className="pt-14 bg-gray-50 min-h-screen">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Help & Support Center</h1>
+          <p className="text-gray-600 mt-2">Find answers to your questions or get in touch with our support team.</p>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[
+              { key: 'FAQS', label: 'FAQS', icon: 'bi-question-circle' },
+              { key: 'articles', label: 'Articles', icon: 'bi-file-text' },
+              { key: 'contact', label: 'Contact', icon: 'bi-envelope' },
+              { key: 'tickets', label: 'My Tickets', icon: 'bi-ticket' }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setActiveView(tab.key as ViewMode);
+                  setCurrentPage(1);
+                  setSearchTerm('');
+                }}
+                className={`flex items-center cursor-pointer gap-2 px-4 py-2 rounded-lg transition-colors font-medium text-sm sm:text-base ${
+                  activeView === tab.key 
+                    ? 'bg-[#083A85] text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <i className={`${tab.icon} text-base`}></i>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search and Filters */}
+          {activeView !== 'contact' && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={`Search ${activeView}...`}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    // MODIFICATION: Added responsive font size
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                  />
+                  <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  // MODIFICATION: Added responsive font size
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer text-sm sm:text-base"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value as SortField)}
+                  // MODIFICATION: Added responsive font size
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer text-sm sm:text-base"
+                >
+                  <option value="relevance">Relevance</option>
+                  <option value="date">Latest</option>
+                  <option value="popularity">Popular</option>
+                  <option value="category">Category</option>
+                </select>
+              </div>
+            </div>
           )}
-        </span>
-      </button>
-      {isOpen && (
-        <p className="mt-1 text-sm text-gray-600 transition-all duration-300 ease-in-out">{highlightedAnswer}</p>
+
+          {/* Results count */}
+          {activeView !== 'contact' && !loading && (
+            // MODIFICATION: Layout now stacks on mobile (flex-col) and becomes a row on larger screens (sm:flex-row)
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-4 gap-3">
+              <p className="text-sm text-gray-600">
+                Showing {paginatedContent.length} of {filteredContent.length} results
+              </p>
+              {activeView === 'tickets' && (
+                <button
+                  onClick={() => setShowTicketModal(true)}
+                  className="px-4 py-2 w-full sm:w-auto cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium"
+                >
+                  <i className="bi bi-plus mr-2"></i>
+                  New Ticket
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85]"></div>
+          </div>
+        )}
+
+        {/* Content Area */}
+        {!loading && (
+          <>
+            {/* FAQS View */}
+            {activeView === 'FAQS' && (
+              <div className="space-y-4">
+                {paginatedContent.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                    <i className="bi bi-question-circle text-6xl text-gray-300"></i>
+                    <h3 className="text-xl font-medium text-gray-900 mt-4">No FAQS found</h3>
+                    <p className="text-gray-600 mt-2">Try adjusting your search or filters</p>
+                  </div>
+                ) : (
+                  paginatedContent.map((faq: FAQ) => (
+                    <div key={faq.id} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                      <button
+                        onClick={() => handleFAQClick(faq.id)}
+                        className="w-full cursor-pointer p-4 sm:p-6 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 pr-4">
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+                              {highlightText(faq.question, searchTerm)}
+                            </h3>
+                            {/* MODIFICATION: Made metadata text smaller for better mobile layout */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-500">
+                              <span className={`px-2 py-0.5 rounded-full font-medium ${getPriorityColor(faq.priority)}`}>
+                                {faq.priority}
+                              </span>
+                              <span>{faq.category}</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>{faq.helpful} helpful votes</span>
+                              <span className="hidden sm:inline">•</span>
+                              <span>Updated {format(faq.lastUpdated)}</span>
+                            </div>
+                          </div>
+                          <i className={`bi bi-chevron-${openFAQ === faq.id ? 'up' : 'down'} text-gray-700 text-xl`}></i>
+                        </div>
+                      </button>
+                      
+                      {openFAQ === faq.id && (
+                        // MODIFICATION: Adjusted padding for mobile
+                        <div className="px-4 sm:px-6 pb-6 border-t border-gray-200">
+                          <div className="pt-4">
+                            <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                              {highlightText(faq.answer, searchTerm)}
+                            </p>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {/* MODIFICATION: Adjusted tag text size */}
+                              {faq.tags.map(tag => (
+                                <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs sm:text-sm rounded-full">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm sm:text-base">
+                              <span className="text-gray-600">Was this helpful?</span>
+                              <button className="flex items-center gap-1 text-green-600 hover:text-green-700">
+                                <i className="bi bi-hand-thumbs-up"></i>
+                                Yes
+                              </button>
+                              <button className="flex items-center gap-1 text-red-600 hover:text-red-700">
+                                <i className="bi bi-hand-thumbs-down"></i>
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Articles View */}
+            {activeView === 'articles' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedContent.length === 0 ? (
+                  <div className="col-span-full bg-white rounded-lg shadow-sm p-12 text-center">
+                    <i className="bi bi-file-text text-6xl text-gray-300"></i>
+                    <h3 className="text-xl font-medium text-gray-900 mt-4">No articles found</h3>
+                    <p className="text-gray-600 mt-2">Try adjusting your search or filters</p>
+                  </div>
+                ) : (
+                  paginatedContent.map((article: Article) => (
+                    <div key={article.id} className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
+                      <div className="p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {highlightText(article.title, searchTerm)}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                          {highlightText(article.content, searchTerm)}
+                        </p>
+                        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-4">
+                          <span>{article.category}</span>
+                          <div className="flex items-center gap-3">
+                            <span><i className="bi bi-clock mr-1"></i>{article.readTime} min read</span>
+                            <span><i className="bi bi-eye mr-1"></i>{article.views} views</span>
+                          </div>
+                        </div>
+                        <button className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium">
+                          Read Article
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Contact View */}
+            {activeView === 'contact' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Get in Touch</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                      <i className="bi bi-envelope text-[#083A85] text-xl"></i>
+                      <div>
+                        <h3 className="font-medium text-gray-900">Email Support</h3>
+                        <p className="text-sm text-gray-600">support@jambolush.com</p>
+                        <p className="text-xs text-gray-500">Response within 24 hours</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                      <i className="bi bi-telephone text-[#083A85] text-xl"></i>
+                      <div>
+                        <h3 className="font-medium text-gray-900">Phone Support</h3>
+                        <p className="text-sm text-gray-600">+250 788 437 347</p>
+                        <p className="text-xs text-gray-500">Mon-Fri, 9 AM - 6 PM EAT</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                      <i className="bi bi-chat-dots text-[#083A85] text-xl"></i>
+                      <div>
+                        <h3 className="font-medium text-gray-900">Live Chat</h3>
+                        <p className="text-sm text-gray-600">Available on website</p>
+                        <p className="text-xs text-gray-500">Mon-Fri, 9 AM - 6 PM EAT</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Contact Form</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                        placeholder="How can we help you?"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                      <select className="w-full px-3 py-2 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base">
+                        <option>General Inquiry</option>
+                        <option>Booking Issue</option>
+                        <option>Payment Problem</option>
+                        <option>Technical Support</option>
+                        <option>Account Help</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                      <textarea
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                        placeholder="Please describe your issue or question..."
+                      ></textarea>
+                    </div>
+                    <button
+                      className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium text-sm sm:text-base"
+                    >
+                      Send Message
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tickets View */}
+            {activeView === 'tickets' && (
+              <div className="space-y-4">
+                {paginatedContent.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                    <i className="bi bi-ticket text-6xl text-gray-300"></i>
+                    <h3 className="text-xl font-medium text-gray-900 mt-4">No support tickets</h3>
+                    <p className="text-gray-600 mt-2">Create your first support ticket to get help</p>
+                    <button
+                      onClick={() => setShowTicketModal(true)}
+                      className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium"
+                    >
+                      Create Ticket
+                    </button>
+                  </div>
+                ) : (
+                  paginatedContent.map((ticket: SupportTicket) => (
+                    <div key={ticket.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900">{ticket.subject}</h3>
+                            <span className="text-sm text-gray-500">#{ticket.id}</span>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">{ticket.description}</p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className={`px-2 py-1 rounded-full font-medium ${getStatusColor(ticket.status)}`}>
+                              {ticket.status}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full font-medium ${getPriorityColor(ticket.priority)}`}>
+                              {ticket.priority}
+                            </span>
+                            <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{ticket.category}</span>
+                          </div>
+                        </div>
+                        <div className="text-left sm:text-right text-xs text-gray-500 flex-shrink-0 mt-2 sm:mt-0">
+                          <p>Created: {format(ticket.createdAt)}</p>
+                          <p>Updated: {format(ticket.updatedAt)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && totalPages > 1 && activeView !== 'contact' && (
+              <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                  
+                  <div className="flex gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum = (totalPages <= 5 || currentPage <= 3) ? i + 1 : 
+                        (currentPage >= totalPages - 2) ? totalPages - 4 + i : currentPage - 2 + i;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === pageNum 
+                              ? 'bg-[#083A85] text-white' 
+                              : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="bi bi-chevron-right"></i>
+                  </button>
+                </div>
+                
+                <p className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* New Ticket Modal */}
+      {showTicketModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl">
+              <div className="flex items-center justify-between p-6 border-b">
+                <h2 className="text-xl font-semibold text-gray-900">Create Support Ticket</h2>
+                <button
+                  onClick={() => setShowTicketModal(false)}
+                  className="p-2 text-gray-400 cursor-pointer hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <i className="bi bi-x-lg text-lg"></i>
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject *</label>
+                  <input
+                    type="text"
+                    value={newTicket.subject}
+                    onChange={(e) => setNewTicket(prev => ({ ...prev, subject: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                    placeholder="Brief description of your issue"
+                  />
+                </div>
+                
+                {/* MODIFICATION: Grid now stacks on mobile (grid-cols-1) and goes side-by-side on larger screens (sm:grid-cols-2) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select
+                      value={newTicket.category}
+                      onChange={(e) => setNewTicket(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                    >
+                      <option value="general">General</option>
+                      <option value="booking">Booking</option>
+                      <option value="payment">Payment</option>
+                      <option value="technical">Technical</option>
+                      <option value="account">Account</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                    <select
+                      value={newTicket.priority}
+                      onChange={(e) => setNewTicket(prev => ({ ...prev, priority: e.target.value as any }))}
+                      className="w-full px-3 py-2 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                  <textarea
+                    rows={5}
+                    value={newTicket.description}
+                    onChange={(e) => setNewTicket(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                    placeholder="Please provide detailed information about your issue..."
+                  ></textarea>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3 p-6 border-t">
+                <button
+                  onClick={() => setShowTicketModal(false)}
+                  className="px-4 py-2 text-gray-700 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm sm:text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTicketSubmit}
+                  disabled={!newTicket.subject || !newTicket.description}
+                  className="px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                >
+                  Create Ticket
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
-// Main App
-const App = () => {
-  const [activeTab, setActiveTab] = useState('gettingStarted');
-  const [openFAQ, setOpenFAQ] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const handleFAQClick = (question: string) => {
-    setOpenFAQ(openFAQ === question ? null : question);
-  };
-
-  const allFaqs = Object.values(sectionsData).flatMap(section => section.faqs ? section.faqs.map(faq => ({ ...faq, section: section.title })) : []);
-  const filteredFaqs = allFaqs.filter(faq =>
-    faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const renderContent = () => {
-    if (searchTerm) {
-      return (
-        <div className="bg-white rounded-xl shadow-lg p-4">
-          <h2 className="text-xl font-bold text-gray-800 mb-3">Search Results</h2>
-          {filteredFaqs.length > 0 ? (
-            <div className="divide-y divide-gray-200">
-              {filteredFaqs.map((item) => (
-                <FAQItem
-                  key={item.question}
-                  question={item.question}
-                  answer={item.answer}
-                  searchTerm={searchTerm}
-                  isOpen={openFAQ === item.question}
-                  onClick={() => handleFAQClick(item.question)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-600">No results found for "{searchTerm}".</p>
-          )}
-        </div>
-      );
-    }
-
-    const section = sectionsData[activeTab];
-    if (!section) return null;
-
-    if (activeTab === 'contact') {
-      return (
-        <div className="bg-white rounded-xl shadow-lg p-4">
-          <h2 className="text-xl font-bold text-gray-800 mb-3">Contact Support</h2>
-          <p className="text-sm text-gray-600 mb-3">
-            If you can't find the answer you're looking for, please don't hesitate to reach out to our friendly support team.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <h3 className="text-base font-semibold text-gray-800">Email Support</h3>
-              <p className="text-sm text-gray-600">
-                Email us at <a href="mailto:support@jambolush.com" className="text-[#083A85] hover:underline">support@jambolush.com</a>
-              </p>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <h3 className="text-base font-semibold text-gray-800">Phone Support</h3>
-              <p className="text-sm text-gray-600">
-                Call us at <a href="tel:+250788437347" className="text-[#083A85] hover:underline">+250 788 437 347</a>
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-4">
-        <h2 className="text-xl font-bold text-gray-800 mb-3">{section.title}</h2>
-        <div className="divide-y divide-gray-200">
-          {section.faqs && section.faqs.map((item) => (
-            <FAQItem
-              key={item.question}
-              question={item.question}
-              answer={item.answer}
-              isOpen={openFAQ === item.question}
-              onClick={() => handleFAQClick(item.question)}
-              searchTerm={searchTerm}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="bg-gray-100 min-h-screen p-4 sm:p-6 font-sans">
-      <div className="container mx-auto max-w-6xl">
-        <h1 className="text-3xl font-bold text-gray-800 mt-6 mb-8">Help & Support</h1>
-
-
-        
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar Navigation */}
-          <div className="md:w-1/4">
-            <div className="bg-white rounded-xl shadow-lg p-3">
-              <h2 className="text-xl font-bold text-gray-800 mb-3">Support Topics</h2>
-              <nav>
-                {Object.keys(sectionsData).map(key => {
-                  const section = sectionsData[key];
-                  const isActive = activeTab === key && !searchTerm;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        setActiveTab(key);
-                        setSearchTerm('');
-                        setOpenFAQ(null);
-                      }}
-                      className={`flex items-center w-full text-left p-2.5 rounded-lg transition-colors duration-200 ${
-                        isActive ? 'bg-[#083A85] text-white shadow-md' : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {section.icon}
-                      <span className="font-semibold">{section.title}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-          </div>
-
-          {/* Main Content Area */}
-          <div className="md:w-3/4">
-            {/* Search Bar */}
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search FAQs, topics..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setOpenFAQ(null);
-                }}
-                className="w-full p-3 rounded-xl shadow-md border-gray-300 focus:border-[#083A85] focus:ring focus:ring-[#083A85] focus:ring-opacity-50 transition-colors"
-              />
-            </div>
-            
-            {/* Content Display */}
-            {renderContent()}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default App;
+export default HelpSupportCenter;

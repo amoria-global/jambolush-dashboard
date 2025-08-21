@@ -284,20 +284,20 @@ const WishlistPage: React.FC = () => {
   };
 
   return (
-    <div className="pt-14">
-      <div className="mx-auto px-2 py-8">
+    <div className="pt-14 px-2 sm:px-4 md:px-8 lg:px-12 xl:px-24">
+      <div className="mx-auto py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Wishlist</h1>
-          <p className="text-gray-600 mt-2">Track and manage your favorite properties</p>
+        <div className="mb-8 text-center sm:text-left">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">My Wishlist</h1>
+          <p className="text-gray-600 mt-2 text-base sm:text-lg">Track and manage your favorite properties</p>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
           <div className="bg-gray-100 rounded-lg shadow-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">Total</p>
+                <p className="text-sm sm:text-base text-gray-600">Total</p>
                 <p className="text-2xl font-bold text-gray-900">{summaryStats.total}</p>
               </div>
               <i className="bi bi-heart-fill text-2xl text-gray-400"></i>
@@ -307,7 +307,7 @@ const WishlistPage: React.FC = () => {
           <div className="bg-gray-100 rounded-lg shadow-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">Available</p>
+                <p className="text-sm sm:text-base text-gray-600">Available</p>
                 <p className="text-2xl font-bold text-green-600">{summaryStats.available}</p>
               </div>
               <i className="bi bi-house-check text-2xl text-green-500"></i>
@@ -317,7 +317,7 @@ const WishlistPage: React.FC = () => {
           <div className="bg-gray-100 rounded-lg shadow-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">Unavailable</p>
+                <p className="text-sm sm:text-base text-gray-600">Unavailable</p>
                 <p className="text-2xl font-bold text-gray-600">{summaryStats.unavailable}</p>
               </div>
               <i className="bi bi-x-circle text-2xl text-gray-500"></i>
@@ -327,17 +327,17 @@ const WishlistPage: React.FC = () => {
           <div className="bg-gray-100 rounded-lg shadow-xl p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">Price Drop</p>
+                <p className="text-sm sm:text-base text-gray-600">Price Drop</p>
                 <p className="text-2xl font-bold text-blue-600">{summaryStats.priceDropped}</p>
               </div>
               <i className="bi bi-tag text-2xl text-blue-500"></i>
             </div>
           </div>
           
-          <div className="bg-gray-100 rounded-lg shadow-xl p-4">
+          <div className="bg-gray-100 rounded-lg shadow-xl p-4 md:col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">Booked</p>
+                <p className="text-sm sm:text-base text-gray-600">Booked</p>
                 <p className="text-2xl font-bold text-red-600">{summaryStats.booked}</p>
               </div>
               <i className="bi bi-calendar-check text-2xl text-red-500"></i>
@@ -346,18 +346,18 @@ const WishlistPage: React.FC = () => {
         </div>
 
         {/* Filters Section */}
-        <div className="bg-gray-50 rounded-lg shadow-xl p-6 mb-6">
+        <div className="bg-gray-50 rounded-lg shadow-xl p-4 sm:p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Search</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Property name or location..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 />
                 <i className="bi bi-search absolute left-3 top-3 text-gray-700"></i>
               </div>
@@ -365,11 +365,11 @@ const WishlistPage: React.FC = () => {
 
             {/* Status Filter */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All Status</option>
                 <option value="available">Available</option>
@@ -381,11 +381,11 @@ const WishlistPage: React.FC = () => {
 
             {/* Category Filter */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Category</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Category</label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All Categories</option>
                 <option value="apartment">Apartment</option>
@@ -398,53 +398,53 @@ const WishlistPage: React.FC = () => {
 
             {/* Price Range */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Price Range</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Price Range</label>
               <div className="flex gap-2">
                 <input
                   type="number"
                   placeholder="Min"
                   value={priceRange.min}
                   onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 />
                 <input
                   type="number"
                   placeholder="Max"
                   value={priceRange.max}
                   onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 />
               </div>
             </div>
           </div>
 
           {/* View Mode Toggle & Results Count */}
-          <div className="flex justify-between items-center mt-6">
-            <p className="text-base text-gray-600">
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-6">
+            <p className="text-base text-gray-600 mb-4 sm:mb-0">
               Showing {paginatedItems.length} of {filteredItems.length} properties
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base font-medium ${
                   viewMode === 'grid' 
                     ? 'bg-blue-900 text-white' 
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
                 style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
               >
-                <i className="bi bi-grid-3x3-gap mr-2"></i>Grid View
+                <i className="bi bi-grid-3x3-gap mr-1 sm:mr-2"></i><span className="hidden sm:inline">Grid View</span>
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base font-medium ${
                   viewMode === 'list' 
                     ? 'bg-blue-900 text-white' 
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
                 style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
               >
-                <i className="bi bi-list-ul mr-2"></i>List View
+                <i className="bi bi-list-ul mr-1 sm:mr-2"></i><span className="hidden sm:inline">List View</span>
               </button>
             </div>
           </div>
@@ -459,14 +459,14 @@ const WishlistPage: React.FC = () => {
 
         {/* Empty State */}
         {!loading && filteredItems.length === 0 && (
-          <div className="bg-gray-100 rounded-lg shadow-xl p-12 text-center">
-            <i className="bi bi-heart text-6xl text-gray-300"></i>
-            <h3 className="text-xl font-medium text-gray-900 mt-4">
+          <div className="bg-gray-100 rounded-lg shadow-xl p-8 sm:p-12 text-center">
+            <i className="bi bi-heart text-5xl sm:text-6xl text-gray-300"></i>
+            <h3 className="text-xl sm:text-2xl font-medium text-gray-900 mt-4">
               {wishlistItems.length === 0 
                 ? "Your wishlist is empty"
                 : "No properties found"}
             </h3>
-            <p className="text-gray-600 mt-2">
+            <p className="text-base text-gray-600 mt-2">
               {wishlistItems.length === 0 
                 ? "Start adding your favorite listings!"
                 : "Try adjusting your filters or search criteria"}
@@ -485,7 +485,7 @@ const WishlistPage: React.FC = () => {
                     alt={item.title}
                     className="w-full h-48 object-cover"
                   />
-                  <span className={`absolute top-3 right-3 px-2 py-1 text-base font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                  <span className={`absolute top-3 right-3 px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getStatusColor(item.status)}`}>
                     <i className={`bi ${getStatusIcon(item.status)} mr-1`}></i>
                     {item.status === 'price-dropped' ? 'Price Drop' : item.status}
                   </span>
@@ -500,18 +500,18 @@ const WishlistPage: React.FC = () => {
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{item.title}</h3>
-                    <div className="flex items-center text-base text-gray-600">
+                    <div className="flex items-center text-sm sm:text-base text-gray-600">
                       <i className="bi bi-star-fill text-yellow-400 mr-2"></i>
                       {item.rating}
                     </div>
                   </div>
                   
-                  <p className="text-base text-gray-500 mb-3">
+                  <p className="text-sm sm:text-base text-gray-500 mb-3">
                     <i className="bi bi-geo-alt mr-1"></i>
                     {item.location}
                   </p>
                   
-                  <div className="flex items-center gap-4 text-base text-gray-600 mb-3">
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm sm:text-base text-gray-600 mb-3">
                     <span><i className="bi bi-door-open mr-1"></i>{item.bedrooms} bed</span>
                     <span><i className="bi bi-droplet mr-1"></i>{item.bathrooms} bath</span>
                     <span><i className="bi bi-arrows-angle-expand mr-1"></i>{item.sqft} sqft</span>
@@ -520,50 +520,50 @@ const WishlistPage: React.FC = () => {
                   <div className="flex items-baseline justify-between mb-3">
                     <div>
                       {item.originalPrice && (
-                        <span className="text-base text-gray-400 line-through mr-2">
+                        <span className="text-sm sm:text-base text-gray-400 line-through mr-2">
                           ${item.originalPrice}/night
                         </span>
                       )}
                       <span className="text-xl font-bold text-green-600">
                         ${item.price}
-                        <span className="text-base font-normal text-gray-600">/night</span>
+                        <span className="text-sm sm:text-base font-normal text-gray-600">/night</span>
                       </span>
                     </div>
                   </div>
                   
                   {item.notes && (
-                    <p className="text-base text-gray-500 italic mb-3 line-clamp-2">
+                    <p className="text-sm sm:text-base text-gray-500 italic mb-3 line-clamp-2">
                       <i className="bi bi-sticky mr-1"></i>{item.notes}
                     </p>
                   )}
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => handleViewDetails(item)}
-                      className="flex-1 px-3 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-colors text-base font-medium cursor-pointer"
+                      className="flex-1 px-3 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-colors text-sm sm:text-base font-medium cursor-pointer"
                     >
-                      <i className="bi bi-eye mr-1"></i>View
+                      <i className="bi bi-eye mr-1"></i><span className="hidden sm:inline">View</span>
                     </button>
                     <button
                       onClick={() => handleMoveToBookings(item)}
-                      className="flex-1 px-3 py-2 text-white rounded-lg transition-colors text-base font-medium cursor-pointer"
+                      className="flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer"
                       style={{ backgroundColor: '#083A85' }}
                     >
-                      <i className="bi bi-cart-plus mr-1"></i>Book
+                      <i className="bi bi-cart-plus mr-1"></i><span className="hidden sm:inline">Book</span>
                     </button>
                     <button
                       onClick={() => handleOpenReviewModal(item)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       title="Add review & notes"
                     >
-                      <i className="bi bi-pencil"></i>
+                      <i className="bi bi-pencil text-lg"></i>
                     </button>
                     <button
                       onClick={() => handleRemove(item.id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       title="Remove from wishlist"
                     >
-                      <i className="bi bi-trash"></i>
+                      <i className="bi bi-trash text-lg"></i>
                     </button>
                   </div>
                 </div>
@@ -574,118 +574,118 @@ const WishlistPage: React.FC = () => {
 
         {/* List View */}
         {!loading && filteredItems.length > 0 && viewMode === 'list' && (
-          <div className="bg-white rounded-lg shadow-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Property
-                    </th>
-                    <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('price')}
-                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Price
-                        <i className={`bi bi-chevron-${sortField === 'price' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('status')}
-                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Status
-                        <i className={`bi bi-chevron-${sortField === 'status' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('addedDate')}
-                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Added
-                        <i className={`bi bi-chevron-${sortField === 'addedDate' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-right text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <img 
-                            src={item.image} 
-                            alt={item.title}
-                            className="w-12 h-12 rounded-lg object-cover mr-3"
-                          />
-                          <div>
-                            <div className="text-base font-medium text-gray-900 flex items-center gap-2">
-                              {item.title}
-                              {item.userRating && (
-                                <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
-                                  <i className="bi bi-star-fill text-xs"></i> {item.userRating}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-base text-gray-500">{item.category}</div>
+          <div className="bg-white rounded-lg shadow-xl overflow-x-auto">
+            <table className="w-full text-base">
+              <thead className="bg-gray-50 border-b border-gray-200 hidden sm:table-header-group">
+                <tr>
+                  <th className="px-6 py-3 text-left font-medium text-gray-700 uppercase tracking-wider">
+                    Property
+                  </th>
+                  <th className="px-6 py-3 text-left font-medium text-gray-700 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('price')}
+                      className="font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                    >
+                      Price
+                      <i className={`bi bi-chevron-${sortField === 'price' && sortOrder === 'asc' ? 'up' : 'down'}`}></i>
+                    </button>
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('status')}
+                      className="font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                    >
+                      Status
+                      <i className={`bi bi-chevron-${sortField === 'status' && sortOrder === 'asc' ? 'up' : 'down'}`}></i>
+                    </button>
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('addedDate')}
+                      className="font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                    >
+                      Added
+                      <i className={`bi bi-chevron-${sortField === 'addedDate' && sortOrder === 'asc' ? 'up' : 'down'}`}></i>
+                    </button>
+                  </th>
+                  <th className="px-6 py-3 text-right font-medium text-gray-700 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50 transition-colors block sm:table-row p-4 sm:p-0">
+                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
+                      <div className="flex items-center">
+                        <img 
+                          src={item.image} 
+                          alt={item.title}
+                          className="w-12 h-12 rounded-lg object-cover mr-3 flex-shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 flex items-center gap-2 truncate">
+                            {item.title}
+                            {item.userRating && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex-shrink-0">
+                                <i className="bi bi-star-fill text-xs"></i> {item.userRating}
+                              </span>
+                            )}
                           </div>
+                          <div className="text-gray-500">{item.category}</div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base text-gray-600">
-                          <i className="bi bi-geo-alt text-gray-400 mr-1"></i>
-                          {item.location}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          {item.originalPrice && (
-                            <span className="text-base text-gray-400 line-through block">
-                              ${item.originalPrice}
-                            </span>
-                          )}
-                          <span className="text-base font-medium text-gray-900">
-                            ${item.price}/night
+                      </div>
+                    </td>
+                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
+                      <div className="text-gray-600">
+                        <i className="bi bi-geo-alt text-gray-400 mr-1"></i>
+                        {item.location}
+                      </div>
+                    </td>
+                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
+                      <div>
+                        {item.originalPrice && (
+                          <span className="text-gray-400 line-through block">
+                            ${item.originalPrice}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                          {item.status === 'price-dropped' ? 'Price Drop' : item.status}
+                        )}
+                        <span className="font-medium text-gray-900">
+                          ${item.price}/night
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base text-gray-500">
-                          {format(item.addedDate, 'MMM dd, yyyy')}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-base font-medium">
+                      </div>
+                    </td>
+                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
+                      <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                        {item.status === 'price-dropped' ? 'Price Drop' : item.status}
+                      </span>
+                    </td>
+                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
+                      <div className="text-gray-500">
+                        {format(item.addedDate, 'MMM dd, yyyy')}
+                      </div>
+                    </td>
+                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0 text-right">
+                      <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => handleViewDetails(item)}
-                          className="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
+                          className="text-blue-600 hover:text-blue-900 cursor-pointer"
                           title="View details"
                         >
                           <i className="bi bi-eye text-lg"></i>
                         </button>
                         <button
                           onClick={() => handleMoveToBookings(item)}
-                          className="text-green-600 hover:text-green-900 mr-3 cursor-pointer"
+                          className="text-green-600 hover:text-green-900 cursor-pointer"
                           title="Move to bookings"
                         >
                           <i className="bi bi-cart-plus text-lg"></i>
                         </button>
                         <button
                           onClick={() => handleOpenReviewModal(item)}
-                          className="text-gray-600 hover:text-gray-900 mr-3 cursor-pointer"
+                          className="text-gray-600 hover:text-gray-900 cursor-pointer"
                           title="Add review & notes"
                         >
                           <i className="bi bi-pencil text-lg"></i>
@@ -697,12 +697,12 @@ const WishlistPage: React.FC = () => {
                         >
                           <i className="bi bi-trash text-lg"></i>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -783,7 +783,7 @@ const WishlistPage: React.FC = () => {
                     handleGoToPage((e.target as HTMLInputElement).value);
                   }
                 }}
-                className="w-16 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-16 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
               />
               <span className="text-base text-gray-600">of {totalPages}</span>
             </div>
@@ -793,12 +793,12 @@ const WishlistPage: React.FC = () => {
         {/* Detail Modal */}
         {showModal && selectedItem && (
           <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="bg-white rounded-lg w-full max-w-md sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="relative">
                 <img 
                   src={selectedItem.image} 
                   alt={selectedItem.title}
-                  className="w-full h-64 object-cover rounded-t-lg"
+                  className="w-full h-48 sm:h-64 object-cover rounded-t-lg"
                 />
                 <button
                   onClick={() => setShowModal(false)}
@@ -808,16 +808,16 @@ const WishlistPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">{selectedItem.title}</h2>
-                    <p className="text-gray-600 mt-1">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedItem.title}</h2>
+                    <p className="text-gray-600 mt-1 text-sm sm:text-base">
                       <i className="bi bi-geo-alt mr-1"></i>
                       {selectedItem.location}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 text-base font-semibold rounded-full ${getStatusColor(selectedItem.status)}`}>
+                  <span className={`px-3 py-1 text-sm sm:text-base font-semibold rounded-full mt-2 sm:mt-0 ${getStatusColor(selectedItem.status)}`}>
                     {selectedItem.status === 'price-dropped' ? 'Price Drop' : selectedItem.status}
                   </span>
                 </div>
@@ -825,40 +825,40 @@ const WishlistPage: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-door-open text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Bedrooms</p>
-                    <p className="font-semibold">{selectedItem.bedrooms}</p>
+                    <p className="text-sm sm:text-base text-gray-600">Bedrooms</p>
+                    <p className="font-semibold text-base">{selectedItem.bedrooms}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-droplet text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Bathrooms</p>
-                    <p className="font-semibold">{selectedItem.bathrooms}</p>
+                    <p className="text-sm sm:text-base text-gray-600">Bathrooms</p>
+                    <p className="font-semibold text-base">{selectedItem.bathrooms}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-arrows-angle-expand text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Square Feet</p>
-                    <p className="font-semibold">{selectedItem.sqft}</p>
+                    <p className="text-sm sm:text-base text-gray-600">Square Feet</p>
+                    <p className="font-semibold text-base">{selectedItem.sqft}</p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-tag text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Category</p>
-                    <p className="font-semibold capitalize">{selectedItem.category}</p>
+                    <p className="text-sm sm:text-base text-gray-600">Category</p>
+                    <p className="font-semibold text-base capitalize">{selectedItem.category}</p>
                   </div>
                 </div>
 
                 <div className="mb-6">
                   <h3 className="text-lg font-bold mb-2">Pricing</h3>
-                  <div className="flex items-baseline gap-3">
+                  <div className="flex flex-wrap items-baseline gap-3">
                     {selectedItem.originalPrice && (
                       <span className="text-xl text-gray-400 line-through">
                         ${selectedItem.originalPrice}/night
                       </span>
                     )}
-                    <span className="text-3xl font-bold text-gray-900">
+                    <span className="text-2xl sm:text-3xl font-bold text-gray-900">
                       ${selectedItem.price}
-                      <span className="text-lg font-normal text-gray-900">/night</span>
+                      <span className="text-base sm:text-lg font-normal text-gray-900">/night</span>
                     </span>
                     {selectedItem.originalPrice && (
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-lg text-base font-semibold">
+                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-lg text-sm sm:text-base font-semibold">
                         Save ${selectedItem.originalPrice - selectedItem.price}
                       </span>
                     )}
@@ -867,14 +867,14 @@ const WishlistPage: React.FC = () => {
 
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Rating & Reviews</h3>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
                     <div className="flex items-center">
                       <i className="bi bi-star-fill text-yellow-400 text-xl"></i>
                       <span className="text-xl font-semibold ml-1">{selectedItem.rating}</span>
                     </div>
-                    <span className="text-gray-600">({selectedItem.reviews} reviews)</span>
+                    <span className="text-gray-600 text-sm sm:text-base">({selectedItem.reviews} reviews)</span>
                     {selectedItem.userRating && (
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
                         Your rating: {selectedItem.userRating}/5
                       </span>
                     )}
@@ -884,7 +884,7 @@ const WishlistPage: React.FC = () => {
                 {selectedItem.userReview && (
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-2">Your Review</h3>
-                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3">
+                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3 text-base">
                       <i className="bi bi-chat-quote mr-2"></i>
                       {selectedItem.userReview}
                     </p>
@@ -894,7 +894,7 @@ const WishlistPage: React.FC = () => {
                 {selectedItem.notes && (
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold mb-2">Your Notes</h3>
-                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3">
+                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3 text-base">
                       <i className="bi bi-sticky mr-2"></i>
                       {selectedItem.notes}
                     </p>
@@ -903,19 +903,19 @@ const WishlistPage: React.FC = () => {
 
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Added to Wishlist</h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 text-base">
                     <i className="bi bi-calendar mr-2"></i>
                     {format(selectedItem.addedDate, 'MMM dd, yyyy')}
                   </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => {
                       handleMoveToBookings(selectedItem);
                       setShowModal(false);
                     }}
-                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer"
+                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
                     style={{ backgroundColor: '#083A85' }}
                   >
                     <i className="bi bi-cart-plus mr-2"></i>
@@ -926,7 +926,7 @@ const WishlistPage: React.FC = () => {
                       setShowModal(false);
                       handleOpenReviewModal(selectedItem);
                     }}
-                    className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer"
+                    className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                   >
                     <i className="bi bi-pencil mr-2"></i>
                     Add Review & Notes
@@ -936,7 +936,7 @@ const WishlistPage: React.FC = () => {
                       handleRemove(selectedItem.id);
                       setShowModal(false);
                     }}
-                    className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer"
+                    className="flex-1 sm:flex-none px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                   >
                     <i className="bi bi-trash mr-2"></i>
                     Remove
@@ -950,10 +950,10 @@ const WishlistPage: React.FC = () => {
         {/* Review, Rating & Notes Modal */}
         {showReviewModal && selectedItem && (
           <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
+            <div className="bg-white rounded-lg w-full max-w-md sm:max-w-xl md:max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold text-gray-900">Review & Notes</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Review & Notes</h3>
                   <button
                     onClick={() => setShowReviewModal(false)}
                     className="text-gray-400 hover:text-red-600 cursor-pointer"
@@ -971,7 +971,7 @@ const WishlistPage: React.FC = () => {
                     />
                     <div>
                       <p className="text-lg font-semibold text-gray-900">{selectedItem.title}</p>
-                      <p className="text-base text-gray-600">
+                      <p className="text-sm sm:text-base text-gray-600">
                         <i className="bi bi-geo-alt mr-1"></i>
                         {selectedItem.location}
                       </p>
@@ -981,7 +981,7 @@ const WishlistPage: React.FC = () => {
 
                 {/* Rating Section */}
                 <div className="mb-6">
-                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                  <label className="block text-base sm:text-lg font-medium text-gray-700 mb-3">
                     <i className="bi bi-star-fill text-yellow-400 mr-2"></i>
                     Your Rating
                   </label>
@@ -1003,7 +1003,7 @@ const WishlistPage: React.FC = () => {
                         ></i>
                       </button>
                     ))}
-                    <span className="ml-3 text-lg text-gray-600">
+                    <span className="ml-3 text-base sm:text-lg text-gray-600">
                       {editingRating > 0 && `${editingRating}/5`}
                     </span>
                   </div>
@@ -1011,7 +1011,7 @@ const WishlistPage: React.FC = () => {
 
                 {/* Review Section */}
                 <div className="mb-6">
-                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                  <label className="block text-base sm:text-lg font-medium text-gray-700 mb-3">
                     <i className="bi bi-chat-quote mr-2"></i>
                     Your Review
                   </label>
@@ -1019,17 +1019,17 @@ const WishlistPage: React.FC = () => {
                     value={editingReview}
                     onChange={(e) => setEditingReview(e.target.value)}
                     placeholder="Share your thoughts about this property..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm sm:text-base"
                     rows={4}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     {editingReview.length}/500 characters
                   </p>
                 </div>
 
                 {/* Notes Section */}
                 <div className="mb-6">
-                  <label className="block text-lg font-medium text-gray-700 mb-3">
+                  <label className="block text-base sm:text-lg font-medium text-gray-700 mb-3">
                     <i className="bi bi-sticky mr-2"></i>
                     Personal Notes
                   </label>
@@ -1037,15 +1037,15 @@ const WishlistPage: React.FC = () => {
                     value={editingNotes}
                     onChange={(e) => setEditingNotes(e.target.value)}
                     placeholder="Add private notes about this property (only visible to you)..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-base"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm sm:text-base"
                     rows={3}
                   />
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={handleSaveReview}
-                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer"
+                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
                     style={{ backgroundColor: '#083A85' }}
                   >
                     <i className="bi bi-check-lg mr-2"></i>
@@ -1057,14 +1057,14 @@ const WishlistPage: React.FC = () => {
                       setEditingReview(selectedItem.userReview || '');
                       setEditingNotes(selectedItem.notes || '');
                     }}
-                    className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer"
+                    className="flex-1 sm:flex-none px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                   >
                     <i className="bi bi-arrow-clockwise mr-2"></i>
                     Reset
                   </button>
                   <button
                     onClick={() => setShowReviewModal(false)}
-                    className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer"
+                    className="flex-1 sm:flex-none px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                   >
                     Cancel
                   </button>

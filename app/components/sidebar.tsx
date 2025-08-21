@@ -49,8 +49,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         user: [
             { label: 'Home', icon: 'bi-house', path: '/' },
             { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/user-bookings' },
-            { label: 'Schedule', icon: 'bi-calendar-plus', path: '/all/user-schedule' },
-            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/user-tour' },
             { label: 'My Trips', icon: 'bi-airplane', path: '/all/user-schedule' },
             { label: 'Payments', icon: 'bi-credit-card', path: '/all/user/payments' },
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/wishlist' },
@@ -87,7 +85,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
     // Common items for all roles
     const commonItems: NavigationItem[] = [
-        { label: 'Notifications', icon: 'bi-bell', path: '/notifications' },
+        { label: 'Notifications', icon: 'bi-bell', path: '/all/notifications' },
         { label: 'Help & Support', icon: 'bi-question-circle', path: '/all/support-page' }
     ];
 

@@ -258,20 +258,20 @@ const AgentClientsPage: React.FC = () => {
   const ClientCard: React.FC<{ client: Client }> = ({ client }) => (
     <div className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 h-20">
-        <span className={`absolute top-3 left-3 px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
+        <span className={`absolute top-3 left-3 px-3 py-1 text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
           {client.status}
         </span>
         <div className={`absolute -bottom-6 left-4 w-12 h-12 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow-lg`}>
-          <span className="text-white text-sm font-bold">{getInitials(client.name)}</span>
+          <span className="text-white text-base font-bold">{getInitials(client.name)}</span>
         </div>
       </div>
       
       <div className="p-4 pt-8 flex flex-col flex-grow">
         <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
-        <p className="text-sm text-gray-500 mb-1">{client.email}</p>
-        <p className="text-sm text-gray-500 mb-4">{client.phone}</p>
+        <p className="text-base text-gray-500 mb-1">{client.email}</p>
+        <p className="text-base text-gray-500 mb-4">{client.phone}</p>
         
-        <div className="text-sm text-gray-600 border-t border-b py-3 my-3 space-y-2">
+        <div className="text-base text-gray-600 border-t border-b py-3 my-3 space-y-2">
           <div className="flex justify-between">
             <span>Property:</span>
             <span className="font-medium text-gray-900 text-right truncate ml-2">{client.propertyName}</span>
@@ -294,7 +294,7 @@ const AgentClientsPage: React.FC = () => {
           <div className="flex justify-between items-center mb-3">
             <div>
               <p className="text-lg font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</p>
-              <p className="text-sm text-green-600">${client.amountPerClient}/client</p>
+              <p className="text-base text-green-600">${client.amountPerClient}/client</p>
             </div>
           </div>
         </div>
@@ -315,7 +315,7 @@ const AgentClientsPage: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <label className="block text-base font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
                 <input
                   type="text"
@@ -331,7 +331,7 @@ const AgentClientsPage: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-base font-medium text-gray-700 mb-2">Status</label>
               <select 
                 value={activeTab} 
                 onChange={(e) => setActiveTab(e.target.value as 'All' | Client['status'])}
@@ -345,7 +345,7 @@ const AgentClientsPage: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Property</label>
+              <label className="block text-base font-medium text-gray-700 mb-2">Property</label>
               <select 
                 value={propertyFilter} 
                 onChange={(e) => setPropertyFilter(e.target.value)}
@@ -357,26 +357,26 @@ const AgentClientsPage: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Booking Date Range</label>
+              <label className="block text-base font-medium text-gray-700 mb-2">Booking Date Range</label>
               <div className="flex gap-2">
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm"
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
                 />
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm"
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
                 />
               </div>
             </div>
           </div>
           
           <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-6 gap-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-base text-gray-600">
               Showing {paginatedClients.length} of {totalClients} clients
             </p>
             <div className="flex gap-2">
@@ -434,19 +434,19 @@ const AgentClientsPage: React.FC = () => {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow`}>
-                            <span className="text-white text-sm font-bold">{getInitials(client.name)}</span>
+                            <span className="text-white text-base font-bold">{getInitials(client.name)}</span>
                           </div>
                           <div>
-                            <div className="text-sm font-semibold text-gray-900">{client.name}</div>
-                            <div className="text-xs text-gray-500">{client.email}</div>
+                            <div className="text-base font-semibold text-gray-900">{client.name}</div>
+                            <div className="text-base text-gray-500">{client.email}</div>
                           </div>
                         </div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(client.status)}`}>
+                        <span className={`inline-flex px-2 py-1 text-base font-medium rounded-full ${getStatusColor(client.status)}`}>
                           {client.status}
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3 text-base">
                         <div>
                           <span className="text-gray-500">Property:</span>
                           <div className="font-medium text-gray-900 truncate">{client.propertyName}</div>
@@ -482,7 +482,7 @@ const AgentClientsPage: React.FC = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
                         <button 
                           onClick={() => handleSort('name')} 
                           className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
@@ -493,7 +493,7 @@ const AgentClientsPage: React.FC = () => {
                           )}
                         </button>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
                         <button 
                           onClick={() => handleSort('propertyName')} 
                           className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
@@ -504,7 +504,7 @@ const AgentClientsPage: React.FC = () => {
                           )}
                         </button>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
                         <button 
                           onClick={() => handleSort('checkInDate')} 
                           className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
@@ -515,7 +515,7 @@ const AgentClientsPage: React.FC = () => {
                           )}
                         </button>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
                         <button 
                           onClick={() => handleSort('housePayment')} 
                           className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
@@ -526,7 +526,7 @@ const AgentClientsPage: React.FC = () => {
                           )}
                         </button>
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
                         <button 
                           onClick={() => handleSort('status')} 
                           className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
@@ -545,31 +545,31 @@ const AgentClientsPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow mr-3 flex-shrink-0`}>
-                              <span className="text-white text-sm font-bold">{getInitials(client.name)}</span>
+                              <span className="text-white text-base font-bold">{getInitials(client.name)}</span>
                             </div>
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-gray-900 truncate">{client.name}</div>
-                              <div className="text-xs text-gray-500 truncate">{client.email}</div>
-                              <div className="text-xs text-gray-400 truncate">{client.phone}</div>
+                              <div className="text-base font-semibold text-gray-900 truncate">{client.name}</div>
+                              <div className="text-base text-gray-500 truncate">{client.email}</div>
+                              <div className="text-base text-gray-400 truncate">{client.phone}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900 truncate max-w-[150px]">{client.propertyName}</div>
-                          <div className="text-xs text-gray-500">{client.numberOfGuests} guests</div>
+                          <div className="text-base font-medium text-gray-900 truncate max-w-[150px]">{client.propertyName}</div>
+                          <div className="text-base text-gray-500">{client.numberOfGuests} guests</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-xs sm:text-sm text-gray-900">
+                          <div className="text-base sm:text-base text-gray-900">
                             <div><strong>In:</strong> {new Date(client.checkInDate).toLocaleDateString()}</div>
                             <div><strong>Out:</strong> {new Date(client.checkOutDate).toLocaleDateString()}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</div>
-                          <div className="text-xs text-green-600 font-semibold">${client.amountPerClient}/client</div>
+                          <div className="text-base font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</div>
+                          <div className="text-base text-green-600 font-semibold">${client.amountPerClient}/client</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(client.status)}`}>
+                          <span className={`inline-flex px-2 py-1 text-base font-medium rounded-full ${getStatusColor(client.status)}`}>
                             {client.status}
                           </span>
                         </td>
@@ -589,7 +589,7 @@ const AgentClientsPage: React.FC = () => {
               <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
                 disabled={currentPage === 1} 
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -605,7 +605,7 @@ const AgentClientsPage: React.FC = () => {
                     <button 
                       key={i} 
                       onClick={() => setCurrentPage(pageNum)} 
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      className={`px-3 py-2 rounded-lg text-base font-medium transition-colors cursor-pointer ${
                         currentPage === pageNum 
                           ? 'text-white' 
                           : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
@@ -621,7 +621,7 @@ const AgentClientsPage: React.FC = () => {
               <button 
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
                 disabled={currentPage === totalPages} 
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -630,7 +630,7 @@ const AgentClientsPage: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700">Go to page:</span>
+              <span className="text-base text-gray-700">Go to page:</span>
               <input 
                 type="number" 
                 min="1" 
@@ -639,9 +639,9 @@ const AgentClientsPage: React.FC = () => {
                 onChange={(e) => setGoToPageInput(e.target.value)} 
                 onBlur={(e) => handleGoToPage(e.target.value)} 
                 onKeyPress={(e) => e.key === 'Enter' && handleGoToPage((e.target as HTMLInputElement).value)} 
-                className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500" 
               />
-              <span className="text-sm text-gray-700">of {totalPages}</span>
+              <span className="text-base text-gray-700">of {totalPages}</span>
             </div>
           </div>
         )}

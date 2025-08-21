@@ -136,13 +136,13 @@ const SettingsPage: React.FC = () => {
   const NotificationsTab = () => (
     <div className="space-y-6">
       {/* Alert Preferences */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-bell mr-2"></i>Alert Preferences
         </h3>
         <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">SMS Notifications</p>
               <p className="text-sm text-gray-500">Receive alerts via text message</p>
             </div>
@@ -157,8 +157,8 @@ const SettingsPage: React.FC = () => {
             </label>
           </div>
 
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Email Notifications</p>
               <p className="text-sm text-gray-500">Receive alerts via email</p>
             </div>
@@ -173,8 +173,8 @@ const SettingsPage: React.FC = () => {
             </label>
           </div>
 
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Push Notifications</p>
               <p className="text-sm text-gray-500">Receive browser push notifications</p>
             </div>
@@ -192,13 +192,13 @@ const SettingsPage: React.FC = () => {
       </div>
 
       {/* Notification Types */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-envelope mr-2"></i>Notification Types
         </h3>
         <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Marketing Emails</p>
               <p className="text-sm text-gray-500">Promotional offers and newsletters</p>
             </div>
@@ -213,8 +213,8 @@ const SettingsPage: React.FC = () => {
             </label>
           </div>
 
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Property Alerts</p>
               <p className="text-sm text-gray-500">New listings matching your criteria</p>
             </div>
@@ -229,8 +229,8 @@ const SettingsPage: React.FC = () => {
             </label>
           </div>
 
-          <div className="flex items-center justify-between py-3">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Price Drop Alerts</p>
               <p className="text-sm text-gray-500">Notifications when saved properties reduce in price</p>
             </div>
@@ -252,7 +252,7 @@ const SettingsPage: React.FC = () => {
   const AppearanceTab = () => (
     <div className="space-y-6">
       {/* Theme Settings */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-palette mr-2"></i>Theme Settings
         </h3>
@@ -315,8 +315,8 @@ const SettingsPage: React.FC = () => {
           </div>
 
           {/* Compact Mode */}
-          <div className="flex items-center justify-between py-3 border-t">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-t">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Compact Mode</p>
               <p className="text-sm text-gray-500">Reduce spacing and padding throughout the interface</p>
             </div>
@@ -338,14 +338,14 @@ const SettingsPage: React.FC = () => {
   const SecurityTab = () => (
     <div className="space-y-6">
       {/* Account Verification */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-shield-check mr-2"></i>Account Verification
         </h3>
         <div className="space-y-4">
           {/* Email Verification */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-4 mb-3 sm:mb-0">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <i className="bi bi-envelope-fill text-blue-600 text-xl"></i>
               </div>
@@ -371,8 +371,8 @@ const SettingsPage: React.FC = () => {
           </div>
 
           {/* Phone Verification */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-4 mb-3 sm:mb-0">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                 <i className="bi bi-telephone-fill text-green-600 text-xl"></i>
               </div>
@@ -398,8 +398,8 @@ const SettingsPage: React.FC = () => {
           </div>
 
           {/* Identity Verification */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-4 mb-3 sm:mb-0">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                 <i className="bi bi-person-badge-fill text-purple-600 text-xl"></i>
               </div>
@@ -427,12 +427,12 @@ const SettingsPage: React.FC = () => {
       </div>
 
       {/* Two-Factor Authentication */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-lock mr-2"></i>Two-Factor Authentication
         </h3>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+          <div className="mb-4 sm:mb-0">
             <p className="text-base text-gray-700">Add an extra layer of security to your account</p>
             <p className="text-sm text-gray-500 mt-1">Require a verification code in addition to your password</p>
           </div>
@@ -447,12 +447,12 @@ const SettingsPage: React.FC = () => {
   const GeneralTab = () => (
     <div className="space-y-6">
       {/* Password Settings */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-key mr-2"></i>Password Settings
         </h3>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+          <div className="mb-4 sm:mb-0">
             <p className="text-base text-gray-700">Update your password</p>
             <p className="text-sm text-gray-500 mt-1">Last changed: 45 days ago</p>
           </div>
@@ -467,7 +467,7 @@ const SettingsPage: React.FC = () => {
       </div>
 
       {/* Connected Accounts */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-link-45deg mr-2"></i>Connected Accounts
         </h3>
@@ -498,13 +498,13 @@ const SettingsPage: React.FC = () => {
       </div>
 
       {/* Privacy Settings */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-eye-slash mr-2"></i>Privacy Settings
         </h3>
         <div className="space-y-4">
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Profile Visibility</p>
               <p className="text-sm text-gray-500">Control who can see your profile</p>
             </div>
@@ -514,8 +514,8 @@ const SettingsPage: React.FC = () => {
               <option>Private</option>
             </select>
           </div>
-          <div className="flex items-center justify-between py-3 border-b">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Show Activity Status</p>
               <p className="text-sm text-gray-500">Let others see when you're online</p>
             </div>
@@ -524,8 +524,8 @@ const SettingsPage: React.FC = () => {
               <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#083A85]"></div>
             </label>
           </div>
-          <div className="flex items-center justify-between py-3">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3">
+            <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Data Sharing</p>
               <p className="text-sm text-gray-500">Share usage data to improve services</p>
             </div>
@@ -538,13 +538,13 @@ const SettingsPage: React.FC = () => {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-red-900 mb-4">
           <i className="bi bi-exclamation-triangle mr-2"></i>Danger Zone
         </h3>
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+            <div className="mb-3 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Deactivate Account</p>
               <p className="text-sm text-gray-500">Temporarily disable your account</p>
             </div>
@@ -552,8 +552,8 @@ const SettingsPage: React.FC = () => {
               Deactivate
             </button>
           </div>
-          <div className="flex items-center justify-between pt-4 border-t border-red-200">
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 border-t border-red-200">
+            <div className="mb-3 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Delete Account</p>
               <p className="text-sm text-gray-500">Permanently delete your account and all data</p>
             </div>
@@ -576,16 +576,16 @@ const SettingsPage: React.FC = () => {
         .animate-scale-in { animation: scale-in 0.2s ease-out; }
       `}</style>
       
-      <div className="mx-auto px-2 sm:px-4 lg:px-6 py-8">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
         </div>
 
         {/* Settings Navigation */}
-        <div className="bg-white rounded-lg shadow-lg mb-6 p-2">
-          <div className="flex flex-wrap gap-2">
+        <div className="bg-white rounded-lg shadow-lg mb-6 p-2 overflow-x-auto">
+          <div className="flex flex-nowrap sm:flex-wrap gap-2">
             {[
               { id: 'notifications', label: 'Notifications', icon: 'bi-bell' },
               { id: 'appearance', label: 'Appearance', icon: 'bi-palette' },
@@ -595,7 +595,7 @@ const SettingsPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-base font-medium cursor-pointer ${
+                className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-base font-medium cursor-pointer ${
                   activeTab === tab.id
                     ? 'text-white shadow-lg'
                     : 'text-gray-700 hover:bg-gray-100'
@@ -624,7 +624,7 @@ const SettingsPage: React.FC = () => {
           <button
             onClick={handleSaveSettings}
             disabled={saveStatus === 'saving'}
-            className="px-6 py-3 rounded-lg text-white text-base font-medium transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3 rounded-lg text-white text-base font-medium transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
             style={{ backgroundColor: '#F20C8F' }}
           >
             {saveStatus === 'saving' && (
@@ -690,10 +690,10 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="flex gap-3 mt-6">
+              <div className="flex flex-col sm:flex-row gap-3 mt-6">
                 <button
                   onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium cursor-pointer order-last sm:order-first"
                 >
                   Cancel
                 </button>
@@ -749,10 +749,10 @@ const SettingsPage: React.FC = () => {
                 )}
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setShowVerificationModal(null)}
-                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium cursor-pointer order-last sm:order-first"
                 >
                   Cancel
                 </button>

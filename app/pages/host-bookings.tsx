@@ -259,38 +259,38 @@ const BookingsPage: React.FC = () => {
 
   return (
     <div className="pt-14">
-      <div className="mx-auto px-2 py-8">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Bookings</h1>
           <p className="text-gray-600 mt-2">Manage and track all your property bookings</p>
         </div>
 
         {/* Filters Section */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Search */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Search</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Guest or property name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                 />
-                <i className="bi bi-search absolute left-3 top-3 text-gray-400"></i>
+                <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
               </div>
             </div>
 
             {/* Status Filter */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm sm:text-base"
               >
                 <option value="all">All Status</option>
                 <option value="confirmed">Confirmed</option>
@@ -301,11 +301,11 @@ const BookingsPage: React.FC = () => {
 
             {/* Property Filter */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Property</label>
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Property</label>
               <select
                 value={propertyFilter}
                 onChange={(e) => setPropertyFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm sm:text-base"
               >
                 <option value="all">All Properties</option>
                 {uniqueProperties.map(property => (
@@ -316,51 +316,51 @@ const BookingsPage: React.FC = () => {
 
             {/* Date Range */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Check-in Range</label>
-              <div className="flex gap-2">
+              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Check-in Range</label>
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="date"
                   value={dateRange.start}
                   onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm sm:text-base"
                 />
                 <input
                   type="date"
                   value={dateRange.end}
                   onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
+                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm sm:text-base"
                 />
               </div>
             </div>
           </div>
 
           {/* View Mode Toggle & Results Count */}
-          <div className="flex justify-between items-center mt-6">
-            <p className="text-base text-gray-600">
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+            <p className="text-sm sm:text-base text-gray-600 order-2 sm:order-1">
               Showing {paginatedBookings.length} of {filteredBookings.length} bookings
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 order-1 sm:order-2">
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                className={`px-3 py-2 sm:px-4 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
                   viewMode === 'list' 
                     ? 'bg-blue-900 text-white' 
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
                 style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
               >
-                <i className="bi bi-list-ul mr-2"></i>List View
+                <i className="bi bi-list-ul sm:mr-2"></i><span className="hidden sm:inline">List View</span>
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+                className={`px-3 py-2 sm:px-4 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
                   viewMode === 'grid' 
                     ? 'bg-blue-900 text-white' 
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
                 style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
               >
-                <i className="bi bi-grid-3x3-gap mr-2"></i>Grid View
+                <i className="bi bi-grid-3x3-gap sm:mr-2"></i><span className="hidden sm:inline">Grid View</span>
               </button>
             </div>
           </div>
@@ -375,10 +375,10 @@ const BookingsPage: React.FC = () => {
 
         {/* Empty State */}
         {!loading && filteredBookings.length === 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <i className="bi bi-calendar-x text-6xl text-gray-300"></i>
-            <h3 className="text-xl font-medium text-gray-900 mt-4">No bookings found</h3>
-            <p className="text-gray-600 mt-2">Try adjusting your filters or search criteria</p>
+          <div className="bg-white rounded-lg shadow-sm p-8 sm:p-12 text-center">
+            <i className="bi bi-calendar-x text-5xl sm:text-6xl text-gray-300"></i>
+            <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">No bookings found</h3>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">Try adjusting your filters or search criteria</p>
           </div>
         )}
 
@@ -389,40 +389,40 @@ const BookingsPage: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider">
                       Property
                     </th>
-                    <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider">
                       Guest Info
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-3 sm:px-6 py-3 text-left">
                       <button
                         onClick={() => handleSort('checkIn')}
-                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                        className="text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
                         Check-in/out
-                        <i className={`bi bi-chevron-${sortField === 'checkIn' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                        <i className={`bi bi-chevron-${sortField === 'checkIn' && sortOrder === 'asc' ? 'up' : 'down'} text-xs sm:text-base`}></i>
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-3 sm:px-6 py-3 text-left">
                       <button
                         onClick={() => handleSort('status')}
-                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                        className="text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
                         Status
-                        <i className={`bi bi-chevron-${sortField === 'status' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                        <i className={`bi bi-chevron-${sortField === 'status' && sortOrder === 'asc' ? 'up' : 'down'} text-xs sm:text-base`}></i>
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left">
+                    <th className="px-3 sm:px-6 py-3 text-left">
                       <button
                         onClick={() => handleSort('amount')}
-                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                        className="text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
                         Amount
-                        <i className={`bi bi-chevron-${sortField === 'amount' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                        <i className={`bi bi-chevron-${sortField === 'amount' && sortOrder === 'asc' ? 'up' : 'down'} text-xs sm:text-base`}></i>
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-right text-base font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-3 text-right text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -430,56 +430,56 @@ const BookingsPage: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedBookings.map((booking) => (
                     <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <img src={booking.propertyImage} alt={booking.propertyName} className="w-28 h-20 rounded-md object-cover mr-4" />
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="flex-1 items-center">
+                          <img src={booking.propertyImage} alt={booking.propertyName} className="w-20 h-16 sm:w-28 sm:h-20 rounded-md object-cover mr-2 sm:mr-4" />
                           <div>
-                            <div className="text-base font-medium text-gray-900">{booking.propertyName}</div>
-                            <div className="text-base text-gray-500">{booking.propertyAddress}</div>
+                            <div className="text-sm sm:text-base font-medium text-gray-900">{booking.propertyName}</div>
+                            <div className="text-sm text-gray-500 hidden sm:block">{booking.propertyAddress}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-medium text-gray-900">{booking.guestName}</div>
-                        <div className="text-base text-gray-500">{booking.id}</div>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm sm:text-base font-medium text-gray-900">{booking.guestName}</div>
+                        <div className="text-sm text-gray-500">{booking.id}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base text-gray-900">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm sm:text-base text-gray-900">
                           {format(booking.checkIn, 'MMM dd, yyyy')}
                         </div>
-                        <div className="text-base text-gray-500">
+                        <div className="text-sm text-gray-500">
                           to {format(booking.checkOut, 'MMM dd, yyyy')}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs sm:text-base leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
                           {booking.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base font-medium text-gray-900">${booking.amount}</div>
-                        <div className={`text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm sm:text-base font-medium text-gray-900">${booking.amount}</div>
+                        <div className={`text-sm sm:text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
                           {booking.paymentStatus}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-base font-medium">
+                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm sm:text-base font-medium">
                         <button
                           onClick={() => handleViewDetails(booking)}
-                          className="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
+                          className="text-blue-600 hover:text-blue-900 mr-2 sm:mr-3 cursor-pointer"
                         >
-                          <i className="bi bi-eye text-lg font-bold"></i>
+                          <i className="bi bi-eye text-base sm:text-lg font-bold"></i>
                         </button>
                         <button
                           onClick={() => handlePrint(booking)}
-                          className="text-gray-600 hover:text-gray-900 mr-3 cursor-pointer"
+                          className="text-gray-600 hover:text-gray-900 mr-2 sm:mr-3 cursor-pointer"
                         >
-                          <i className="bi bi-printer text-lg font-bold"></i>
+                          <i className="bi bi-printer text-base sm:text-lg font-bold"></i>
                         </button>
                         <button
                           onClick={() => handleDelete(booking.id)}
                           className="text-red-600 hover:text-red-900 cursor-pointer"
                         >
-                          <i className="bi bi-trash text-lg font-bold"></i>
+                          <i className="bi bi-trash text-base sm:text-lg font-bold"></i>
                         </button>
                       </td>
                     </tr>
@@ -497,13 +497,13 @@ const BookingsPage: React.FC = () => {
               <div key={booking.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
                 <div className="relative">
                   <img src={booking.propertyImage} alt={booking.propertyName} className="w-full h-56 object-cover" />
-                  <span className={`absolute top-3 left-3 px-3 py-1 text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(booking.status)}`}>{booking.status}</span>
+                  <span className={`absolute top-3 left-3 px-3 py-1 text-sm sm:text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(booking.status)}`}>{booking.status}</span>
                 </div>
                 <div className="p-4 flex flex-col flex-grow">
                   <h3 className="text-lg font-semibold text-gray-900 truncate">{booking.propertyName}</h3>
-                  <p className="text-base text-gray-500 mb-3 truncate">Guest: {booking.guestName}</p>
+                  <p className="text-sm sm:text-base text-gray-500 mb-3 truncate">Guest: {booking.guestName}</p>
 
-                  <div className="text-base text-gray-600 border-t border-b py-3 my-3">
+                  <div className="text-sm sm:text-base text-gray-600 border-t border-b py-3 my-3">
                     <div className="flex items-center gap-2">
                       <i className="bi bi-calendar-check text-gray-400"></i>
                       <span>{format(booking.checkIn, 'MMM dd')} - {format(booking.checkOut, 'MMM dd, yyyy')}</span>
@@ -518,7 +518,7 @@ const BookingsPage: React.FC = () => {
                     <div className="flex justify-between items-center mb-3">
                       <div>
                         <p className="text-xl font-bold text-gray-900">${booking.amount}</p>
-                        <p className={`text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
+                        <p className={`text-sm sm:text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
                           {booking.paymentStatus}
                         </p>
                       </div>
@@ -526,7 +526,7 @@ const BookingsPage: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleViewDetails(booking)}
-                        className="flex-1 text-center px-3 py-2.5 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85] transition-colors text-base font-medium cursor-pointer"
+                        className="flex-1 text-center px-3 py-2.5 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85] transition-colors text-sm sm:text-base font-medium cursor-pointer"
                       >
                         <i className="bi bi-eye mr-1"></i>View
                       </button>
@@ -557,13 +557,13 @@ const BookingsPage: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <i className="bi bi-chevron-left"></i>
               </button>
               
               {/* Page numbers */}
-              <div className="flex gap-1">
+              <div className="hidden sm:flex gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum;
                   if (totalPages <= 5) {
@@ -580,7 +580,7 @@ const BookingsPage: React.FC = () => {
                     <button
                       key={i}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-2 rounded-lg text-base font-medium transition-colors cursor-pointer ${
+                      className={`px-3 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors cursor-pointer ${
                         currentPage === pageNum
                           ? 'text-white'
                           : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
@@ -594,18 +594,19 @@ const BookingsPage: React.FC = () => {
                   );
                 })}
               </div>
+              <div className="sm:hidden text-sm text-gray-700">Page {currentPage} of {totalPages}</div>
               
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <i className="bi bi-chevron-right"></i>
               </button>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-base text-gray-700">Go to page:</span>
+            <div className="hidden md:flex items-center gap-2">
+              <span className="text-sm sm:text-base text-gray-700">Go to page:</span>
               <input
                 type="number"
                 min="1"
@@ -618,9 +619,9 @@ const BookingsPage: React.FC = () => {
                     handleGoToPage((e.target as HTMLInputElement).value);
                   }
                 }}
-                className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span className="text-base text-gray-700">of {totalPages}</span>
+              <span className="text-sm sm:text-base text-gray-700">of {totalPages}</span>
             </div>
           </div>
         )}
@@ -631,36 +632,36 @@ const BookingsPage: React.FC = () => {
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
           <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex items-center justify-between z-10">
-                <h2 className="text-2xl font-semibold text-gray-900">Booking Details</h2>
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between z-10">
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">Booking Details</h2>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="cursor-pointer"
+                  className="cursor-pointer flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 hover:text-white hover:bg-red-500 rounded-full transition-colors"
                 >
-                  <i className="bi bi-x w-5 h-5 p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors"></i>
+                  <i className="bi bi-x text-xl"></i>
                 </button>
               </div>
 
-              <div className="px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
-                <div className="space-y-6">
+              <div className="px-4 sm:px-8 py-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+                <div className="space-y-6 text-sm sm:text-base">
                   {/* Booking Info */}
                   <div>
-                    <h3 className="text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Booking Information</h3>
+                    <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Booking Information</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Booking ID</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.id}</span>
+                        <span className="text-gray-600">Booking ID</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.id}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Booking Date</span>
-                        <span className="text-base font-medium text-gray-900">
+                        <span className="text-gray-600">Booking Date</span>
+                        <span className="font-medium text-gray-900">
                           {format(selectedBooking.bookingDate, 'MMM dd, yyyy')}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Status</span>
-                        <span className={`px-2 py-1 text-base font-semibold rounded-full ${getStatusColor(selectedBooking.status)}`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Status</span>
+                        <span className={`px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getStatusColor(selectedBooking.status)}`}>
                           {selectedBooking.status}
                         </span>
                       </div>
@@ -669,48 +670,48 @@ const BookingsPage: React.FC = () => {
 
                   {/* Guest Info */}
                   <div>
-                    <h3 className="text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Guest Information</h3>
+                    <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Guest Information</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Name</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.guestName}</span>
+                        <span className="text-gray-600">Name</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.guestName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Email</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.guestEmail}</span>
+                        <span className="text-gray-600">Email</span>
+                        <span className="font-medium text-gray-900 truncate">{selectedBooking.guestEmail}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Phone</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.guestPhone}</span>
+                        <span className="text-gray-600">Phone</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.guestPhone}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Number of Guests</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.guests}</span>
+                        <span className="text-gray-600">Number of Guests</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.guests}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Property Info */}
                   <div>
-                    <h3 className="text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Property Information</h3>
+                    <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Property Information</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Property Name</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.propertyName}</span>
+                        <span className="text-gray-600">Property Name</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.propertyName}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Address</span>
-                        <span className="text-base font-medium text-gray-900">{selectedBooking.propertyAddress}</span>
+                        <span className="text-gray-600">Address</span>
+                        <span className="font-medium text-gray-900 text-right">{selectedBooking.propertyAddress}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Check-in</span>
-                        <span className="text-base font-medium text-gray-900">
+                        <span className="text-gray-600">Check-in</span>
+                        <span className="font-medium text-gray-900 text-right">
                           {format(selectedBooking.checkIn, 'EEEE, MMM dd, yyyy')}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Check-out</span>
-                        <span className="text-base font-medium text-gray-900">
+                        <span className="text-gray-600">Check-out</span>
+                        <span className="font-medium text-gray-900 text-right">
                           {format(selectedBooking.checkOut, 'EEEE, MMM dd, yyyy')}
                         </span>
                       </div>
@@ -719,15 +720,15 @@ const BookingsPage: React.FC = () => {
 
                   {/* Payment Info */}
                   <div>
-                    <h3 className="text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Payment Information</h3>
+                    <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Payment Information</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Total Amount</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Total Amount</span>
                         <span className="text-lg font-bold text-gray-900">${selectedBooking.amount}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-base text-gray-600">Payment Status</span>
-                        <span className={`text-base font-medium ${getPaymentStatusColor(selectedBooking.paymentStatus)}`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Payment Status</span>
+                        <span className={`font-medium ${getPaymentStatusColor(selectedBooking.paymentStatus)}`}>
                           {selectedBooking.paymentStatus.charAt(0).toUpperCase() + selectedBooking.paymentStatus.slice(1)}
                         </span>
                       </div>
@@ -737,9 +738,9 @@ const BookingsPage: React.FC = () => {
                   {/* Special Requests */}
                   {selectedBooking.specialRequests && (
                     <div>
-                      <h3 className="text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Special Requests</h3>
+                      <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Special Requests</h3>
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p className="text-base text-gray-700">{selectedBooking.specialRequests}</p>
+                        <p className="text-gray-700">{selectedBooking.specialRequests}</p>
                       </div>
                     </div>
                   )}
@@ -747,25 +748,25 @@ const BookingsPage: React.FC = () => {
               </div>
               
               {/* Action Buttons */}
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-8 py-4 flex justify-end gap-3 z-10">
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 sm:px-8 py-3 sm:py-4 flex justify-end gap-3 z-10">
                 <button
                   onClick={() => handlePrint(selectedBooking)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                 >
-                  <i className="bi bi-printer mr-2"></i>Print
+                  <i className="bi bi-printer sm:mr-2"></i><span className="hidden sm:inline">Print</span>
                 </button>
                 <button
                   onClick={() => {
                     handleDelete(selectedBooking.id);
                     setShowModal(false);
                   }}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                 >
-                  <i className="bi bi-trash mr-2"></i>Delete
+                  <i className="bi bi-trash sm:mr-2"></i><span className="hidden sm:inline">Delete</span>
                 </button>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer"
+                  className="px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
                   style={{ backgroundColor: '#083A85' }}
                 >
                   Close
