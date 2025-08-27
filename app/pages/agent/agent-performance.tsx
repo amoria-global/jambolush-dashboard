@@ -193,6 +193,35 @@ const PerformanceChart = ({ data }: { data: { month: string; score: number }[] }
     );
 };
 
+{/* NEW COMPONENT ADDED HERE */}
+const PerformanceBreakdown = ({ data }: { data: BreakdownItem[] }) => {
+  const getScoreColor = (score: number) => {
+    if (score >= 90) return 'bg-green-500';
+    if (score >= 75) return 'bg-[#083A85]';
+    if (score >= 60) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6">
+      <h3 className="text-lg font-bold mb-4">Key Performance Index Breakdown</h3>
+      <div className="space-y-4">
+        {data.map((item, idx) => (
+          <div key={idx}>
+            <div className="flex justify-between items-center text-base mb-1">
+              <span className="font-medium text-gray-700">{item.name} <span className="text-sm text-gray-500">({item.weight})</span></span>
+              <span className="font-bold text-gray-800">{item.score} / 100</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className={`${getScoreColor(item.score)} h-2 rounded-full`} style={{ width: `${item.score}%` }}></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 // --- MAIN PAGE COMPONENT ---
 export default function AgentPerformance() {
@@ -267,7 +296,10 @@ export default function AgentPerformance() {
             ))}
           </div>
 
-          {/* New Performance Chart Card */}
+          {/* NEW: Performance Breakdown Card */}
+          <PerformanceBreakdown data={categoryBreakdown} />
+
+          {/* Performance Chart Card */}
           <div className="bg-white rounded-2xl shadow-lg p-6">
              <PerformanceChart data={profile.performanceHistory} />
           </div>
