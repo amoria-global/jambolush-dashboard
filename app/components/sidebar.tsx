@@ -115,7 +115,7 @@ const RoleSelectionModal: React.FC<{
                     <button
                         onClick={handleLogin}
                         disabled={!selectedRole || !userName.trim() || isLoggingIn}
-                        className={`w-full py-2.5 px-4 rounded-lg font-medium transition-all duration-200 ${
+                        className={`w-full py-2.5 px-4 rounded-lg font-medium text-base transition-all duration-200 ${
                             !selectedRole || !userName.trim() || isLoggingIn
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -124,7 +124,7 @@ const RoleSelectionModal: React.FC<{
                         {isLoggingIn ? (
                             <div className="flex items-center justify-center space-x-2">
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                <span>Logging in...</span>
+                                <span className="text-sm">Logging in...</span>
                             </div>
                         ) : (
                             'Login'
@@ -151,7 +151,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 setUserName(userData.name || 'User');
                 setShowModal(false);
             } catch (error) {
-                // Invalid session data, clear it
                 localStorage.removeItem('sessionUser');
                 setSessionRole(null);
                 setShowModal(true);
@@ -183,7 +182,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         setShowModal(true);
     };
 
-    // Define navigation items for each role
     const navigationItems: Record<UserRole, NavigationItem[]> = {
         user: [
             { label: 'Home', icon: 'bi-house', path: '/all/guest' },
@@ -194,6 +192,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/guest/wishlist' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/guest/settings' }
         ],
+        
         host: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/host/' },
             { label: 'My Properties', icon: 'bi-building', path: '/all/host/properties' },
@@ -203,15 +202,17 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Analytics', icon: 'bi-graph-up', path: '/all/host/analytics' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
+        
         agent: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent' },
             { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
-            { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
+            { label: 'Properties', icon: 'bi-building', path: '/all/agent/agent-property' },
             { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
+
         tourguide: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/tourguide' },
             { label: 'My Tours', icon: 'bi-compass', path: '/all/tourguide/tours' },
@@ -224,7 +225,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         ]
     };
 
-    // Common items for all roles
     const commonItems: NavigationItem[] = [
         { label: 'Profile', icon: 'bi-person', path: '/all/profile' },
         { label: 'Notifications', icon: 'bi-bell', path: '/all/notifications' },
@@ -245,7 +245,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         return pathname === path;
     };
 
-    // Show modal if no session
     if (!sessionRole) {
         return <RoleSelectionModal isOpen={showModal} onLogin={handleLogin} />;
     }
@@ -275,7 +274,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                 md:translate-x-0`}
             >
-                {/* Header with Logo and Company Name */}
+                {/* Header */}
                 <div className="p-6 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F20C8F' }}>
@@ -344,7 +343,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 {/* Divider */}
                 <div className="mx-4 border-t border-gray-200"></div>
 
-                {/* Profile Section as Last Item */}
+                {/* Profile Section */}
                 <div className="p-4">
                     <Link
                         href="/all/profile"
@@ -355,7 +354,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-base font-medium text-black truncate">{userName}</p>
-                            <p className="text-xs text-gray-500 truncate">{getRoleDisplayName(sessionRole)}</p>
+                            <p className="text-sm text-gray-500 truncate">{getRoleDisplayName(sessionRole)}</p>
                         </div>
                     </Link>
 
