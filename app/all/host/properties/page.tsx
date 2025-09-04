@@ -51,9 +51,6 @@ const HostPropertiesPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(9);
     const [loading, setLoading] = useState(true);
-    const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [unavailableDate, setUnavailableDate] = useState('');
     const [goToPageInput, setGoToPageInput] = useState('');
 
     // Filter states
@@ -195,24 +192,6 @@ const HostPropertiesPage: React.FC = () => {
             setSortOrder('asc');
         }
     };
-
-    const handleEdit = (property: Property) => {
-        setEditingProperty(property);
-        setUnavailableDate(property.unavailableUntil || '');
-        setShowEditModal(true);
-    };
-    
-    const handleCloseModal = () => {
-        setShowEditModal(false);
-        setEditingProperty(null);
-        setUnavailableDate('');
-    };
-
-    const handleSaveEdit = () => {
-        if (!editingProperty) return; // Guard clause
-        console.log('Saving property:', editingProperty.id, 'Unavailable until:', unavailableDate);
-        handleCloseModal();
-    };
     
     const handleGoToPage = (value: string) => {
         const page = parseInt(value);
@@ -233,87 +212,13 @@ const HostPropertiesPage: React.FC = () => {
             default: return 'bg-gray-100 text-gray-800';
         }
     };
-    
-    // Extracted Modal Component for clarity
-    const EditModal = () => {
-        if (!editingProperty) {
-            return null; // Explicitly return null if no property is being edited
-        }
-
-        return (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-                <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in mx-2">
-                    <div className="p-4 sm:p-6">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Property</h2>
-                            </div>
-                            <button onClick={handleCloseModal} className="text-gray-400 hover:text-red-500 cursor-pointer p-1">
-                                <i className="bi bi-x-lg text-lg sm:text-xl"></i>
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                                <p className="text-sm sm:text-base text-gray-900 break-words">{editingProperty.title}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
-                                <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(editingProperty.status)}`}>
-                                    {editingProperty.status}
-                                </span>
-                            </div>
-                            <div>
-                                <label htmlFor="unavailable-date" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Set Unavailable Until
-                                </label>
-                                <input
-                                    id="unavailable-date"
-                                    type="date"
-                                    value={unavailableDate}
-                                    onChange={(e) => setUnavailableDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                                    min={new Date().toISOString().split('T')[0]}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Leave empty to make property available immediately.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
-                            <button
-                                onClick={handleCloseModal}
-                                className="w-full sm:w-auto px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg text-sm sm:text-base font-medium hover:bg-gray-300 order-2 sm:order-1"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveEdit}
-                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-white text-sm sm:text-base font-medium order-1 sm:order-2"
-                                style={{ backgroundColor: '#F20C8F' }}
-                            >
-                                Save Changes
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div className="pt-14 font-sans">
-            <style jsx>{`
-                @keyframes scale-in {
-                  from { transform: scale(0.95); opacity: 0; }
-                  to { transform: scale(1); opacity: 1; }
-                }
-                .animate-scale-in { animation: scale-in 0.2s ease-out; }
-            `}</style>
             <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Host Properties</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Host Properties</h1>
                     <p className="text-sm sm:text-base text-gray-600 mt-2">Manage your active and completed property listings.</p>
                 </div>
 
@@ -369,7 +274,7 @@ const HostPropertiesPage: React.FC = () => {
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="status-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Status</label>
+                            <label htmlFor="status-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Status</label>
                             <select 
                                 id="status-filter" 
                                 value={statusFilter} 
@@ -385,7 +290,7 @@ const HostPropertiesPage: React.FC = () => {
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="type-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Property Type</label>
+                            <label htmlFor="type-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Property Type</label>
                             <select 
                                 id="type-filter" 
                                 value={typeFilter} 
@@ -400,7 +305,7 @@ const HostPropertiesPage: React.FC = () => {
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="price-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Price Range</label>
+                            <label htmlFor="price-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Price Range</label>
                             <select 
                                 id="price-filter" 
                                 value={priceRangeFilter} 
@@ -481,13 +386,13 @@ const HostPropertiesPage: React.FC = () => {
                                         <span><i className="bi bi-droplet-fill mr-1"></i>{p.bathrooms} baths</span>
                                     </div>
                                     <div className="mt-auto flex gap-2">
-                                        <button 
-                                            onClick={() => handleEdit(p)} 
+                                        <Link 
+                                            href={`/all/host/edit-property?id=${p.id}`}
                                             className="flex-1 text-center px-3 py-2.5 text-white rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer" 
                                             style={{ backgroundColor: '#083A85' }}
                                         >
                                             <i className="bi bi-pencil-square mr-1"></i>Edit
-                                        </button>
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
@@ -547,13 +452,13 @@ const HostPropertiesPage: React.FC = () => {
                                                 {format(p.dateListed, 'MMM dd, yyyy')}
                                             </td>
                                             <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-base sm:text-lg font-medium">
-                                                <button 
-                                                    onClick={() => handleEdit(p)} 
+                                                <Link 
+                                                    href={`/all/host/edit-property?id=${p.id}`}
                                                     className="text-green-600 hover:text-green-900 cursor-pointer p-2" 
                                                     title="Edit property"
                                                 >
                                                     <i className="bi bi-pencil-fill"></i>
-                                                </button>
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))}
@@ -635,9 +540,6 @@ const HostPropertiesPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-                
-                {/* Render the modal only when showEditModal is true */}
-                {showEditModal && <EditModal />}
 
             </div>
         </div>

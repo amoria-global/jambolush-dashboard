@@ -86,7 +86,7 @@ const Dashboard = () => {
     return (
         <>
 
-            <div className="mt-10">
+            <div className="mt-20">
                 <div className="max-w-7xl mx-auto">
                     
                     {/* Summary Cards */}
@@ -101,12 +101,12 @@ const Dashboard = () => {
                                         className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
                                         style={{ backgroundColor: card.iconBg }}
                                     >
-                                        <i className={`bi bi-${card.icon} text-sm sm:text-base`}/>
+                                        <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
                                     </div>
-                                    <span className="text-xs sm:text-sm text-gray-600 font-medium">{card.title}</span>
+                                    <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
                                 </div>
                                 <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                                <div className="text-xs sm:text-sm text-green-600 flex items-center font-medium">
+                                <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
                                     <i className="bi bi-arrow-up mr-1" />
                                     {card.change}
                                 </div>
@@ -123,7 +123,7 @@ const Dashboard = () => {
                                     <i className="bi bi-graph-up mr-2 text-pink-500" />
                                     Monthly Earnings
                                 </h3>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-md text-gray-500">
                                     <i className="bi bi-three-dots" />
                                 </div>
                             </div>
@@ -161,7 +161,7 @@ const Dashboard = () => {
                                     <i className="bi bi-bar-chart mr-2 text-blue-800" />
                                     Weekly Bookings
                                 </h3>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-md text-gray-500">
                                     <i className="bi bi-three-dots" />
                                 </div>
                             </div>
@@ -218,7 +218,7 @@ const Dashboard = () => {
                             </div>
                             <div className="flex flex-wrap justify-center gap-3 mt-3">
                                 {propertyTypes.map((type, index) => (
-                                    <div key={index} className="flex items-center text-xs font-medium">
+                                    <div key={index} className="flex items-center text-md font-medium">
                                         <div 
                                             className="w-3 h-3 mr-2 rounded-sm"
                                             style={{ backgroundColor: type.color }}
@@ -236,7 +236,7 @@ const Dashboard = () => {
                                     <i className="bi bi-clock-history mr-2 text-gray-800" />
                                     Recent Activity
                                 </h3>
-                                <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/host/logs')}}>
+                                <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/host/logs')}}>
                                     View All
                                 </button>
                             </div>
@@ -246,8 +246,8 @@ const Dashboard = () => {
                                         <div className={`mr-3 ${activity.color}`}>
                                             <i className={`bi bi-${activity.icon} text-lg`} />
                                         </div>
-                                        <span className="flex-1 text-sm font-medium text-gray-700">{activity.text}</span>
-                                        <span className="text-gray-400 text-xs font-medium">{activity.time}</span>
+                                        <span className="flex-1 text-md font-medium text-gray-700">{activity.text}</span>
+                                        <span className="text-gray-400 text-md font-medium">{activity.time}</span>
                                     </div>
                                 ))}
                             </div>
@@ -264,7 +264,7 @@ const Dashboard = () => {
                                         <i className={`bi bi-${stat.icon}`} />
                                     </div>
                                     <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                                    <div className="text-xs lg:text-sm text-gray-600 font-medium">{stat.label}</div>
+                                    <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
                                 </div>
                             ))}
                         </div>

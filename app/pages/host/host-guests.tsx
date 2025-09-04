@@ -45,7 +45,7 @@ const GuestsListingPage: React.FC = () => {
   // States
   const [guests, setGuests] = useState<Guest[]>([]);
   const [filteredGuests, setFilteredGuests] = useState<Guest[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
@@ -353,7 +353,7 @@ const GuestsListingPage: React.FC = () => {
       <div className="mx-auto px-2 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Guest Listings</h1>
+          <h1 className="text-3xl font-bold text-[#083A85]">Guest Listings</h1>
           <p className="text-gray-600 mt-2">Manage your property bookings and guest information</p>
         </div>
 
@@ -870,7 +870,7 @@ const GuestsListingPage: React.FC = () => {
 
         {/* Detail Modal */}
         {showDetailModal && selectedGuest && (
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black/10 backdrop-blur-xs flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
               <div className="p-6">
                 <div className="flex justify-between items-start mb-6">

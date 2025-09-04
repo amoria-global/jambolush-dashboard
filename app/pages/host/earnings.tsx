@@ -113,8 +113,8 @@ const HostEarnings = () => {
                     <input type="text" placeholder="Account Number" value={newAccount.number} onChange={(e) => setNewAccount({...newAccount, number: e.target.value})} className="w-full p-2 text-sm border rounded-md"/>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
-                    <button onClick={() => setShowSetAccountModal(false)} className="px-4 py-2 text-sm rounded-md bg-gray-200 text-black">Cancel</button>
-                    <button onClick={handleSaveAccount} className="px-4 py-2 text-sm rounded-md text-white" style={{ backgroundColor: '#083A85' }}>Save Account</button>
+                    <button onClick={() => setShowSetAccountModal(false)} className="px-4 py-2 text-sm rounded-md cursor-pointer bg-gray-200 text-black">Cancel</button>
+                    <button onClick={handleSaveAccount} className="px-4 py-2 text-sm rounded-md cursor-pointer text-white" style={{ backgroundColor: '#083A85' }}>Save Account</button>
                 </div>
             </div>
         </div>
@@ -153,7 +153,7 @@ const HostEarnings = () => {
                             <p className="text-xs text-gray-500 font-medium">Available Balance</p>
                             <p className="text-3xl font-bold text-black">${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
-                        <button onClick={handleWithdrawClick} className="w-full mt-3 py-2 text-sm font-semibold text-white rounded-lg" style={{backgroundColor: '#F20C8F'}}>
+                        <button onClick={handleWithdrawClick} className="w-full mt-3 py-2 text-sm cursor-pointer font-semibold text-white rounded-lg" style={{backgroundColor: '#083A85'}}>
                             <i className="bi bi-send mr-2"></i>Withdraw Funds
                         </button>
                     </div>
