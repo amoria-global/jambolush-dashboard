@@ -331,7 +331,7 @@ const HelpSupportCenter: React.FC = () => {
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Help & Support Center</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Help & Support Center</h1>
           <p className="text-gray-600 mt-2">Find answers to your questions or get in touch with our support team.</p>
         </div>
 

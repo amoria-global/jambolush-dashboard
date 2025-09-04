@@ -531,7 +531,7 @@ const App: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen pt-20 p-4 sm:p-15 font-sans">
       <div className="container mx-auto max-w-6xl">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 mt-4 leading-tight">
+        <h1 className="text-xl sm:text-3xl font-bold text-[#083A85] mb-6 mt-4 leading-tight">
           Host Analytics Dashboard
         </h1>
 
@@ -577,7 +577,7 @@ const App: React.FC = () => {
                   onClick={() => setChartView('line')}
                   className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
                     chartView === 'line'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-[#083A85] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -587,7 +587,7 @@ const App: React.FC = () => {
                   onClick={() => setChartView('bar')}
                   className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
                     chartView === 'bar'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-[#083A85] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -613,7 +613,7 @@ const App: React.FC = () => {
                   onClick={() => setPieView('donut')}
                   className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
                     pieView === 'donut'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-[#083A85] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -623,7 +623,7 @@ const App: React.FC = () => {
                   onClick={() => setPieView('pie')}
                   className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
                     pieView === 'pie'
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-[#083A85] text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >

@@ -95,12 +95,12 @@ const GuestDashboard = () => {
     ];
 
     return (
-        <div className="mt-10">
+        <div className="mt-18">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-lg lg:text-xl font-semibold text-[#083A85] mb-2">Welcome back, Sarah!</h1>
-                    <p className="text-gray-600 text-sm">Here's what's happening with your travels</p>
+                <div className="mb-18">
+                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">Welcome back, Sarah!</h1>
+                    <p className="text-gray-600 text-md">Here's what's happening with your travels</p>
                 </div>
                 
                 {/* Summary Cards */}
@@ -115,12 +115,12 @@ const GuestDashboard = () => {
                                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
                                     style={{ backgroundColor: card.iconBg }}
                                 >
-                                    <i className={`bi bi-${card.icon} text-sm sm:text-base`}/>
+                                    <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
                                 </div>
-                                <span className="text-xs sm:text-sm text-gray-600 font-medium">{card.title}</span>
+                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
                             </div>
                             <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                            <div className="text-xs sm:text-sm text-green-600 flex items-center font-medium">
+                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
                                 <i className="bi bi-arrow-up mr-1" />
                                 {card.change}
                             </div>
@@ -137,7 +137,7 @@ const GuestDashboard = () => {
                                 <i className="bi bi-graph-up mr-2 text-pink-500" />
                                 Monthly Spending
                             </h3>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
@@ -175,7 +175,7 @@ const GuestDashboard = () => {
                                 <i className="bi bi-bar-chart mr-2 text-blue-800" />
                                 Booking Trends
                             </h3>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
@@ -209,7 +209,7 @@ const GuestDashboard = () => {
                                 <i className="bi bi-calendar-week mr-2 text-blue-600" />
                                 Upcoming Schedule
                             </h3>
-                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
                                 View All
                             </button>
                         </div>
@@ -218,11 +218,11 @@ const GuestDashboard = () => {
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-sm">{event.title}</h4>
-                                            <p className="text-xs text-gray-600 mt-1">{event.location}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{event.date} at {event.time}</p>
+                                            <h4 className="font-medium text-gray-800 text-md">{event.title}</h4>
+                                            <p className="text-md text-gray-600 mt-1">{event.location}</p>
+                                            <p className="text-md text-gray-500 mt-1">{event.date} at {event.time}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
                                             event.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                                         }`}>
                                             {event.status}
@@ -240,7 +240,7 @@ const GuestDashboard = () => {
                                 <i className="bi bi-heart mr-2 text-pink-500" />
                                 Recent Wishlist
                             </h3>
-                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/wishlist')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/wishlist')}}>
                                 View All
                             </button>
                         </div>
@@ -249,13 +249,13 @@ const GuestDashboard = () => {
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-sm">{item.name}</h4>
-                                            <p className="text-xs text-gray-600 mt-1">{item.location}</p>
-                                            <p className="text-xs text-gray-500 mt-1">Saved {item.saved}</p>
+                                            <h4 className="font-medium text-gray-800 text-md">{item.name}</h4>
+                                            <p className="text-md text-gray-600 mt-1">{item.location}</p>
+                                            <p className="text-md text-gray-500 mt-1">Saved {item.saved}</p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-sm font-medium text-gray-800">{item.price}</span>
-                                            <button className="block mt-1 text-xs text-pink-600 hover:text-pink-800">
+                                            <span className="text-md font-medium text-gray-800">{item.price}</span>
+                                            <button className="block mt-1 text-md text-pink-600 hover:text-pink-800">
                                                 Book Now
                                             </button>
                                         </div>
@@ -298,7 +298,7 @@ const GuestDashboard = () => {
                         </div>
                         <div className="flex flex-wrap justify-center gap-3 mt-3">
                             {experienceTypes.map((type, index) => (
-                                <div key={index} className="flex items-center text-xs font-medium">
+                                <div key={index} className="flex items-center text-md font-medium">
                                     <div 
                                         className="w-3 h-3 mr-2 rounded-sm"
                                         style={{ backgroundColor: type.color }}
@@ -316,7 +316,7 @@ const GuestDashboard = () => {
                                 <i className="bi bi-clock-history mr-2 text-gray-800" />
                                 Recent Activity
                             </h3>
-                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/logs')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/logs')}}>
                                 View All
                             </button>
                         </div>
@@ -326,8 +326,8 @@ const GuestDashboard = () => {
                                     <div className={`mr-3 ${activity.color}`}>
                                         <i className={`bi bi-${activity.icon} text-lg`} />
                                     </div>
-                                    <span className="flex-1 text-sm font-medium text-gray-700">{activity.text}</span>
-                                    <span className="text-gray-400 text-xs font-medium">{activity.time}</span>
+                                    <span className="flex-1 text-md font-medium text-gray-700">{activity.text}</span>
+                                    <span className="text-gray-400 text-md font-medium">{activity.time}</span>
                                 </div>
                             ))}
                         </div>
@@ -344,7 +344,7 @@ const GuestDashboard = () => {
                                     <i className={`bi bi-${stat.icon}`} />
                                 </div>
                                 <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                                <div className="text-xs lg:text-sm text-gray-600 font-medium">{stat.label}</div>
+                                <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
                             </div>
                         ))}
                     </div>

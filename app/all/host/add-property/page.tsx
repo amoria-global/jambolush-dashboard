@@ -345,7 +345,7 @@ const AddPropertyPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-xs transition-opacity" />
           <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
             <div className="relative bg-white rounded-xl sm:rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
               {/* Header */}

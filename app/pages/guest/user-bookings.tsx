@@ -218,10 +218,10 @@ const UserMyBookings: React.FC = () => {
   // Styling helpers
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'confirmed': return 'bg-green-100 text-green-500';
+      case 'pending': return 'bg-yellow-100 text-yellow-500';
+      case 'cancelled': return 'bg-red-100 text-red-500';
+      default: return 'bg-gray-100 text-gray-500';
     }
   };
 
@@ -239,7 +239,7 @@ const UserMyBookings: React.FC = () => {
       <div className="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">My Bookings</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#083A85]">My Bookings</h1>
           <p className="text-base sm:text-base text-gray-600 mt-1 sm:mt-2">Here you can manage and track all your property bookings.</p>
         </div>
 
@@ -404,8 +404,8 @@ const UserMyBookings: React.FC = () => {
                           <div className="text-base text-gray-500">to {format(booking.checkOut, 'MMM dd, yyyy')}</div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
-                            {booking.status}
+                          <span className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                           {booking.status}
                           </span>
                         </td>
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
@@ -452,8 +452,8 @@ const UserMyBookings: React.FC = () => {
                       alt={booking.propertyName} 
                       className="w-full h-48 sm:h-56 object-cover" 
                     />
-                    <span className={`absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-1 text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(booking.status)}`}>
-                      {booking.status}
+                    <span className={`absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(booking.status)}`}>
+                    {booking.status}
                     </span>
                   </div>
                   <div className="p-3 sm:p-4 flex flex-col flex-grow">
@@ -594,7 +594,7 @@ const UserMyBookings: React.FC = () => {
                       </div>
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-2">
                         <span className="text-gray-600 font-medium sm:font-normal">Status</span>
-                        <span className={`px-2 py-1 text-base font-semibold rounded-full ${getStatusColor(selectedBooking.status)}`}>
+                        <span className={`px-2 py-1 text-sm font-semibold rounded-full ${getStatusColor(selectedBooking.status)}`}>
                           {selectedBooking.status}
                         </span>
                       </div>

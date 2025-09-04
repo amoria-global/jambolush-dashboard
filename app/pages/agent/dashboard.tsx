@@ -94,12 +94,12 @@ const AgentDashboard = () => {
     ];
 
     return (
-        <div className="mt-10">
+        <div className="mt-18">
             <div className="max-w-7xl mx-auto">
                  {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-lg lg:text-xl font-semibold text-[#083A85] mb-2">Welcome back, Sarah!</h1>
-                    <p className="text-gray-600 text-sm">Here's what's happening with your travels</p>
+                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">Welcome back, Sarah!</h1>
+                    <p className="text-gray-600 text-md">Here's what's happening with your travels</p>
                 </div>
                 
                 {/* Summary Cards */}
@@ -114,12 +114,12 @@ const AgentDashboard = () => {
                                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
                                     style={{ backgroundColor: card.iconBg }}
                                 >
-                                    <i className={`bi bi-${card.icon} text-sm sm:text-base`}/>
+                                    <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
                                 </div>
-                                <span className="text-xs sm:text-sm text-gray-600 font-medium">{card.title}</span>
+                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
                             </div>
                             <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                            <div className="text-xs sm:text-sm text-green-600 flex items-center font-medium">
+                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
                                 <i className="bi bi-arrow-up mr-1" />
                                 {card.change}
                             </div>
@@ -136,7 +136,7 @@ const AgentDashboard = () => {
                                 <i className="bi bi-graph-up mr-2 text-pink-500" />
                                 Monthly Earnings
                             </h3>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
@@ -182,7 +182,7 @@ const AgentDashboard = () => {
                                 <i className="bi bi-bar-chart mr-2 text-blue-800" />
                                 Weekly Client Acquisition
                             </h3>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
@@ -216,7 +216,7 @@ const AgentDashboard = () => {
                                 <i className="bi bi-calendar-event mr-2 text-blue-600" />
                                 Today's Appointments
                             </h3>
-                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
                                 View Calendar
                             </button>
                         </div>
@@ -225,13 +225,13 @@ const AgentDashboard = () => {
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-sm">{appointment.client}</h4>
-                                            <p className="text-xs text-gray-600 mt-1">{appointment.property}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{appointment.type}</p>
+                                            <h4 className="font-medium text-gray-800 text-md">{appointment.client}</h4>
+                                            <p className="text-md text-gray-600 mt-1">{appointment.property}</p>
+                                            <p className="text-md text-gray-500 mt-1">{appointment.type}</p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-sm font-medium text-gray-800">{appointment.time}</span>
-                                            <span className={`block mt-1 px-2 py-1 rounded-full text-xs font-medium ${
+                                            <span className="text-md font-medium text-gray-800">{appointment.time}</span>
+                                            <span className={`block mt-1 px-2 py-1 rounded-full text-md font-medium ${
                                                 appointment.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
                                             }`}>
                                                 {appointment.priority}
@@ -250,7 +250,7 @@ const AgentDashboard = () => {
                                 <i className="bi bi-trophy mr-2 text-amber-500" />
                                 Top Performing Properties
                             </h3>
-                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/agent/properties')}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/agent/properties')}>
                                 View All
                             </button>
                         </div>
@@ -259,15 +259,15 @@ const AgentDashboard = () => {
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-sm">{property.name}</h4>
-                                            <p className="text-xs text-gray-600 mt-1">{property.location}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{property.bookings} bookings</p>
+                                            <h4 className="font-medium text-gray-800 text-md">{property.name}</h4>
+                                            <p className="text-md text-gray-600 mt-1">{property.location}</p>
+                                            <p className="text-md text-gray-500 mt-1">{property.bookings} bookings</p>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-sm font-bold text-green-600">{property.revenue}</span>
+                                            <span className="text-md font-bold text-green-600">{property.revenue}</span>
                                             <div className="flex items-center mt-1">
-                                                <i className="bi bi-star-fill text-yellow-500 text-xs mr-1" />
-                                                <span className="text-xs text-gray-600">{property.rating}</span>
+                                                <i className="bi bi-star-fill text-yellow-500 text-md mr-1" />
+                                                <span className="text-md text-gray-600">{property.rating}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -309,7 +309,7 @@ const AgentDashboard = () => {
                         </div>
                         <div className="flex flex-wrap justify-center gap-3 mt-3">
                             {propertyCategories.map((type, index) => (
-                                <div key={index} className="flex items-center text-xs font-medium">
+                                <div key={index} className="flex items-center text-md font-medium">
                                     <div 
                                         className="w-3 h-3 mr-2 rounded-sm"
                                         style={{ backgroundColor: type.color }}
@@ -327,7 +327,7 @@ const AgentDashboard = () => {
                                 <i className="bi bi-clock-history mr-2 text-gray-800" />
                                 Recent Activity
                             </h3>
-                            <button className="text-xs text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/agent/logs')}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/agent/logs')}>
                                 View All
                             </button>
                         </div>
@@ -337,8 +337,8 @@ const AgentDashboard = () => {
                                     <div className={`mr-3 ${activity.color}`}>
                                         <i className={`bi bi-${activity.icon} text-lg`} />
                                     </div>
-                                    <span className="flex-1 text-sm font-medium text-gray-700">{activity.text}</span>
-                                    <span className="text-gray-400 text-xs font-medium">{activity.time}</span>
+                                    <span className="flex-1 text-md font-medium text-gray-700">{activity.text}</span>
+                                    <span className="text-gray-400 text-md font-medium">{activity.time}</span>
                                 </div>
                             ))}
                         </div>
@@ -355,7 +355,7 @@ const AgentDashboard = () => {
                                     <i className={`bi bi-${stat.icon}`} />
                                 </div>
                                 <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                                <div className="text-xs lg:text-sm text-gray-600 font-medium">{stat.label}</div>
+                                <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
                             </div>
                         ))}
                     </div>

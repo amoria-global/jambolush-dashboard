@@ -242,7 +242,7 @@ const AgentPropertiesPage: React.FC = () => {
       <div className="mx-auto px-2 sm:px-4 lg:px-6 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Agent Properties</h1>
+          <h1 className="text-3xl font-bold text-[#083A85]">Agent Properties</h1>
           <p className="text-gray-600 mt-2">Manage your active and completed property listings.</p>
         </div>
 
@@ -361,7 +361,7 @@ const AgentPropertiesPage: React.FC = () => {
                     <div key={p.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
                         <div className="relative">
                             <img src={p.imageUrl} alt={p.propertyName} className="w-full h-56 object-cover"/>
-                            <span className={`absolute top-3 left-3 px-3 py-1 text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(p.status)}`}>{p.status}</span>
+                            <span className={`absolute top-3 left-3 px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(p.status)}`}>{p.status}</span>
                         </div>
                         <div className="p-4 flex flex-col flex-grow">
                             <h3 className="text-lg font-semibold text-gray-900 truncate">{p.propertyName}</h3>
@@ -410,7 +410,7 @@ const AgentPropertiesPage: React.FC = () => {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-base font-medium text-gray-800">${p.price.toLocaleString()}{p.status.includes('rent') ? '/mo' : ''}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">${p.price.toLocaleString()}{p.status.includes('rent') ? '/mo' : ''}</td>
                                     <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>{p.status}</span></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600">{p.bedrooms} bed, {p.bathrooms} bath, {p.area} sqft</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600">{format(p.dateListed, 'MMM dd, yyyy')}</td>
@@ -514,7 +514,7 @@ const AgentPropertiesPage: React.FC = () => {
 
         {/* Detail Modal */}
         {showDetailModal && selectedProperty && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="fixed inset-0 bg-black/10 backdrop-blur-xs flex items-center justify-center p-4 z-50">
                 <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
                     <div className="p-6">
                         <div className="flex justify-between items-start mb-4">

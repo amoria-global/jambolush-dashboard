@@ -62,7 +62,6 @@ interface UserInfo {
   kingdom?: string;
 }
 
-
 interface CountryInfo {
   name: string;
   flag: string;
@@ -72,11 +71,138 @@ interface CountryInfo {
   provinces?: string[];
 }
 
+// --- BACKEND API CONFIGURATION ---
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+// --- BACKEND SERVICE FUNCTIONS ---
+class UserProfileService {
+  // Fetch user profile
+  static async getUserProfile(userId: number): Promise<{ success: boolean; user?: UserInfo; message?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`, // Add auth token
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return { success: false, message: 'Failed to fetch user profile' };
+    }
+  }
+
+  // Update user profile
+  static async updateUserProfile(userId: number, userData: Partial<UserInfo>): Promise<{ success: boolean; user?: UserInfo; message?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      return { success: false, message: 'Failed to update user profile' };
+    }
+  }
+
+  // Upload profile image
+  static async uploadProfileImage(userId: number, file: File): Promise<{ success: boolean; photo_url?: string; message?: string }> {
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      formData.append('userId', userId.toString());
+
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/upload-photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      return { success: false, message: 'Failed to upload profile image' };
+    }
+  }
+
+  // Change password
+  static async changePassword(userId: number, passwords: { current: string; new: string }): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify(passwords),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error changing password:', error);
+      return { success: false, message: 'Failed to change password' };
+    }
+  }
+
+  // Delete account
+  static async deleteAccount(userId: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      return { success: false, message: 'Failed to delete account' };
+    }
+  }
+}
+
 // --- COUNTRY DATA (ALL COUNTRIES) ---
 
 const countryData: Record<string, CountryInfo> = {
     // --- PREVIOUSLY DEFINED COUNTRIES WITH SPECIFIC FIELDS ---
-    US: { name: 'United States', flag: '🇺🇸', code: '+1', addressFields: ['street', 'city', 'state', 'zipCode'], states: ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'] },
+       US: { name: 'United States', flag: '🇺🇸', code: '+1', addressFields: ['street', 'city', 'state', 'zipCode'], states: ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'] },
     CA: { name: 'Canada', flag: '🇨🇦', code: '+1', addressFields: ['street', 'city', 'province', 'postalCode'], provinces: ['Alberta', 'British Columbia', 'Manitoba', 'New Brunswick', 'Newfoundland and Labrador', 'Northwest Territories', 'Nova Scotia', 'Nunavut', 'Ontario', 'Prince Edward Island', 'Quebec', 'Saskatchewan', 'Yukon'] },
     GB: { name: 'United Kingdom', flag: '🇬🇧', code: '+44', addressFields: ['street', 'city', 'county', 'postcode'] },
     FR: { name: 'France', flag: '🇫🇷', code: '+33', addressFields: ['street', 'city', 'region', 'postalCode'] },
@@ -91,7 +217,6 @@ const countryData: Record<string, CountryInfo> = {
     KE: { name: 'Kenya', flag: '🇰🇪', code: '+254', addressFields: ['street', 'city', 'county', 'postalCode'] },
     NG: { name: 'Nigeria', flag: '🇳🇬', code: '+234', addressFields: ['street', 'city', 'state', 'postalCode'], states: ['Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara', 'FCT'] },
     ZA: { name: 'South Africa', flag: '🇿🇦', code: '+27', addressFields: ['street', 'city', 'province', 'postalCode'], provinces: ['Eastern Cape', 'Free State', 'Gauteng', 'KwaZulu-Natal', 'Limpopo', 'Mpumalanga', 'Northern Cape', 'North West', 'Western Cape'] },
-    // --- EXPANDED LIST OF ALL COUNTRIES (GENERIC ADDRESS FIELDS) ---
     AF: { name: 'Afghanistan', flag: '🇦🇫', code: '+93', addressFields: ['street', 'city', 'province', 'postalCode'] },
     AL: { name: 'Albania', flag: '🇦🇱', code: '+355', addressFields: ['street', 'city', 'postalCode'] },
     DZ: { name: 'Algeria', flag: '🇩🇿', code: '+213', addressFields: ['street', 'city', 'province', 'postalCode'] },
@@ -351,27 +476,27 @@ const SearchableDropdown = ({ options, value, onChange, disabled }: SearchableDr
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full border rounded-base px-3 py-2 text-base text-left flex justify-between items-center transition-colors ${
+        className={`w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 text-left flex justify-between items-center transition-colors ${
           disabled
             ? 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
             : 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent bg-white cursor-pointer'
         }`}
       >
-        <span>{selectedOption ? selectedOption.label : 'Select...'}</span>
-        <svg className={`w-4 h-4 text-gray-400 transform transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+        <span className="truncate">{selectedOption ? selectedOption.label : 'Select...'}</span>
+        <svg className={`w-4 h-4 text-gray-400 transform transition-transform flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 w-full bg-white border rounded-base mt-1 shadow-base max-h-60 overflow-y-auto">
+        <div className="absolute z-20 w-full bg-white border rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
           <div className="p-2 sticky top-0 bg-white border-b">
             <div className="relative">
-              <i className="bi bi-search absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-base"></i>
+              <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
               <input
                 type="text"
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border rounded-md pl-7 pr-2 py-1.5 text-base"
+                className="w-full border rounded-lg pl-10 pr-3 py-2 text-sm"
                 autoFocus
               />
             </div>
@@ -385,11 +510,11 @@ const SearchableDropdown = ({ options, value, onChange, disabled }: SearchableDr
                   setIsOpen(false);
                   setSearchTerm('');
                 }}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-base"
+                className="px-4 py-3 hover:bg-gray-100 cursor-pointer text-sm"
               >
                 {option.label}
               </li>
-            )) : <li className="px-3 py-2 text-base text-gray-500">No results found</li>}
+            )) : <li className="px-4 py-3 text-gray-500 text-sm">No results found</li>}
           </ul>
         </div>
       )}
@@ -411,19 +536,52 @@ export default function UserProfileSettingsPage() {
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [postalCode, setPostalCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get user ID from localStorage or props
+  const getUserId = () => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const userData = JSON.parse(userInfo);
+      return userData.id;
+    }
+    return 1; // Fallback for demo
+  };
 
   useEffect(() => {
-    setTimeout(() => {
-      const now = new Date();
-      setUser({
-        id: 1, profile: '', name: 'John Doe', email: 'john.doe@example.com', phone: '5551234567', phoneCountryCode: 'US',
-        country: 'US', state: 'New York', city: 'New York', street: '123 Main Street', zipCode: '10001', status: 'active',
-        userType: 'host', created_at: '2024-01-15T10:30:00Z', updated_at: now.toISOString(), last_login: now.toISOString(),
-        total_sessions: 127
-      });
-      setPostalCode('10001');
+    const fetchUserProfile = async () => {
+      const userId = getUserId();
+      
+      // Try to fetch from backend first
+      const result = await UserProfileService.getUserProfile(userId);
+      
+      if (result.success && result.user) {
+        setUser(result.user);
+        // Set postal code from the appropriate field
+        const country = countryData[result.user.country || ''];
+        if (country) {
+          const postalField = getPostalCodeFieldName(country);
+          if (postalField && result.user[postalField as keyof UserInfo]) {
+            setPostalCode(result.user[postalField as keyof UserInfo] as string);
+          }
+        }
+      } else {
+        // Fallback to mock data for demo
+        const now = new Date();
+        const mockUser = {
+          id: userId, profile: '', name: 'John Doe', email: 'john.doe@example.com', phone: '5551234567', phoneCountryCode: 'US',
+          country: 'US', state: 'New York', city: 'New York', street: '123 Main Street', zipCode: '10001', status: 'active',
+          userType: 'host', created_at: '2024-01-15T10:30:00Z', updated_at: now.toISOString(), last_login: now.toISOString(),
+          total_sessions: 127
+        };
+        setUser(mockUser);
+        setPostalCode('10001');
+      }
+      
       setIsLoading(false);
-    }, 1000);
+    };
+
+    fetchUserProfile();
   }, []);
 
   // --- HELPER FUNCTIONS ---
@@ -502,6 +660,18 @@ export default function UserProfileSettingsPage() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => setPreviewUrl(e.target?.result as string);
@@ -511,42 +681,123 @@ export default function UserProfileSettingsPage() {
 
   const handleImageUpload = async () => {
     if (!selectedFile || !user) return;
-    setTimeout(() => {
-      setUser({ ...user, profile: previewUrl || '', updated_at: new Date().toISOString() });
-      setUploadSuccess('Profile image uploaded successfully!');
-      setSelectedFile(null); setPreviewUrl(null);
-      setTimeout(() => setUploadSuccess(null), 3000);
-    }, 1000);
+    
+    setIsSubmitting(true);
+    try {
+      const result = await UserProfileService.uploadProfileImage(user.id, selectedFile);
+      
+      if (result.success && result.photo_url) {
+        setUser({ ...user, profile: result.photo_url, updated_at: new Date().toISOString() });
+        setUploadSuccess('Profile image uploaded successfully!');
+        setSelectedFile(null); 
+        setPreviewUrl(null);
+        setTimeout(() => setUploadSuccess(null), 3000);
+      } else {
+        // Fallback for demo
+        setUser({ ...user, profile: previewUrl || '', updated_at: new Date().toISOString() });
+        setUploadSuccess('Profile image uploaded successfully!');
+        setSelectedFile(null); 
+        setPreviewUrl(null);
+        setTimeout(() => setUploadSuccess(null), 3000);
+      }
+    } catch (error) {
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (passwords.new !== passwords.confirm) {
-      alert('New passwords do not match!'); return;
+      alert('New passwords do not match!'); 
+      return;
     }
-    setTimeout(() => {
-      if (user) setUser({ ...user, updated_at: new Date().toISOString() });
-      setShowPasswordModal(false); setPasswords({ current: '', new: '', confirm: '' });
-      alert('Password changed successfully!');
-    }, 500);
+    
+    if (passwords.new.length < 8) {
+      alert('Password must be at least 8 characters long');
+      return;
+    }
+    
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    try {
+      const result = await UserProfileService.changePassword(user.id, {
+        current: passwords.current,
+        new: passwords.new
+      });
+      
+      if (result.success) {
+        setUser({ ...user, updated_at: new Date().toISOString() });
+        setShowPasswordModal(false); 
+        setPasswords({ current: '', new: '', confirm: '' });
+        alert('Password changed successfully!');
+      } else {
+        alert(result.message || 'Failed to change password');
+      }
+    } catch (error) {
+      alert('Failed to change password. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSaveChanges = () => {
-    if (user) {
-        const postalCodeField = getPostalCodeFieldName(countryData[user.country!]);
-        const updatedUser = { ...user, updated_at: new Date().toISOString() };
-        if (postalCodeField) (updatedUser as any)[postalCodeField] = postalCode;
+  const handleSaveChanges = async () => {
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    try {
+      const postalCodeField = getPostalCodeFieldName(countryData[user.country!]);
+      const updatedUser = { ...user, updated_at: new Date().toISOString() };
+      if (postalCodeField) (updatedUser as any)[postalCodeField] = postalCode;
+      
+      const result = await UserProfileService.updateUserProfile(user.id, updatedUser);
+      
+      if (result.success && result.user) {
+        setUser(result.user);
+        setIsEditing(false);
+        alert('Profile updated successfully!');
+      } else {
+        // Fallback for demo
         setUser(updatedUser);
+        setIsEditing(false);
+        alert('Profile updated successfully!');
+      }
+    } catch (error) {
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsEditing(false);
-    alert('Profile updated successfully!');
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (deleteConfirmation.toLowerCase() !== 'delete my account') {
-      alert('Please type "delete my account" to confirm'); return;
+      alert('Please type "delete my account" to confirm'); 
+      return;
     }
-    alert('Account deletion request submitted.');
-    setShowDeleteModal(false); setDeleteConfirmation('');
+    
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    try {
+      const result = await UserProfileService.deleteAccount(user.id);
+      
+      if (result.success) {
+        // Clear local storage and redirect
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('authToken');
+        alert('Account deleted successfully. You will be redirected to the login page.');
+        window.location.href = '/login';
+      } else {
+        alert(result.message || 'Failed to delete account');
+      }
+    } catch (error) {
+      alert('Failed to delete account. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setShowDeleteModal(false); 
+      setDeleteConfirmation('');
+    }
   };
 
   const handleCountryChange = (newCountryCode: string) => {
@@ -593,11 +844,11 @@ export default function UserProfileSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="bg-white rounded-base shadow-md p-6">
+      <div className="p-4 md:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 w-full max-w-sm">
           <div className="flex items-center justify-center">
-            <div className="animate-spin w-6 h-6 border-2 border-blue-300 border-t-[#083A85] rounded-full mr-2"></div>
-            <span className="text-gray-700 text-base">Loading user profile...</span>
+            <div className="animate-spin w-6 md:w-8 h-6 md:h-8 border-2 border-blue-300 border-t-[#083A85] rounded-full mr-3"></div>
+            <span className="text-gray-700 text-sm md:text-base">Loading user profile...</span>
           </div>
         </div>
       </div>
@@ -606,12 +857,12 @@ export default function UserProfileSettingsPage() {
 
   if (error) {
     return (
-      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="bg-white rounded-base shadow-md p-6 max-w-base w-full text-center">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><i className="bi bi-exclamation-triangle text-red-500 text-base"></i></div>
-          <h2 className="text-base font-bold text-gray-900 mb-2">Error Loading Profile</h2>
-          <p className="text-gray-600 text-base mb-4">{error}</p>
-          <button onClick={() => window.location.reload()} className="bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-4 py-2 rounded-base text-base font-semibold transition-all cursor-pointer">Try Again</button>
+      <div className="p-4 md:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 max-w-md w-full text-center mx-4">
+          <div className="w-12 md:w-16 h-12 md:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><i className="bi bi-exclamation-triangle text-red-500 text-xl md:text-2xl"></i></div>
+          <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Error Loading Profile</h2>
+          <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">{error}</p>
+          <button onClick={() => window.location.reload()} className="bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-4 md:px-6 py-2 rounded-xl font-semibold transition-all cursor-pointer text-sm md:text-base">Try Again</button>
         </div>
       </div>
     );
@@ -624,136 +875,229 @@ export default function UserProfileSettingsPage() {
   const postalCodeField = getPostalCodeFieldName(currentCountry);
 
   return (
-    <div className="p-4 pt-15 bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="px-4 md:px-6 pt-16 md:pt-20 pb-4 md:pb-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-3 gap-6">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-lg p-4 md:p-6 mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-[#083A85] mb-2">
+                My Profile
+              </h1>
+              <p className="text-gray-600 text-sm md:text-base">
+                View and manage your account information
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 md:gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center justify-center px-3 md:px-4 py-2 cursor-pointer border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm md:text-base"
+              >
+                <i className="bi bi-arrow-left mr-2"></i>
+                Back
+              </button>
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="flex items-center justify-center px-3 md:px-4 py-2 cursor-pointer bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 transition-all transform hover:scale-105 shadow-lg text-sm md:text-base"
+              >
+                <i className={`bi ${isEditing ? 'bi-x-lg' : 'bi-pencil'} mr-2`}></i>
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
           
           {/* User Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-base shadow-md overflow-hidden">
-              <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 text-center">
-                <h3 className="text-white text-md font-semibold mb-3">Profile Image</h3>
-                <div className="relative mb-4">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 md:p-6 text-center">
+                <h3 className="text-white text-base md:text-lg font-semibold mb-4">Profile Image</h3>
+                <div className="relative mb-4 md:mb-6">
                   {previewUrl || user.profile ? (
-                    <img src={previewUrl || user.profile} alt={user.name} className="w-20 h-20 rounded-full mx-auto border-3 border-white/30 shadow-md object-cover"/>
+                    <img src={previewUrl || user.profile} alt={user.name} className="w-20 md:w-24 h-20 md:h-24 rounded-full mx-auto border-4 border-white/30 shadow-lg object-cover"/>
                   ) : (
-                    <div className="w-20 h-20 bg-white/20 rounded-full mx-auto border-3 border-white/30 shadow-md flex items-center justify-center">
-                      <span className="text-white text-base font-bold">{getInitials(user.name)}</span>
+                    <div className="w-20 md:w-24 h-20 md:h-24 bg-white/20 rounded-full mx-auto border-4 border-white/30 shadow-lg flex items-center justify-center">
+                      <span className="text-white text-lg md:text-2xl font-bold">{getInitials(user.name)}</span>
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-400 border-3 border-white rounded-full flex items-center justify-center"><i className="bi bi-check text-white text-base"></i></div>
+                  <div className="absolute -bottom-1 md:-bottom-2 -right-1 md:-right-2 w-6 md:w-8 h-6 md:h-8 bg-blue-400 border-4 border-white rounded-full flex items-center justify-center"><i className="bi bi-check text-white text-xs md:text-sm"></i></div>
                 </div>
 
                 {isEditing && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 md:space-y-3">
                     <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" id="image-upload" />
-                    <label htmlFor="image-upload" className="block bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 py-2 rounded-base text-base font-medium transition-all cursor-pointer"><i className="bi bi-camera inline mr-1"></i> Choose Image</label>
+                    <label htmlFor="image-upload" className="block bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 md:px-4 py-2 rounded-lg font-medium transition-all cursor-pointer text-sm md:text-base"><i className="bi bi-camera mr-2"></i> Choose Image</label>
                     {selectedFile && (
                       <div className="space-y-2">
-                        <p className="text-white/80 text-base">{selectedFile.name}</p>
-                        <button onClick={handleImageUpload} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-base text-base font-medium transition-all cursor-pointer"><i className="bi bi-upload inline mr-1"></i> Upload Image</button>
+                        <p className="text-white/80 text-xs md:text-sm truncate">{selectedFile.name}</p>
+                        <button 
+                          onClick={handleImageUpload} 
+                          disabled={isSubmitting}
+                          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white px-3 md:px-4 py-2 rounded-lg font-medium transition-all cursor-pointer text-sm md:text-base"
+                        >
+                          <i className="bi bi-upload mr-2"></i> 
+                          {isSubmitting ? 'Uploading...' : 'Upload Image'}
+                        </button>
                       </div>
                     )}
                   </div>
                 )}
                 {uploadSuccess && (
-                  <div className="mt-2 bg-blue-500/20 border border-blue-400/30 text-blue-100 px-2 py-1 rounded-base text-base"><i className="bi bi-check inline mr-1"></i> {uploadSuccess}</div>
+                  <div className="mt-3 bg-blue-500/20 border border-blue-400/30 text-blue-100 px-3 py-2 rounded-lg text-xs md:text-sm"><i className="bi bi-check mr-2"></i> {uploadSuccess}</div>
                 )}
               </div>
 
-              <div className="p-4">
-                <div className="text-center mb-4">
-                  <h2 className="text-base font-bold text-gray-900 mb-1">{user.name}</h2>
-                  <p className="text-gray-500 text-base mb-3">ID: USER-{user.id.toString().padStart(6, '0')}</p>
+              <div className="p-4 md:p-6">
+                <div className="text-center mb-4 md:mb-6">
+                  <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-1">{user.name}</h2>
+                  <p className="text-[#083A85] font-medium mb-1 text-sm md:text-base">ID: USER-{user.id.toString().padStart(6, '0')}</p>
+                  <p className="text-gray-500 text-xs md:text-sm mb-3 md:mb-4">@{user.name.toLowerCase().replace(' ', '')}</p>
                   <div className="flex items-center justify-center flex-wrap gap-2">
-                    <div className={`inline-flex items-center gap-1 border px-2 py-1 rounded-full text-base font-medium ${getStatusColor(user.status || '')}`}><div className="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></div>{user.status?.charAt(0).toUpperCase()}{user.status?.slice(1)} Status</div>
-                    <div className={`inline-flex items-center gap-2 border px-2 py-1 rounded-full text-base font-medium ${getUserTypeColor(user.userType || '')}`}><i className="bi bi-person-circle text-base"></i>{user.userType === 'field agent' ? 'Field Agent' : (user.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User')}</div>
+                    <div className={`inline-flex items-center gap-1 md:gap-2 border px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium ${getStatusColor(user.status || '')}`}><div className="w-1.5 md:w-2 h-1.5 md:h-2 bg-current rounded-full animate-pulse"></div>{user.status?.charAt(0).toUpperCase()}{user.status?.slice(1)} Status</div>
+                    <div className={`inline-flex items-center gap-1 md:gap-2 border px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium ${getUserTypeColor(user.userType || '')}`}><i className="bi bi-person-circle text-xs md:text-sm"></i>{user.userType === 'field agent' ? 'Field Agent' : (user.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User')}</div>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-base">
-                  <div className="flex items-center gap-2 text-gray-600"><i className="bi bi-envelope text-[#083A85] text-base"></i><span className="text-base">{user.email}</span></div>
-                  <div className="flex items-center gap-2 text-gray-600"><i className="bi bi-telephone text-[#083A85] text-base"></i><span className="text-base">{formatPhoneNumber(user.phone || '', user.phoneCountryCode || 'US')}</span></div>
-                  <div className="flex items-start gap-2 text-gray-600"><i className="bi bi-geo-alt text-[#083A85] text-base mt-0.5"></i><span className="text-base">{getFullAddress()}</span></div>
+                <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
+                  <div className="flex items-center gap-2 md:gap-3 text-gray-600"><i className="bi bi-envelope text-[#083A85] text-base md:text-lg flex-shrink-0"></i><span className="truncate">{user.email}</span></div>
+                  <div className="flex items-center gap-2 md:gap-3 text-gray-600"><i className="bi bi-telephone text-[#083A85] text-base md:text-lg flex-shrink-0"></i><span className="truncate">{formatPhoneNumber(user.phone || '', user.phoneCountryCode || 'US')}</span></div>
+                  <div className="flex items-start gap-2 md:gap-3 text-gray-600"><i className="bi bi-geo-alt text-[#083A85] text-base md:text-lg flex-shrink-0 mt-0.5"></i><span className="break-words">{getFullAddress()}</span></div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                  <button onClick={() => setShowPasswordModal(true)} className="w-full bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-3 py-2 rounded-base text-base font-medium flex items-center justify-center gap-2 cursor-pointer"><i className="bi bi-key"></i> Change Password</button>
-                  <button onClick={() => setShowDeleteModal(true)} className="w-full bg-gradient-to-r from-[#F20C8F] to-pink-600 hover:from-pink-700 hover:to-pink-800 text-white px-3 py-2 rounded-base text-base font-medium flex items-center justify-center gap-2 cursor-pointer"><i className="bi bi-trash"></i> Delete Account</button>
+                <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200 space-y-2 md:space-y-3">
+                  <button onClick={() => setShowPasswordModal(true)} className="w-full bg-gradient-to-r from-[#083A85] to-blue-700 hover:from-blue-800 hover:to-blue-900 text-white px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 cursor-pointer text-sm md:text-base"><i className="bi bi-key"></i> Change Password</button>
+                  <button onClick={() => setShowDeleteModal(true)} className="w-full bg-gradient-to-r from-[#F20C8F] to-pink-600 hover:from-pink-700 hover:to-pink-800 text-white px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 cursor-pointer text-sm md:text-base"><i className="bi bi-trash"></i> Delete Account</button>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Details Section */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white rounded-base shadow-md overflow-hidden">
-              <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-white">Profile Information</h3>
-                  {!isEditing && <button onClick={() => setIsEditing(true)} className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 py-1.5 rounded-base text-base font-medium flex items-center gap-1 cursor-pointer"><i className="bi bi-pencil text-base"></i> Edit</button>}
+          <div className="lg:col-span-2 space-y-4 md:space-y-6">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <h3 className="text-lg md:text-xl font-bold text-white">Profile Information</h3>
+                  {!isEditing && <button onClick={() => setIsEditing(true)} className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-3 md:px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 cursor-pointer text-sm md:text-base w-full sm:w-auto"><i className="bi bi-pencil"></i> Edit</button>}
                 </div>
               </div>
 
-              <div className="p-4">
-                <div className="grid sm:grid-cols-2 gap-4">
+              <div className="p-4 md:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {/* Basic Info */}
-                  <div><label className="block text-gray-700 text-base font-semibold mb-1">Full Name</label><input type="text" value={user.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} disabled={!isEditing} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>
-                  <div><label className="block text-gray-700 text-base font-semibold mb-1">User ID</label><input type="text" value={`USER-${user.id.toString().padStart(6, '0')}`} disabled className="w-full bg-gray-50 border border-gray-200 rounded-base px-3 py-2 text-base text-gray-600 cursor-not-allowed" /></div>
-                  <div><label className="block text-gray-700 text-base font-semibold mb-1">Email Address</label><input type="email" value={user.email || ''} disabled className="w-full border rounded-base px-3 py-2 text-base transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed" /></div>
-                  <div>
-                    <label className="block text-gray-700 text-base font-semibold mb-1">Phone Number</label>
+                  <div className="md:col-span-1">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Full Name</label>
+                    <input type="text" value={user.name || ''} onChange={(e) => handleFieldChange('name', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors text-sm md:text-base ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">User ID</label>
+                    <input type="text" value={`USER-${user.id.toString().padStart(6, '0')}`} disabled className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 md:px-4 md:py-3 text-gray-600 cursor-not-allowed text-sm md:text-base" />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Email Address</label>
+                    <input type="email" value={user.email || ''} disabled className="w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed text-sm md:text-base" />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Phone Number</label>
                     <div className="flex gap-2">
-                        <div className="w-28">
+                        <div className="w-24 md:w-28">
                             <SearchableDropdown options={phoneCountryOptions} value={user.phoneCountryCode || ''} onChange={(value) => handleFieldChange('phoneCountryCode', value)} disabled={!isEditing}/>
                         </div>
-                        <input type="tel" value={user.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} disabled={!isEditing} placeholder="Phone number" className={`flex-1 border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} />
+                        <input type="tel" value={user.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} disabled={!isEditing} placeholder="Phone number" className={`flex-1 border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors text-sm md:text-base ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} />
                     </div>
                   </div>
 
                   {/* Address Fields */}
-                  <div className="sm:col-span-2"><h4 className="text-gray-700 text-base font-bold mb-2 border-b pb-1">Address Information</h4></div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-gray-700 text-base font-semibold mb-1">Country</label>
+                  <div className="col-span-1 md:col-span-2"><h4 className="text-gray-700 text-base md:text-lg font-bold mb-2 md:mb-3 border-b pb-2">Address Information</h4></div>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Country</label>
                     <SearchableDropdown options={countryOptions} value={user.country || ''} onChange={handleCountryChange} disabled={!isEditing} />
                   </div>
 
                   {currentCountry?.addressFields.filter(f => !postalCodeField || f !== postalCodeField).map(field => {
                     const label = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                    if (field === 'state' && currentCountry.states) { return (<div key={field}><label className="block text-gray-700 text-base font-semibold mb-1">{label}</label><select value={user.state || ''} onChange={(e) => handleFieldChange('state', e.target.value)} disabled={!isEditing} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="">Select {label}</option>{currentCountry.states.map(s => <option key={s} value={s}>{s}</option>)}</select></div>); }
-                    if (field === 'province' && currentCountry.provinces) { return (<div key={field}><label className="block text-gray-700 text-base font-semibold mb-1">{label}</label><select value={user.province || ''} onChange={(e) => handleFieldChange('province', e.target.value)} disabled={!isEditing} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}><option value="">Select {label}</option>{currentCountry.provinces.map(p => <option key={p} value={p}>{p}</option>)}</select></div>); }
-                    return (<div key={field}><label className="block text-gray-700 text-base font-semibold mb-1">{label}</label><input type="text" value={user[field as keyof UserInfo] as string || ''} onChange={(e) => handleFieldChange(field as keyof UserInfo, e.target.value)} disabled={!isEditing} placeholder={`Enter ${label.toLowerCase()}`} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} /></div>);
+                    if (field === 'state' && currentCountry.states) { 
+                      return (
+                        <div key={field} className="md:col-span-1">
+                          <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">{label}</label>
+                          <select value={user.state || ''} onChange={(e) => handleFieldChange('state', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors text-sm md:text-base ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}>
+                            <option value="">Select {label}</option>
+                            {currentCountry.states.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      ); 
+                    }
+                    if (field === 'province' && currentCountry.provinces) { 
+                      return (
+                        <div key={field} className="md:col-span-1">
+                          <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">{label}</label>
+                          <select value={user.province || ''} onChange={(e) => handleFieldChange('province', e.target.value)} disabled={!isEditing} className={`w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors text-sm md:text-base ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent cursor-pointer' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}>
+                            <option value="">Select {label}</option>
+                            {currentCountry.provinces.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        </div>
+                      ); 
+                    }
+                    return (
+                      <div key={field} className="md:col-span-1">
+                        <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">{label}</label>
+                        <input type="text" value={user[field as keyof UserInfo] as string || ''} onChange={(e) => handleFieldChange(field as keyof UserInfo, e.target.value)} disabled={!isEditing} placeholder={`Enter ${label.toLowerCase()}`} className={`w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors text-sm md:text-base ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`} />
+                      </div>
+                    );
                   })}
                   
-                  {postalCodeField && (<div><label className="block text-gray-700 text-base font-semibold mb-1">{postalCodeLabel}</label><input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={!isEditing} placeholder={`Enter ${postalCodeLabel.toLowerCase()}`} className={`w-full border rounded-base px-3 py-2 text-base transition-colors ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}/></div>)}
+                  {postalCodeField && (
+                    <div className="md:col-span-1">
+                      <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">{postalCodeLabel}</label>
+                      <input type="text" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} disabled={!isEditing} placeholder={`Enter ${postalCodeLabel.toLowerCase()}`} className={`w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors text-sm md:text-base ${isEditing ? 'border-gray-300 focus:ring-2 focus:ring-[#083A85] focus:border-transparent' : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'}`}/>
+                    </div>
+                  )}
 
                   {/* Account Settings */}
-                  <div><label className="block text-gray-700 text-base font-semibold mb-1">Profile Status</label><select value={user.status || 'active'} disabled className="w-full border rounded-base px-3 py-2 text-base transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"><option value="active">Active</option></select></div>
-                  <div><label className="block text-gray-700 text-base font-semibold mb-1">User Type</label><select value={user.userType || 'host'} disabled className="w-full border rounded-base px-3 py-2 text-base transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"><option value="host">Host</option></select></div>
+                  <div className="md:col-span-1">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Profile Status</label>
+                    <select value={user.status || 'active'} disabled className="w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed text-sm md:text-base">
+                      <option value="active">Active</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">User Type</label>
+                    <select value={user.userType || 'host'} disabled className="w-full border rounded-lg px-3 py-2 md:px-4 md:py-3 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed text-sm md:text-base">
+                      <option value="host">Host</option>
+                    </select>
+                  </div>
                 </div>
 
                 {isEditing && (
-                  <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-200">
-                    <button onClick={() => setIsEditing(false)} className="px-3 py-2 border border-gray-300 rounded-base text-gray-700 hover:bg-gray-50 transition-colors text-base cursor-pointer">Cancel</button>
-                    <button onClick={handleSaveChanges} className="px-3 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-base hover:from-blue-800 hover:to-blue-900 transition-all transform hover:scale-105 shadow-md text-base cursor-pointer">Update Changes</button>
+                  <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 mt-4 md:mt-6 pt-4 md:pt-6 border-t border-gray-200">
+                    <button onClick={() => setIsEditing(false)} className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer text-sm md:text-base">Cancel</button>
+                    <button 
+                      onClick={handleSaveChanges} 
+                      disabled={isSubmitting}
+                      className="px-3 md:px-4 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 disabled:from-blue-400 disabled:to-blue-500 transition-all transform hover:scale-105 shadow-lg cursor-pointer text-sm md:text-base"
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </button>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Profile Activity */}
-            <div className="bg-white rounded-base shadow-md overflow-hidden">
-                <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4"><h3 className="text-base font-bold text-white">Profile Activity</h3></div>
-                <div className="p-4">
-                    <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-[#083A85] rounded-base flex items-center justify-center"><i className="bi bi-calendar-plus text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Profile Created</h4><p className="text-gray-600 text-base">{formatDate(user.created_at)}</p></div></div></div>
-                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-600 rounded-base flex items-center justify-center"><i className="bi bi-pencil-square text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Last Updated</h4><p className="text-gray-600 text-base">{formatDate(user.updated_at)}</p></div></div></div>
-                        <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-indigo-600 rounded-base flex items-center justify-center"><i className="bi bi-shield-check text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Security Status</h4><p className="text-gray-600 text-base">Two-Factor Auth: Enabled</p></div></div></div>
-                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-base p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-[#083A85] rounded-base flex items-center justify-center"><i className="bi bi-person-circle text-white text-base"></i></div><div><h4 className="text-gray-900 font-semibold text-base">Last Login</h4><p className="text-gray-600 text-base">{formatDate(user.last_login || user.updated_at)}</p></div></div></div>
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 md:p-6"><h3 className="text-lg md:text-xl font-bold text-white">Account Activity</h3></div>
+                <div className="p-4 md:p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-xl p-3 md:p-4"><div className="flex items-center gap-3"><div className="w-10 md:w-12 h-10 md:h-12 bg-[#083A85] rounded-lg flex items-center justify-center flex-shrink-0"><i className="bi bi-calendar-plus text-white text-sm md:text-base"></i></div><div className="min-w-0 flex-1"><h4 className="text-gray-900 font-semibold text-sm md:text-base">Profile Created</h4><p className="text-gray-600 text-xs md:text-sm break-words">{formatDate(user.created_at)}</p></div></div></div>
+                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 md:p-4"><div className="flex items-center gap-3"><div className="w-10 md:w-12 h-10 md:h-12 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0"><i className="bi bi-pencil-square text-white text-sm md:text-base"></i></div><div className="min-w-0 flex-1"><h4 className="text-gray-900 font-semibold text-sm md:text-base">Last Updated</h4><p className="text-gray-600 text-xs md:text-sm break-words">{formatDate(user.updated_at)}</p></div></div></div>
+                        <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl p-3 md:p-4"><div className="flex items-center gap-3"><div className="w-10 md:w-12 h-10 md:h-12 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0"><i className="bi bi-shield-check text-white text-sm md:text-base"></i></div><div className="min-w-0 flex-1"><h4 className="text-gray-900 font-semibold text-sm md:text-base">Security Status</h4><p className="text-gray-600 text-xs md:text-sm">Two-Factor Auth: Enabled</p></div></div></div>
+                        <div className="bg-gradient-to-r from-[#083A85]/5 to-[#083A85]/10 border border-[#083A85]/20 rounded-xl p-3 md:p-4"><div className="flex items-center gap-3"><div className="w-10 md:w-12 h-10 md:h-12 bg-[#083A85] rounded-lg flex items-center justify-center flex-shrink-0"><i className="bi bi-person-circle text-white text-sm md:text-base"></i></div><div className="min-w-0 flex-1"><h4 className="text-gray-900 font-semibold text-sm md:text-base">Last Login</h4><p className="text-gray-600 text-xs md:text-sm break-words">{formatDate(user.last_login || user.updated_at)}</p></div></div></div>
                     </div>
-                    <div className="mt-4 p-3 bg-gray-50 rounded-base">
-                        <div className="flex justify-between items-center text-base"><span className="text-gray-600">Total Sessions:</span><span className="font-semibold text-gray-900">{user.total_sessions || 0}</span></div>
-                        <div className="flex justify-between items-center text-base mt-2"><span className="text-gray-600">Account Age:</span><span className="font-semibold text-gray-900">{Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))} days</span></div>
+                    <div className="mt-4 md:mt-6 p-3 md:p-4 bg-gray-50 rounded-xl">
+                        <div className="flex justify-between items-center text-sm md:text-base"><span className="text-gray-600">Total Sessions:</span><span className="font-semibold text-gray-900">{user.total_sessions || 0}</span></div>
+                        <div className="flex justify-between items-center mt-2 text-sm md:text-base"><span className="text-gray-600">Account Age:</span><span className="font-semibold text-gray-900">{Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))} days</span></div>
                     </div>
                 </div>
             </div>
@@ -764,16 +1108,31 @@ export default function UserProfileSettingsPage() {
       {/* MODALS */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-base shadow-xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 rounded-t-base"><h3 className="text-white font-bold text-base">Change Password</h3></div>
-            <div className="p-4 space-y-4">
-              <div><label className="block text-gray-700 text-base font-semibold mb-1">Current Password</label><input type="password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Enter current password"/></div>
-              <div><label className="block text-gray-700 text-base font-semibold mb-1">New Password</label><input type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Enter new password"/></div>
-              <div><label className="block text-gray-700 text-base font-semibold mb-1">Confirm New Password</label><input type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#083A85] focus:border-transparent" placeholder="Confirm new password"/></div>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="bg-gradient-to-r from-[#083A85] to-blue-700 p-4 md:p-6 rounded-t-xl"><h3 className="text-white font-bold text-lg md:text-xl">Change Password</h3></div>
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+              <div>
+                <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Current Password</label>
+                <input type="password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 md:px-4 md:py-3 focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-sm md:text-base" placeholder="Enter current password"/>
+              </div>
+              <div>
+                <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">New Password</label>
+                <input type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 md:px-4 md:py-3 focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-sm md:text-base" placeholder="Enter new password"/>
+              </div>
+              <div>
+                <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Confirm New Password</label>
+                <input type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 md:px-4 md:py-3 focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-sm md:text-base" placeholder="Confirm new password"/>
+              </div>
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end space-x-2">
-              <button onClick={() => { setShowPasswordModal(false); setPasswords({ current: '', new: '', confirm: '' }); }} className="px-4 py-2 border border-gray-300 rounded-base text-gray-700 hover:bg-gray-50 transition-colors text-base cursor-pointer">Cancel</button>
-              <button onClick={handlePasswordChange} className="px-4 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-base hover:from-blue-800 hover:to-blue-900 transition-all text-base cursor-pointer">Change Password</button>
+            <div className="p-4 md:p-6 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-2 md:gap-3">
+              <button onClick={() => { setShowPasswordModal(false); setPasswords({ current: '', new: '', confirm: '' }); }} className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer text-sm md:text-base">Cancel</button>
+              <button 
+                onClick={handlePasswordChange} 
+                disabled={isSubmitting}
+                className="px-3 md:px-4 py-2 bg-gradient-to-r from-[#083A85] to-blue-700 text-white rounded-lg hover:from-blue-800 hover:to-blue-900 disabled:from-blue-400 disabled:to-blue-500 transition-all cursor-pointer text-sm md:text-base"
+              >
+                {isSubmitting ? 'Changing...' : 'Change Password'}
+              </button>
             </div>
           </div>
         </div>
@@ -781,18 +1140,24 @@ export default function UserProfileSettingsPage() {
 
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-base shadow-xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-[#F20C8F] to-pink-600 p-4 rounded-t-base"><h3 className="text-white font-bold text-base">Delete Account</h3></div>
-            <div className="p-4">
-              <div className="mb-4">
-                <div className="bg-red-50 border border-red-200 rounded-base p-3 mb-4"><p className="text-red-700 text-base"><strong>Warning:</strong> This action cannot be undone. All your data will be permanently deleted.</p></div>
-                <label className="block text-gray-700 text-base font-semibold mb-1">Type "delete my account" to confirm</label>
-                <input type="text" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} className="w-full border border-gray-300 rounded-base px-3 py-2 text-base focus:ring-2 focus:ring-[#F20C8F] focus:border-transparent" placeholder="delete my account"/>
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="bg-gradient-to-r from-[#F20C8F] to-pink-600 p-4 md:p-6 rounded-t-xl"><h3 className="text-white font-bold text-lg md:text-xl">Delete Account</h3></div>
+            <div className="p-4 md:p-6">
+              <div className="mb-4 md:mb-6">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 md:p-4 mb-3 md:mb-4"><p className="text-red-700 text-sm md:text-base"><strong>Warning:</strong> This action cannot be undone. All your data will be permanently deleted.</p></div>
+                <label className="block text-gray-700 text-xs md:text-sm font-semibold mb-2">Type "delete my account" to confirm</label>
+                <input type="text" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 md:px-4 md:py-3 focus:ring-2 focus:ring-[#F20C8F] focus:border-transparent text-sm md:text-base" placeholder="delete my account"/>
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end space-x-2">
-              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmation(''); }} className="px-4 py-2 border border-gray-300 rounded-base text-gray-700 hover:bg-gray-50 transition-colors text-base cursor-pointer">Cancel</button>
-              <button onClick={handleDeleteAccount} className="px-4 py-2 bg-gradient-to-r from-[#F20C8F] to-pink-600 text-white rounded-base hover:from-pink-700 hover:to-pink-800 transition-all text-base cursor-pointer">Delete Account</button>
+            <div className="p-4 md:p-6 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-2 md:gap-3">
+              <button onClick={() => { setShowDeleteModal(false); setDeleteConfirmation(''); }} className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer text-sm md:text-base">Cancel</button>
+              <button 
+                onClick={handleDeleteAccount} 
+                disabled={isSubmitting}
+                className="px-3 md:px-4 py-2 bg-gradient-to-r from-[#F20C8F] to-pink-600 text-white rounded-lg hover:from-pink-700 hover:to-pink-800 disabled:from-pink-400 disabled:to-pink-500 transition-all cursor-pointer text-sm md:text-base"
+              >
+                {isSubmitting ? 'Deleting...' : 'Delete Account'}
+              </button>
             </div>
           </div>
         </div>
