@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, ChangeEvent } from 'react';
+import api from '@/app/api/apiService'; // Import your API service
 
 interface OwnerDetails {
   names: string;
@@ -48,6 +49,7 @@ interface FormData {
   availabilityDates: AvailabilityDates;
   pricePerTwoNights: string;
   type: string;
+  category: string;
   features: string[];
   images: PropertyImages;
   video3D: VideoFile | null;
@@ -63,6 +65,8 @@ const AddPropertyPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string>('');
   const [formData, setFormData] = useState<FormData>({
     ownerDetails: {
       names: '',
@@ -75,6 +79,7 @@ const AddPropertyPage: React.FC = () => {
     availabilityDates: { start: '', end: '' },
     pricePerTwoNights: '',
     type: '',
+    category: 'residential', // Default category
     features: [],
     images: {
       livingRoom: [],
@@ -168,6 +173,52 @@ const AddPropertyPage: React.FC = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  // File upload helper function
+  const uploadFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Replace with your actual file upload endpoint
+    const response = await api.post('/upload', formData);
+    if (response.data) {
+      return response.data.url;
+    }
+    throw new Error(response.data.message || 'Failed to upload file');
+  };
+
+  const processImages = async (): Promise<any> => {
+    const processedImages: any = {};
+    
+    for (const category of imageCategories) {
+      const categoryImages = formData.images[category.name];
+      if (categoryImages.length > 0) {
+        try {
+          // Upload images to your storage service and get URLs
+          const imageUrls = await Promise.all(
+            categoryImages.map(async (imgFile) => {
+              try {
+                return await uploadFile(imgFile.file);
+              } catch (error) {
+                console.error(`Failed to upload ${imgFile.name}:`, error);
+                return null;
+              }
+            })
+          );
+          
+          // Filter out failed uploads
+          processedImages[category.name] = imageUrls.filter(url => url !== null);
+        } catch (error) {
+          console.error(`Failed to process ${category.name} images:`, error);
+          processedImages[category.name] = [];
+        }
+      } else {
+        processedImages[category.name] = [];
+      }
+    }
+    
+    return processedImages;
   };
 
   const handleOwnerInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -296,14 +347,70 @@ const AddPropertyPage: React.FC = () => {
     }));
   };
 
-  const handleSubmit = () => {
-    console.log('Property Data:', formData);
-    alert('Property added successfully!');
-    setIsModalOpen(false);
-    setTimeout(() => {
-      resetForm();
-      setIsModalOpen(true);
-    }, 2000);
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      setSubmitError('');
+
+      // Calculate beds and baths from features or set defaults
+      const beds = Math.max(1, formData.features.filter(f => f.includes('Bed')).length || 2);
+      const baths = Math.max(1, formData.features.filter(f => f.includes('Shower') || f.includes('Bathtub')).length || 1);
+      const maxGuests = beds * 2; // Estimate max guests
+
+      // Process images - upload them and get URLs
+      const processedImages = await processImages();
+
+      // Process video - upload and get URL
+      let video3DUrl = '';
+      if (formData.video3D) {
+        video3DUrl = await uploadFile(formData.video3D.file);
+      }
+
+      // Prepare the request body to match backend expectations
+      const requestBody = {
+        name: formData.name,
+        location: formData.location,
+        type: formData.type,
+        category: formData.category,
+        pricePerNight: parseFloat(formData.pricePerTwoNights) / 2, // Convert to per night
+        pricePerTwoNights: parseFloat(formData.pricePerTwoNights),
+        beds: beds,
+        baths: baths,
+        maxGuests: maxGuests,
+        features: formData.features,
+        description: `A stunning ${formData.type.toLowerCase()} in ${formData.location} with ${formData.features.length} amazing features.`,
+        images: processedImages,
+        video3D: video3DUrl,
+        availabilityDates: {
+          start: formData.availabilityDates.start,
+          end: formData.availabilityDates.end
+        },
+        ownerDetails: formData.ownerDetails
+      };
+
+      console.log('Submitting property data:', requestBody);
+
+      // Make API call to create property
+      const response = await api.post('/properties', requestBody);
+
+      if (response.ok) {
+        //alert('Property added successfully!');
+        setIsModalOpen(false);
+        setTimeout(() => {
+          resetForm();
+          // Redirect to properties page or show success state
+          window.location.href = '/host/properties'; // or use your router
+        }, 2000);
+      } else {
+        throw new Error(response.message || 'Failed to create property');
+      }
+
+    } catch (error: any) {
+      console.error('Error creating property:', error);
+      setSubmitError(error.message || 'Failed to create property. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -319,6 +426,7 @@ const AddPropertyPage: React.FC = () => {
       availabilityDates: { start: '', end: '' },
       pricePerTwoNights: '',
       type: '',
+      category: 'residential',
       features: [],
       images: {
         livingRoom: [],
@@ -337,6 +445,7 @@ const AddPropertyPage: React.FC = () => {
     });
     setCurrentStep(1);
     setVideoUploadProgress(0);
+    setSubmitError('');
   };
 
   const isStepValid = (): boolean => {
@@ -397,6 +506,22 @@ const AddPropertyPage: React.FC = () => {
                  </div>
                </button>
               </div>
+
+              {/* Error Message */}
+              {submitError && (
+                <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-800">{submitError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Mobile Stepper - Horizontal dots */}
               <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-4 sm:hidden">
@@ -447,17 +572,9 @@ const AddPropertyPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 200px)' }}>
+              <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-16 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 240px)' }}>
                 {currentStep === 1 && (
                   <div className="space-y-4 sm:space-y-6">
-                    <div>
-                      <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">
-                        Property Owner Information
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4 sm:mb-6">
-                        Please provide the property owner's contact details
-                      </p>
-                    </div>
 
                     <div>
                       <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
@@ -868,9 +985,9 @@ const AddPropertyPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
-                  disabled={currentStep === 1}
+                  disabled={currentStep === 1 || isSubmitting}
                   className={`inline-flex items-center px-3 sm:px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    currentStep === 1
+                    currentStep === 1 || isSubmitting
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer'
                   }`}
@@ -886,9 +1003,9 @@ const AddPropertyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setCurrentStep(prev => prev + 1)}
-                    disabled={!isStepValid()}
+                    disabled={!isStepValid() || isSubmitting}
                     className={`inline-flex items-center px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                      isStepValid()
+                      isStepValid() && !isSubmitting
                         ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
@@ -902,18 +1019,31 @@ const AddPropertyPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={!isStepValid()}
+                    disabled={!isStepValid() || isSubmitting}
                     className={`inline-flex items-center px-4 sm:px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                      isStepValid()
+                      isStepValid() && !isSubmitting
                         ? 'bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white hover:from-[#0a4499] hover:to-[#0c52b8] shadow-lg hover:shadow-xl cursor-pointer'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="hidden sm:inline">Add Property</span>
-                    <span className="sm:hidden">Add</span>
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="hidden sm:inline">Creating...</span>
+                        <span className="sm:hidden">...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="hidden sm:inline">Add Property</span>
+                        <span className="sm:hidden">Add</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -922,14 +1052,6 @@ const AddPropertyPage: React.FC = () => {
         </div>
       )}
 
-      {!isModalOpen && (
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="text-center">
-            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">Property Added Successfully!</h2>
-            <p className="text-gray-600">Redirecting...</p>
-          </div>
-        </div>
-      )}
       
       <style jsx global>{`
         ::-webkit-scrollbar {

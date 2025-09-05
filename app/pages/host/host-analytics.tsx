@@ -1,717 +1,585 @@
-import React, { useState } from 'react';
+"use client";
+import React, { useState, useEffect } from 'react';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import api from '@/app/api/apiService';
 
-// Mock data for the dashboard
-const hostData = {
-  totalHosts: 1250,
-  activeHosts: 980,
-  newHostsThisMonth: 120,
-  hostByServiceType: [
-    { name: 'Server', count: 600 },
-    { name: 'Database', count: 350 },
-    { name: 'Storage', count: 300 },
-  ],
-  monthlyBookings: [
-    { month: 'Jan', count: 120 },
-    { month: 'Feb', count: 150 },
-    { month: 'Mar', count: 180 },
-    { month: 'Apr', count: 200 },
-    { month: 'May', count: 230 },
-    { month: 'Jun', count: 250 },
-  ],
-  totalBookings: 2500,
-  totalRevenue: 350000,
-  occupancyRate: 85,
-  cancellationsThisMonth: 15,
-  bookingSources: [
-    { name: 'Field Agent', count: 700, color: '#F20C8F' },
-    { name: 'Direct', count: 1000, color: '#083A85' },
-  ],
-  averageRating: 4.8,
-  totalReviews: 542,
-};
-
-const recentBookings = [
-  { id: 101, guest: 'Moises Caicedo', property: 'Mountain View Cabin', checkIn: '2025-08-15', revenue: 750 },
-  { id: 102, guest: 'Enzo Fernandez', property: 'Downtown Loft', checkIn: '2025-08-18', revenue: 450 },
-  { id: 103, guest: 'Willian Estevao', property: 'Mountain View Cabin', checkIn: '2025-08-20', revenue: 900 },
-];
-
-const recentReviews = [
-  { id: 1, guest: 'Sarah Connor', rating: 5, comment: 'Amazing stay! Everything was perfect.', date: '2025-08-05' },
-  { id: 2, guest: 'Kyle Reese', rating: 4, comment: 'Great location, but the Wi-Fi was a bit slow.', date: '2025-08-01' },
-  { id: 3, guest: 'Muben Pablo', rating: 5, comment: 'Hasta la vista, baby! Excellent experience.', date: '2025-07-28' },
-];
-
-// Icons
-const TrendUpIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-  </svg>
-);
-
-const DollarIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const CalendarIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-  </svg>
-);
-
-const ChartIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-  </svg>
-);
-
-const CancelIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const StarIcon = () => (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-  </svg>
-);
-
-interface StatCardProps {
-  title: string;
-  value: number | string;
-  trend?: string;
-  icon?: React.ReactNode;
-  gradient?: string;
+// Types based on your backend service
+interface AnalyticsOverview {
+  totalViews: number;
+  totalBookings: number;
+  totalRevenue: number;
+  averageRating: number;
+  occupancyRate: number;
+  conversionRate: number;
+  repeatGuestRate: number;
+  timeRange: string;
 }
 
-// Modern KPI card with gradient accent
-const StatCard: React.FC<StatCardProps> = ({ title, value, trend, icon, gradient = "from-blue-500 to-blue-600" }) => (
-  <div className="relative p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 bg-white flex-1 min-w-[200px] group overflow-hidden">
-    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${gradient}`}></div>
-    <div className="flex justify-between items-start">
-      <div>
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</h3>
-        <p className="text-3xl font-bold mt-2 text-gray-900">{value}</p>
-        {trend && (
-          <div className="flex items-center mt-2 text-green-500">
-            <TrendUpIcon />
-            <span className="ml-1 text-sm font-medium">{trend}</span>
-          </div>
-        )}
-      </div>
-      {icon && (
-        <div className={`p-3 rounded-lg bg-gradient-to-br ${gradient} text-white opacity-90`}>
-          {icon}
-        </div>
-      )}
-    </div>
-  </div>
-);
+interface PropertyPerformanceMetrics {
+  propertyId: number;
+  propertyName: string;
+  totalBookings: number;
+  totalRevenue: number;
+  averageRating: number;
+  occupancyRate: number;
+  views: number;
+  conversionRate: number;
+}
 
-// Modern Line Chart with animations
-const LineChart: React.FC<{ data: { month: string; count: number }[] }> = ({ data }) => {
-  const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-  const width = 500;
-  const height = 250;
-  const padding = 40;
-  const maxCount = Math.max(...data.map(d => d.count));
+interface BookingTrendData {
+  date: string;
+  bookings: number;
+  revenue: number;
+  cancellations: number;
+}
 
-  const xScale = (index: number) => padding + (index / (data.length - 1)) * (width - 2 * padding);
-  const yScale = (value: number) => height - padding - (value / maxCount) * (height - 2 * padding);
+interface GuestAnalytics {
+  totalGuests: number;
+  newGuests: number;
+  returningGuests: number;
+  averageStayDuration: number;
+  guestDemographics: {
+    ageGroups: Array<{ group: string; count: number }>;
+    countries: Array<{ country: string; count: number }>;
+    purposes: Array<{ purpose: string; count: number }>;
+  };
+  guestSatisfaction: {
+    averageRating: number;
+    ratingDistribution: Array<{ rating: number; count: number }>;
+    commonComplaints: string[];
+    commonPraises: string[];
+  };
+}
 
-  const points = data.map((d, i) => `${xScale(i)},${yScale(d.count)}`).join(' ');
-  
-  // Create area path
-  const areaPath = `M ${xScale(0)},${height - padding} ` +
-    data.map((d, i) => `L ${xScale(i)},${yScale(d.count)}`).join(' ') +
-    ` L ${xScale(data.length - 1)},${height - padding} Z`;
+interface RevenueAnalytics {
+  monthlyRevenue: Array<{ month: string; revenue: number; bookings: number }>;
+  revenueByProperty: Array<{ propertyName: string; revenue: number; percentage: number }>;
+  seasonalTrends: Array<{ season: string; revenue: number; bookings: number }>;
+  pricingOptimization: Array<{ suggestion: string; impact: string }>;
+}
 
-  return (
-    <div className="relative">
-      <svg width={width} height={height} className="w-full h-auto">
-        <defs>
-          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#083A85', stopOpacity: 0.3 }} />
-            <stop offset="100%" style={{ stopColor: '#083A85', stopOpacity: 0 }} />
-          </linearGradient>
-        </defs>
-        
-        {/* Grid lines */}
-        {[0, 1, 2, 3, 4].map(i => (
-          <line
-            key={i}
-            x1={padding}
-            y1={padding + i * (height - 2 * padding) / 4}
-            x2={width - padding}
-            y2={padding + i * (height - 2 * padding) / 4}
-            stroke="#E5E7EB"
-            strokeWidth="1"
-            strokeDasharray="3,3"
-          />
-        ))}
-        
-        {/* Area under line */}
-        <path d={areaPath} fill="url(#areaGradient)" />
-        
-        {/* Line */}
-        <polyline
-          points={points}
-          fill="none"
-          stroke="#083A85"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        
-        {/* Points and tooltips */}
-        {data.map((d, i) => (
-          <g key={i}>
-            <circle
-              cx={xScale(i)}
-              cy={yScale(d.count)}
-              r={hoveredPoint === i ? 6 : 4}
-              fill="#F20C8F"
-              stroke="white"
-              strokeWidth="2"
-              className="transition-all duration-200 cursor-pointer"
-              onMouseEnter={() => setHoveredPoint(i)}
-              onMouseLeave={() => setHoveredPoint(null)}
-            />
-            {hoveredPoint === i && (
-              <g>
-                <rect
-                  x={xScale(i) - 30}
-                  y={yScale(d.count) - 35}
-                  width="60"
-                  height="25"
-                  rx="4"
-                  fill="#1F2937"
-                  fillOpacity="0.9"
-                />
-                <text
-                  x={xScale(i)}
-                  y={yScale(d.count) - 18}
-                  textAnchor="middle"
-                  className="text-xs fill-white font-medium"
-                >
-                  {d.count}
-                </text>
-              </g>
-            )}
-          </g>
-        ))}
-        
-        {/* X-axis labels */}
-        {data.map((d, i) => (
-          <text
-            key={i}
-            x={xScale(i)}
-            y={height - padding + 20}
-            textAnchor="middle"
-            className="text-xs fill-gray-600 font-medium"
-          >
-            {d.month}
-          </text>
-        ))}
-        
-        {/* Y-axis labels */}
-        {[0, maxCount / 4, maxCount / 2, (3 * maxCount) / 4, maxCount].map((val, idx) => (
-          <text
-            key={idx}
-            x={padding - 10}
-            y={yScale(val) + 4}
-            textAnchor="end"
-            className="text-xs fill-gray-600"
-          >
-            {Math.round(val)}
-          </text>
-        ))}
-      </svg>
-    </div>
-  );
-};
+interface HostAnalytics {
+  overview: AnalyticsOverview;
+  propertyPerformance: PropertyPerformanceMetrics[];
+  bookingTrends: BookingTrendData[];
+  guestInsights: GuestAnalytics;
+  revenueAnalytics: RevenueAnalytics;
+  marketComparison: {
+    averagePrice: number;
+    myAveragePrice: number;
+    occupancyRate: number;
+    myOccupancyRate: number;
+    competitorCount: number;
+    marketPosition: 'premium' | 'mid_range' | 'budget';
+    opportunities: string[];
+  };
+}
 
-// Modern Bar Chart
-const BarChart: React.FC<{ data: { month: string; count: number }[] }> = ({ data }) => {
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
-  const width = 500;
-  const height = 250;
-  const padding = 40;
-  const maxCount = Math.max(...data.map(d => d.count));
-  const barWidth = (width - 2 * padding) / data.length - 10;
+type TimeRange = 'week' | 'month' | 'quarter' | 'year';
 
-  const xScale = (index: number) => padding + index * ((width - 2 * padding) / data.length) + 5;
-  const yScale = (value: number) => height - padding - (value / maxCount) * (height - 2 * padding);
+const HostAnalyticsPage: React.FC = () => {
+  const [analytics, setAnalytics] = useState<HostAnalytics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'bookings' | 'occupancy'>('revenue');
 
-  return (
-    <div className="relative">
-      <svg width={width} height={height} className="w-full h-auto">
-        <defs>
-          <linearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#083A85' }} />
-            <stop offset="100%" style={{ stopColor: '#0051BB' }} />
-          </linearGradient>
-        </defs>
-        
-        {/* Grid lines */}
-        {[0, 1, 2, 3, 4].map(i => (
-          <line
-            key={i}
-            x1={padding}
-            y1={padding + i * (height - 2 * padding) / 4}
-            x2={width - padding}
-            y2={padding + i * (height - 2 * padding) / 4}
-            stroke="#E5E7EB"
-            strokeWidth="1"
-            strokeDasharray="3,3"
-          />
-        ))}
-        
-        {/* Bars */}
-        {data.map((d, i) => (
-          <g key={i}>
-            <rect
-              x={xScale(i)}
-              y={yScale(d.count)}
-              width={barWidth}
-              height={height - padding - yScale(d.count)}
-              fill={hoveredBar === i ? "#F20C8F" : "url(#barGradient)"}
-              rx="4"
-              className="transition-all duration-300 cursor-pointer"
-              onMouseEnter={() => setHoveredBar(i)}
-              onMouseLeave={() => setHoveredBar(null)}
-            />
-            {hoveredBar === i && (
-              <g>
-                <rect
-                  x={xScale(i) + barWidth / 2 - 30}
-                  y={yScale(d.count) - 35}
-                  width="60"
-                  height="25"
-                  rx="4"
-                  fill="#1F2937"
-                  fillOpacity="0.9"
-                />
-                <text
-                  x={xScale(i) + barWidth / 2}
-                  y={yScale(d.count) - 18}
-                  textAnchor="middle"
-                  className="text-xs fill-white font-medium"
-                >
-                  {d.count}
-                </text>
-              </g>
-            )}
-            <text
-              x={xScale(i) + barWidth / 2}
-              y={height - padding + 20}
-              textAnchor="middle"
-              className="text-xs fill-gray-600 font-medium"
-            >
-              {d.month}
-            </text>
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-};
-
-// Modern Pie Chart
-const PieChart: React.FC<{ data: { name: string; count: number; color: string }[] }> = ({ data }) => {
-  const [hoveredSlice, setHoveredSlice] = useState<number | null>(null);
-  const total = data.reduce((sum, d) => sum + d.count, 0);
-  const radius = 80;
-  const cx = 120;
-  const cy = 120;
-  let startAngle = -90;
-
-  const createPath = (item: any, index: number) => {
-    const percentage = (item.count / total) * 100;
-    const sliceAngle = (item.count / total) * 360;
-    const endAngle = startAngle + sliceAngle;
-    const isHovered = hoveredSlice === index;
-    const hoverOffset = isHovered ? 5 : 0;
-    
-    const x1 = cx + (radius + hoverOffset) * Math.cos(startAngle * Math.PI / 180);
-    const y1 = cy + (radius + hoverOffset) * Math.sin(startAngle * Math.PI / 180);
-    const x2 = cx + (radius + hoverOffset) * Math.cos(endAngle * Math.PI / 180);
-    const y2 = cy + (radius + hoverOffset) * Math.sin(endAngle * Math.PI / 180);
-    
-    const largeArc = sliceAngle > 180 ? 1 : 0;
-    
-    // Calculate center position for hover offset
-    const midAngle = (startAngle + endAngle) / 2;
-    const offsetX = isHovered ? 5 * Math.cos(midAngle * Math.PI / 180) : 0;
-    const offsetY = isHovered ? 5 * Math.sin(midAngle * Math.PI / 180) : 0;
-    
-    const path = `
-      M ${cx + offsetX} ${cy + offsetY}
-      L ${x1 + offsetX} ${y1 + offsetY}
-      A ${radius + hoverOffset} ${radius + hoverOffset} 0 ${largeArc} 1 ${x2 + offsetX} ${y2 + offsetY}
-      Z
-    `;
-    
-    const result = { path, percentage, midAngle };
-    startAngle = endAngle;
-    return result;
+  // Default values for missing data
+  const defaultOverview: AnalyticsOverview = {
+    totalViews: 0,
+    totalBookings: 0,
+    totalRevenue: 0,
+    averageRating: 0,
+    occupancyRate: 0,
+    conversionRate: 0,
+    repeatGuestRate: 0,
+    timeRange: 'month'
   };
 
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative">
-        <svg width={240} height={240} className="mx-auto">
-          {data.map((item, idx) => {
-            const { path, percentage, midAngle } = createPath(item, idx);
-            return (
-              <g key={idx}>
-                <path
-                  d={path}
-                  fill={item.color}
-                  fillOpacity={hoveredSlice === idx ? 1 : 0.9}
-                  className="transition-all duration-300 cursor-pointer"
-                  style={{ filter: hoveredSlice === idx ? 'brightness(1.1)' : 'none' }}
-                  onMouseEnter={() => setHoveredSlice(idx)}
-                  onMouseLeave={() => setHoveredSlice(null)}
-                />
-                {hoveredSlice === idx && (
-                  <text
-                    x={cx + 50 * Math.cos(midAngle * Math.PI / 180)}
-                    y={cy + 50 * Math.sin(midAngle * Math.PI / 180)}
-                    textAnchor="middle"
-                    className="text-sm font-bold fill-white pointer-events-none"
-                  >
-                    {percentage.toFixed(0)}%
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      <div className="flex flex-col mt-4 space-y-2">
-        {data.map((item, idx) => {
-          const percentage = ((item.count / total) * 100).toFixed(1);
-          return (
-            <div
-              key={idx}
-              className={`flex items-center justify-between gap-4 p-2 rounded-lg transition-all duration-200 ${
-                hoveredSlice === idx ? 'bg-gray-50' : ''
-              }`}
-              onMouseEnter={() => setHoveredSlice(idx)}
-              onMouseLeave={() => setHoveredSlice(null)}
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-                <span className="text-sm font-medium">{item.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{item.count}</span>
-                <span className="text-sm font-bold text-gray-800">({percentage}%)</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// Modern Donut Chart
-const DonutChart: React.FC<{ data: { name: string; count: number; color: string }[] }> = ({ data }) => {
-  const [hoveredSlice, setHoveredSlice] = useState<number | null>(null);
-  const total = data.reduce((sum, d) => sum + d.count, 0);
-  const outerRadius = 80;
-  const innerRadius = 50;
-  const cx = 120;
-  const cy = 120;
-  let startAngle = -90;
-
-  const createPath = (item: any, index: number) => {
-    const percentage = (item.count / total) * 100;
-    const sliceAngle = (item.count / total) * 360;
-    const endAngle = startAngle + sliceAngle;
-    const isHovered = hoveredSlice === index;
-    const hoverOffset = isHovered ? 5 : 0;
-    
-    // Calculate center position for hover offset
-    const midAngle = (startAngle + endAngle) / 2;
-    const offsetX = isHovered ? 5 * Math.cos(midAngle * Math.PI / 180) : 0;
-    const offsetY = isHovered ? 5 * Math.sin(midAngle * Math.PI / 180) : 0;
-    
-    const x1Outer = cx + (outerRadius + hoverOffset) * Math.cos(startAngle * Math.PI / 180) + offsetX;
-    const y1Outer = cy + (outerRadius + hoverOffset) * Math.sin(startAngle * Math.PI / 180) + offsetY;
-    const x2Outer = cx + (outerRadius + hoverOffset) * Math.cos(endAngle * Math.PI / 180) + offsetX;
-    const y2Outer = cy + (outerRadius + hoverOffset) * Math.sin(endAngle * Math.PI / 180) + offsetY;
-    
-    const x1Inner = cx + innerRadius * Math.cos(endAngle * Math.PI / 180) + offsetX;
-    const y1Inner = cy + innerRadius * Math.sin(endAngle * Math.PI / 180) + offsetY;
-    const x2Inner = cx + innerRadius * Math.cos(startAngle * Math.PI / 180) + offsetX;
-    const y2Inner = cy + innerRadius * Math.sin(startAngle * Math.PI / 180) + offsetY;
-    
-    const largeArc = sliceAngle > 180 ? 1 : 0;
-    
-    const path = `
-      M ${x1Outer} ${y1Outer}
-      A ${outerRadius + hoverOffset} ${outerRadius + hoverOffset} 0 ${largeArc} 1 ${x2Outer} ${y2Outer}
-      L ${x1Inner} ${y1Inner}
-      A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x2Inner} ${y2Inner}
-      Z
-    `;
-    
-    const result = { path, percentage };
-    startAngle = endAngle;
-    return result;
+  const defaultGuestInsights: GuestAnalytics = {
+    totalGuests: 0,
+    newGuests: 0,
+    returningGuests: 0,
+    averageStayDuration: 0,
+    guestDemographics: {
+      ageGroups: [],
+      countries: [],
+      purposes: []
+    },
+    guestSatisfaction: {
+      averageRating: 0,
+      ratingDistribution: [],
+      commonComplaints: [],
+      commonPraises: []
+    }
   };
 
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative">
-        <svg width={240} height={240} className="mx-auto">
-          {data.map((item, idx) => {
-            const { path, percentage } = createPath(item, idx);
-            return (
-              <g key={idx}>
-                <path
-                  d={path}
-                  fill={item.color}
-                  fillOpacity={hoveredSlice === idx ? 1 : 0.9}
-                  className="transition-all duration-300 cursor-pointer"
-                  style={{ filter: hoveredSlice === idx ? 'brightness(1.1)' : 'none' }}
-                  onMouseEnter={() => setHoveredSlice(idx)}
-                  onMouseLeave={() => setHoveredSlice(null)}
-                />
-              </g>
-            );
-          })}
-          {/* Center text */}
-          <text x={cx} y={cy - 5} textAnchor="middle" className="text-2xl font-bold fill-gray-800">
-            {total}
-          </text>
-          <text x={cx} y={cy + 15} textAnchor="middle" className="text-sm fill-gray-500">
-            Total
-          </text>
-        </svg>
+  const defaultRevenueAnalytics: RevenueAnalytics = {
+    monthlyRevenue: [],
+    revenueByProperty: [],
+    seasonalTrends: [],
+    pricingOptimization: []
+  };
+
+  const defaultMarketComparison = {
+    averagePrice: 0,
+    myAveragePrice: 0,
+    occupancyRate: 0,
+    myOccupancyRate: 0,
+    competitorCount: 0,
+    marketPosition: 'mid_range' as const,
+    opportunities: []
+  };
+
+  // Fetch analytics data
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await api.get('/properties/host/analytics', {
+        params: { timeRange }
+      });
+
+      if (response.data) {
+        // Ensure all required properties exist with default values
+        const safeAnalytics: HostAnalytics = {
+          overview: { ...defaultOverview, ...response.data.overview },
+          propertyPerformance: response.data.propertyPerformance || [],
+          bookingTrends: response.data.bookingTrends || [],
+          guestInsights: { 
+            ...defaultGuestInsights, 
+            ...response.data.guestInsights,
+            guestDemographics: {
+              ...defaultGuestInsights.guestDemographics,
+              ...response.data.guestInsights?.guestDemographics
+            },
+            guestSatisfaction: {
+              ...defaultGuestInsights.guestSatisfaction,
+              ...response.data.guestInsights?.guestSatisfaction
+            }
+          },
+          revenueAnalytics: { ...defaultRevenueAnalytics, ...response.data.revenueAnalytics },
+          marketComparison: { ...defaultMarketComparison, ...response.data.marketComparison }
+        };
+        
+        setAnalytics(safeAnalytics);
+      }
+    } catch (err: any) {
+      console.error('Error fetching analytics:', err);
+      setError(err.response?.data?.message || 'Failed to fetch analytics');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [timeRange]);
+
+  // Custom tooltip for charts
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium text-gray-900">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {entry.name.includes('Revenue') ? '$' : ''}{entry.value?.toLocaleString() || 0}
+              {entry.name.includes('Rate') ? '%' : ''}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  if (loading) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+            <span className="ml-3 text-lg text-gray-600">Loading analytics...</span>
+          </div>
+        </div>
       </div>
-      <div className="flex flex-col mt-4 space-y-2">
-        {data.map((item, idx) => {
-          const percentage = ((item.count / total) * 100).toFixed(1);
-          return (
-            <div
-              key={idx}
-              className={`flex items-center justify-between gap-4 p-2 rounded-lg transition-all duration-200 ${
-                hoveredSlice === idx ? 'bg-gray-50' : ''
-              }`}
-              onMouseEnter={() => setHoveredSlice(idx)}
-              onMouseLeave={() => setHoveredSlice(null)}
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+            <i className="bi bi-exclamation-triangle text-5xl text-red-500 mb-4"></i>
+            <h3 className="text-xl font-medium text-red-800 mb-2">Error Loading Analytics</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={fetchAnalytics}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-                <span className="text-sm font-medium">{item.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{item.count}</span>
-                <span className="text-sm font-bold text-gray-800">({percentage}%)</span>
-              </div>
-            </div>
-          );
-        })}
+              Try Again
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
 
-const App: React.FC = () => {
-  const [chartView, setChartView] = useState<'line' | 'bar'>('line');
-  const [pieView, setPieView] = useState<'donut' | 'pie'>('donut');
+  // Additional safety check - ensure analytics and its properties exist
+  if (!analytics || !analytics.overview) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 py-8">
+          <div className="text-center">
+            <p className="text-gray-600">No analytics data available</p>
+            <button
+              onClick={fetchAnalytics}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Refresh Data
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Safe access with default values
+  const overview = analytics.overview || defaultOverview;
+  const guestInsights = analytics.guestInsights || defaultGuestInsights;
+  const revenueAnalytics = analytics.revenueAnalytics || defaultRevenueAnalytics;
+  const marketComparison = analytics.marketComparison || defaultMarketComparison;
 
   return (
-    <div className="bg-gray-50 min-h-screen pt-20 p-4 sm:p-15 font-sans">
-      <div className="container mx-auto max-w-6xl">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-6 mt-4 leading-tight">
-          Host Analytics Dashboard
-        </h1>
-
-        {/* KPI Cards */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <StatCard 
-            title="Total Bookings" 
-            value={hostData.totalBookings.toLocaleString()} 
-            trend="+12%" 
-            icon={<CalendarIcon />}
-            gradient="from-blue-500 to-blue-600"
-          />
-          <StatCard 
-            title="Total Revenue" 
-            value={`$${hostData.totalRevenue.toLocaleString()}`} 
-            trend="+18%" 
-            icon={<DollarIcon />}
-            gradient="from-green-500 to-green-600"
-          />
-          <StatCard 
-            title="Occupancy Rate" 
-            value={`${hostData.occupancyRate}%`} 
-            trend="+5%" 
-            icon={<ChartIcon />}
-            gradient="from-purple-500 to-purple-600"
-          />
-          <StatCard 
-            title="Cancellations" 
-            value={hostData.cancellationsThisMonth} 
-            icon={<CancelIcon />}
-            gradient="from-red-500 to-red-600"
-          />
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Monthly Bookings Chart */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-800">Monthly Bookings</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setChartView('line')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    chartView === 'line'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Line
-                </button>
-                <button
-                  onClick={() => setChartView('bar')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    chartView === 'bar'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Bar
-                </button>
-              </div>
+    <div className="pt-14">
+      <div className="mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+              <p className="text-gray-600 mt-2">Detailed insights into your property performance</p>
             </div>
-            <div className="overflow-x-auto">
-              {chartView === 'line' ? (
-                <LineChart data={hostData.monthlyBookings} />
-              ) : (
-                <BarChart data={hostData.monthlyBookings} />
-              )}
-            </div>
-          </div>
-
-          {/* Booking Sources Chart */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-800">Booking Sources</h2>
-              <div className="flex gap-2">
+            
+            {/* Time Range Selector */}
+            <div className="flex gap-2">
+              {(['week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
                 <button
-                  onClick={() => setPieView('donut')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    pieView === 'donut'
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    timeRange === range
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Donut
+                  {range.charAt(0).toUpperCase() + range.slice(1)}
                 </button>
-                <button
-                  onClick={() => setPieView('pie')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    pieView === 'pie'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Pie
-                </button>
-              </div>
+              ))}
             </div>
-            {pieView === 'donut' ? (
-              <DonutChart data={hostData.bookingSources} />
-            ) : (
-              <PieChart data={hostData.bookingSources} />
-            )}
           </div>
         </div>
 
-        {/* Reviews Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Reviews & Ratings</h2>
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-3">
-              <span className="text-5xl font-bold text-gray-800">{hostData.averageRating}</span>
+        {/* Overview Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="flex text-yellow-400">
-                  <StarIcon /><StarIcon /><StarIcon /><StarIcon /><StarIcon />
-                </div>
-                <p className="text-sm text-gray-500 mt-1">{hostData.totalReviews} reviews</p>
+                <p className="text-sm text-gray-600 font-medium">Total Revenue</p>
+                <p className="text-3xl font-bold text-gray-900">${(overview.totalRevenue || 0).toLocaleString()}</p>
+                <p className="text-sm text-green-600 mt-1">+12.5% vs last period</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <i className="bi bi-currency-dollar text-2xl text-green-600"></i>
               </div>
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <div className="space-y-2">
-                {[5, 4, 3, 2, 1].map(rating => {
-                  const count = rating === 5 ? 420 : rating === 4 ? 98 : rating === 3 ? 24 : 0;
-                  const percentage = (count / hostData.totalReviews) * 100;
-                  return (
-                    <div key={rating} className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600 w-4">{rating}</span>
-                      <StarIcon />
-                      <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-600 w-10 text-right">{count}</span>
-                    </div>
-                  );
-                })}
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Total Bookings</p>
+                <p className="text-3xl font-bold text-gray-900">{overview.totalBookings || 0}</p>
+                <p className="text-sm text-blue-600 mt-1">+8.3% vs last period</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <i className="bi bi-calendar-check text-2xl text-blue-600"></i>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Occupancy Rate</p>
+                <p className="text-3xl font-bold text-gray-900">{(overview.occupancyRate || 0).toFixed(1)}%</p>
+                <p className="text-sm text-purple-600 mt-1">+5.2% vs last period</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <i className="bi bi-bar-chart text-2xl text-purple-600"></i>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 font-medium">Average Rating</p>
+                <p className="text-3xl font-bold text-gray-900">{(overview.averageRating || 0).toFixed(1)}</p>
+                <p className="text-sm text-yellow-600 mt-1">+0.2 vs last period</p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <i className="bi bi-star-fill text-2xl text-yellow-600"></i>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Recent Bookings Table */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">Recent Bookings</h2>
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+          {/* Revenue Trends */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Revenue Trends</h3>
+              <div className="flex gap-2">
+                {(['revenue', 'bookings'] as const).map((metric) => (
+                  <button
+                    key={metric}
+                    onClick={() => setSelectedMetric(metric as any)}
+                    className={`px-3 py-1 rounded text-sm font-medium ${
+                      selectedMetric === metric
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {metric.charAt(0).toUpperCase() + metric.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueAnalytics.monthlyRevenue || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey={selectedMetric}
+                    stroke="#083A85"
+                    fill="#083A85"
+                    fillOpacity={0.1}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Booking Trends */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Booking Performance</h3>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.bookingTrends || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="bookings" fill="#F20C8F" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cancellations" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Property Performance */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Property Performance</h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="w-full">
               <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Guest</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-in</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Property</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Bookings</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Revenue</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Occupancy</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Rating</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Conversion</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentBookings.map((b, idx) => (
-                  <tr key={b.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-medium">
-                          {b.guest.split(' ').map(n => n[0]).join('')}
+              <tbody>
+                {(analytics.propertyPerformance || []).length > 0 ? (
+                  analytics.propertyPerformance.map((property, index) => (
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-gray-900">{property.propertyName}</div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">{property.totalBookings}</td>
+                      <td className="py-3 px-4 text-gray-700">${(property.totalRevenue || 0).toLocaleString()}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center">
+                          <div className="w-12 bg-gray-200 rounded-full h-2 mr-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
+                              style={{ width: `${property.occupancyRate || 0}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm text-gray-700">{(property.occupancyRate || 0).toFixed(1)}%</span>
                         </div>
-                        <span className="ml-3 text-sm font-medium text-gray-900">{b.guest}</span>
-                      </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center">
+                          <i className="bi bi-star-fill text-yellow-400 mr-1"></i>
+                          <span className="text-gray-700">{(property.averageRating || 0).toFixed(1)}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">{(property.conversionRate || 0).toFixed(1)}%</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                      No property performance data available
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{b.property}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{b.checkIn}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">${b.revenue.toLocaleString()}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* Bottom Row - Guest Analytics and Revenue Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Guest Demographics */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Guest Analytics</h3>
+            
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-2xl font-bold text-gray-900">{guestInsights.totalGuests || 0}</p>
+                <p className="text-sm text-gray-600">Total Guests</p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="text-2xl font-bold text-green-600">{guestInsights.returningGuests || 0}</p>
+                <p className="text-sm text-gray-600">Returning Guests</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Guest Satisfaction</h4>
+                <div className="flex items-center gap-2">
+                  <div className="flex text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <i key={i} className="bi bi-star-fill"></i>
+                    ))}
+                  </div>
+                  <span className="font-medium">{(guestInsights.guestSatisfaction?.averageRating || 0).toFixed(1)}</span>
+                  <span className="text-gray-600">average rating</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Average Stay Duration</h4>
+                <p className="text-2xl font-bold text-blue-600">{(guestInsights.averageStayDuration || 0).toFixed(1)} days</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Revenue Breakdown */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Revenue by Property</h3>
+            {revenueAnalytics.revenueByProperty && revenueAnalytics.revenueByProperty.length > 0 ? (
+              <>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={revenueAnalytics.revenueByProperty}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="revenue"
+                      >
+                        {revenueAnalytics.revenueByProperty.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#083A85', '#F20C8F', '#10B981', '#F59E0B', '#8B5CF6'][index % 5]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {revenueAnalytics.revenueByProperty.slice(0, 3).map((property, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: ['#083A85', '#F20C8F', '#10B981'][index] }}
+                        ></div>
+                        <span className="text-sm text-gray-700">{property.propertyName}</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">{(property.percentage || 0).toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                No revenue data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Market Comparison */}
+        {marketComparison && (
+          <div className="bg-white p-6 rounded-lg shadow-sm border mt-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Market Comparison</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">Your Average Price</p>
+                <p className="text-2xl font-bold text-blue-600">${(marketComparison.myAveragePrice || 0).toFixed(0)}</p>
+                <p className="text-sm text-gray-500">vs ${(marketComparison.averagePrice || 0).toFixed(0)} market avg</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">Your Occupancy Rate</p>
+                <p className="text-2xl font-bold text-green-600">{(marketComparison.myOccupancyRate || 0).toFixed(1)}%</p>
+                <p className="text-sm text-gray-500">vs {(marketComparison.occupancyRate || 0).toFixed(1)}% market avg</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-2">Market Position</p>
+                <p className="text-2xl font-bold text-purple-600 capitalize">{(marketComparison.marketPosition || 'mid_range').replace('_', ' ')}</p>
+                <p className="text-sm text-gray-500">{marketComparison.competitorCount || 0} competitors nearby</p>
+              </div>
+            </div>
+            
+            {marketComparison.opportunities && marketComparison.opportunities.length > 0 && (
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Growth Opportunities</h4>
+                <ul className="space-y-1">
+                  {marketComparison.opportunities.map((opportunity, index) => (
+                    <li key={index} className="text-sm text-blue-800 flex items-center">
+                      <i className="bi bi-lightbulb mr-2"></i>
+                      {opportunity}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-export default App;
+export default HostAnalyticsPage;
