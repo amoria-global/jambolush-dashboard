@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 // Types
 interface Notification {
@@ -19,16 +19,6 @@ interface Notification {
 
 type SortField = 'timestamp' | 'priority' | 'category' | 'type';
 type SortOrder = 'asc' | 'desc';
-
-interface SearchParamsProps {
-  search: string;
-  type: string;
-  category: string;
-  priority: string;
-  status: string;
-  sortField: SortField;
-  sortOrder: SortOrder;
-}
 
 // Loading component for Suspense fallback
 function NotificationsLoading() {
@@ -81,25 +71,8 @@ function NotificationsLoading() {
   );
 }
 
-// Component that handles search params and passes them down
-function SearchParamsProvider({ children }: { children: (params: SearchParamsProps) => React.ReactNode }) {
-  const searchParams = useSearchParams();
-  
-  const params: SearchParamsProps = {
-    search: searchParams.get('search') || '',
-    type: searchParams.get('type') || 'all',
-    category: searchParams.get('category') || 'all',
-    priority: searchParams.get('priority') || 'all',
-    status: searchParams.get('status') || 'all',
-    sortField: (searchParams.get('sortField') as SortField) || 'timestamp',
-    sortOrder: (searchParams.get('sortOrder') as SortOrder) || 'desc'
-  };
-
-  return <>{children(params)}</>;
-}
-
-// Main notifications content that receives search params as props
-function NotificationsContent({ initialParams }: { initialParams: SearchParamsProps }) {
+// Main notifications content component
+function NotificationsContent() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -153,16 +126,16 @@ function NotificationsContent({ initialParams }: { initialParams: SearchParamsPr
   const [showModal, setShowModal] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
   
-  // Filter states initialized from props
-  const [searchTerm, setSearchTerm] = useState(initialParams.search);
-  const [typeFilter, setTypeFilter] = useState(initialParams.type);
-  const [categoryFilter, setCategoryFilter] = useState(initialParams.category);
-  const [priorityFilter, setPriorityFilter] = useState(initialParams.priority);
-  const [readStatusFilter, setReadStatusFilter] = useState(initialParams.status);
+  // Filter states initialized with default values
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [readStatusFilter, setReadStatusFilter] = useState('all');
   
   // Sort states
-  const [sortField, setSortField] = useState<SortField>(initialParams.sortField);
-  const [sortOrder, setSortOrder] = useState<SortOrder>(initialParams.sortOrder);
+  const [sortField, setSortField] = useState<SortField>('timestamp');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Update URL when filters change
   const updateURL = (updates: Record<string, string>) => {
@@ -867,21 +840,9 @@ function NotificationsContent({ initialParams }: { initialParams: SearchParamsPr
 
 // Main component with proper Suspense wrapper
 const NotificationsPage: React.FC = () => {
-  const defaultParams: SearchParamsProps = {
-    search: '',
-    type: 'all',
-    category: 'all',
-    priority: 'all',
-    status: 'all',
-    sortField: 'timestamp',
-    sortOrder: 'desc'
-  };
-
   return (
     <Suspense fallback={<NotificationsLoading />}>
-      <SearchParamsProvider>
-        {(params) => <NotificationsContent initialParams={params} />}
-      </SearchParamsProvider>
+      <NotificationsContent />
     </Suspense>
   );
 };

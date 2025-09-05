@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import api from "../api/apiService"; // Import your API service
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
@@ -66,13 +66,38 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [balance, setBalance] = useState<number>(0);
   const [messagesCount, setMessagesCount] = useState<number>(0);
 
+  // URL parameters state
+  const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
+
   // Refs for dropdown detection
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
-  // Router and search params
+  // Router
   const router = useRouter();
-  const searchParams = useSearchParams();
+
+  // Client-side URL parameter extraction
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setUrlParams(params);
+    }
+  }, []);
+
+  // Function to get URL token
+  const getUrlToken = (): string | null => {
+    if (typeof window === 'undefined' || !urlParams) return null;
+    return urlParams.get('token');
+  };
+
+  // Function to clean URL after token extraction
+  const cleanUrlParams = () => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('token');
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
 
   // Function to fetch user session from API
   const fetchUserSession = async () => {
@@ -80,7 +105,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       setIsLoading(true);
       
       // Always prioritize token from URL parameters
-      const urlToken = searchParams.get('token');
+      const urlToken = getUrlToken();
       let authToken: string | null = null;
 
       if (urlToken) {
@@ -91,9 +116,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         localStorage.setItem('authToken', urlToken);
         
         // Clean URL after storing token
-        const url = new URL(window.location.href);
-        url.searchParams.delete('token');
-        window.history.replaceState({}, '', url.toString());
+        cleanUrlParams();
         
         console.log('Token retrieved from URL and stored in localStorage');
       } else {
@@ -220,8 +243,10 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   // Initialize authentication on component mount and when URL params change
   useEffect(() => {
-    fetchUserSession();
-  }, [searchParams]);
+    if (urlParams !== null) {
+      fetchUserSession();
+    }
+  }, [urlParams]);
 
   // Monitor localStorage changes (for when token is removed externally)
   useEffect(() => {
@@ -232,8 +257,10 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
   }, [isAuthenticated]);
 
   // Handle outside clicks for dropdowns

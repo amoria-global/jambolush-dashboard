@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 // Types
 interface NotificationSettings {
@@ -68,34 +68,13 @@ function SettingsLoading() {
   );
 }
 
-// Main settings content that uses useSearchParams
+// Main settings content component
 function SettingsContent() {
-  const [mounted, setMounted] = useState(false);
-  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
-  const [router, setRouter] = useState<any>(null);
-  const [pathname, setPathname] = useState<string>('');
-
-  // Safely get hooks after component mounts
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Initialize hooks after mount to avoid SSR issues
-  const actualSearchParams = mounted ? useSearchParams() : null;
-  const actualRouter = mounted ? useRouter() : null;
-  const actualPathname = mounted ? usePathname() : '';
-
-  useEffect(() => {
-    if (mounted) {
-      setSearchParams(actualSearchParams);
-      setRouter(actualRouter);
-      setPathname(actualPathname);
-    }
-  }, [mounted, actualSearchParams, actualRouter, actualPathname]);
+  const router = useRouter();
+  const pathname = usePathname();
   
-  // Get initial tab from URL or default to 'notifications'
-  const initialTab = mounted && searchParams ? searchParams.get('tab') || 'notifications' : 'notifications';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  // Initialize with default tab
+  const [activeTab, setActiveTab] = useState('notifications');
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -151,27 +130,10 @@ function SettingsContent() {
   // Update URL when tab changes
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    if (mounted && router && searchParams && pathname) {
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      newSearchParams.set('tab', tabId);
-      router.push(`${pathname}?${newSearchParams.toString()}`, { scroll: false });
-    }
+    const searchParams = new URLSearchParams();
+    searchParams.set('tab', tabId);
+    router.push(`${pathname}?${searchParams.toString()}`, { scroll: false });
   };
-
-  // Update tab when URL changes
-  useEffect(() => {
-    if (mounted && searchParams) {
-      const tabFromUrl = searchParams.get('tab');
-      if (tabFromUrl && ['notifications', 'appearance', 'security', 'general'].includes(tabFromUrl)) {
-        setActiveTab(tabFromUrl);
-      }
-    }
-  }, [mounted, searchParams]);
-
-  // Don't render content until mounted to avoid hydration mismatch
-  if (!mounted) {
-    return <SettingsLoading />;
-  }
 
   // Handlers
   const handleNotificationToggle = (key: keyof NotificationSettings) => {
