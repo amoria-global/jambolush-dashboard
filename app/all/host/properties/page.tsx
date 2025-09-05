@@ -1,35 +1,64 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import api from '@/app/api/apiService' // Import your API service
+import { useRouter } from 'next/navigation';
 
 // Types
 interface Property {
     id: string;
-    title: string;
+    name: string;
+    title?: string; // For backward compatibility
     price: number;
+    pricePerNight: number;
+    pricePerTwoNights: number;
     location: string;
-    agentId: string;
-    agentName: string;
+    agentId?: string;
+    agentName?: string;
     status: 'active' | 'pending' | 'checkedin' | 'checkedout' | 'inactive';
-    propertyType: 'House' | 'Apartment' | 'Villa' | 'Condo';
-    bedrooms: number;
-    bathrooms: number;
-    area: number; // in sqft
-    dateListed: Date;
+    propertyType?: 'House' | 'Apartment' | 'Villa' | 'Condo';
+    type: string;
+    category: string;
+    bedrooms?: number;
+    beds: number;
+    bathrooms?: number;
+    baths: number;
+    maxGuests: number;
+    area?: number;
+    dateListed?: Date;
+    createdAt: Date;
+    availableFrom: Date;
+    availableTo: Date;
     clientName?: string;
     clientId?: string;
-    image: string;
+    image?: string;
+    images: any;
+    video3D?: string;
     unavailableUntil?: string;
     description?: string;
+    features: string[];
+    ownerDetails?: any;
+    host?: any;
+    reviews?: any[];
+    bookings?: any[];
+}
+
+interface DashboardStats {
+    total: number;
+    active: number;
+    pending: number;
+    checkedIn: number;
+    checkedOut: number;
+    inactive: number;
 }
 
 type ViewMode = 'grid' | 'table';
-type SortField = 'title' | 'price' | 'dateListed' | 'area';
+type SortField = 'name' | 'price' | 'createdAt' | 'area';
 type SortOrder = 'asc' | 'desc';
 
 const HostPropertiesPage: React.FC = () => {
     // Date formatting helper
-    const format = (date: Date, formatStr: string) => {
+    const format = (date: Date | string, formatStr: string) => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const d = new Date(date);
         const year = d.getFullYear();
@@ -47,6 +76,14 @@ const HostPropertiesPage: React.FC = () => {
     // States
     const [properties, setProperties] = useState<Property[]>([]);
     const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+    const [summaryStats, setSummaryStats] = useState<DashboardStats>({
+        total: 0,
+        active: 0,
+        pending: 0,
+        checkedIn: 0,
+        checkedOut: 0,
+        inactive: 0
+    });
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(9);
@@ -55,6 +92,7 @@ const HostPropertiesPage: React.FC = () => {
     const [showEditModal, setShowEditModal] = useState(false);
     const [unavailableDate, setUnavailableDate] = useState('');
     const [goToPageInput, setGoToPageInput] = useState('');
+    const [error, setError] = useState<string>('');
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -63,73 +101,116 @@ const HostPropertiesPage: React.FC = () => {
     const [priceRangeFilter, setPriceRangeFilter] = useState<string>('all');
 
     // Sort states
-    const [sortField, setSortField] = useState<SortField>('dateListed');
+    const [sortField, setSortField] = useState<SortField>('createdAt');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-    // Mock data generation
+    const router = useRouter();
+    
+    // Fixed data mapping in the useEffect where you fetch dashboard data
+
     useEffect(() => {
-        const generateMockProperties = (): Property[] => {
-            const statuses: ('active' | 'pending' | 'checkedin' | 'checkedout' | 'inactive')[] =
-                ['active', 'pending', 'checkedin', 'checkedout', 'inactive'];
-            const propertyTypes: ('House' | 'Apartment' | 'Villa' | 'Condo')[] =
-                ['House', 'Apartment', 'Villa', 'Condo'];
-            const propertyNames = [
-                'Luxury Villa Kilimani', 'Modern Apartment Westlands', 'Cozy Studio Karen',
-                'Executive Penthouse CBD', 'Garden Estate Runda', 'Serene Suburb Home'
-            ];
-            const locations = [
-                'Kilimani, Nairobi', 'Westlands, Nairobi', 'Karen, Nairobi',
-                'CBD, Nairobi', 'Runda, Nairobi', 'Lavington, Nairobi'
-            ];
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                setError('');
 
-            return Array.from({ length: 28 }, (_, i) => {
-                const dateListed = new Date(2025, 0, Math.floor(Math.random() * 60) + 1);
-                const status = statuses[Math.floor(Math.random() * statuses.length)];
-                const type = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
+                // Fetch dashboard stats and properties
+                const [dashboardResponse, propertiesResponse] = await Promise.all([
+                    api.get('/properties/host/dashboard'),
+                    api.get('/properties/host/my-properties')
+                ]);
+                
+                console.log('Dashboard Response:', dashboardResponse);
+                console.log('Properties Response:', propertiesResponse);
+                
+                if (dashboardResponse.ok && propertiesResponse.ok) {
+                    // Fixed dashboard stats mapping
+                    const dashboardData = dashboardResponse.data.data || dashboardResponse.data;
+                    
+                    const stats = {
+                        total: dashboardData.totalProperties || 0,
+                        active: dashboardData.activeProperties || 0,
+                        pending: dashboardData.pendingReviews || 0,
+                        // Fix: upcomingCheckIns is an array, get its length
+                        checkedIn: Array.isArray(dashboardData.upcomingCheckIns) 
+                            ? dashboardData.upcomingCheckIns.length 
+                            : dashboardData.upcomingCheckIns || 0,
+                        // Fix: recentBookings is an array, get its length
+                        checkedOut: Array.isArray(dashboardData.recentBookings) 
+                            ? dashboardData.recentBookings.length 
+                            : dashboardData.recentBookings || 0,
+                        // Fix: Calculate inactive properties
+                        inactive: (dashboardData.totalProperties || 0) - (dashboardData.activeProperties || 0)
+                    };
+                    setSummaryStats(stats);
 
-                return {
-                    id: `P${String(i + 1).padStart(3, '0')}`,
-                    title: `${propertyNames[Math.floor(Math.random() * propertyNames.length)]}`,
-                    location: `${locations[Math.floor(Math.random() * locations.length)]}`,
-                    image: `https://picsum.photos/seed/${i + 1}/600/400`,
-                    price: Math.floor(Math.random() * 400000) + 50000,
-                    status,
-                    propertyType: type,
-                    bedrooms: Math.floor(Math.random() * 5) + 1,
-                    bathrooms: Math.floor(Math.random() * 4) + 1,
-                    area: Math.floor(Math.random() * 3000) + 800,
-                    dateListed,
-                    agentId: `A${String(Math.floor(Math.random() * 5) + 1).padStart(3, '0')}`,
-                    agentName: ['Jane Mwangi', 'John Kamau', 'Sarah Ochieng'][Math.floor(Math.random()*3)],
-                    description: 'A stunning property with breathtaking views and modern amenities. Features an open-concept living space, gourmet kitchen, and a luxurious master suite.',
-                    ...(status === 'checkedin' && { clientName: 'Michael Smith', clientId: 'C001' }),
-                    ...(status === 'inactive' && { unavailableUntil: '2025-09-15' })
-                };
-            });
+                    // Fixed properties data processing
+                    const propertiesData = propertiesResponse.data.data || propertiesResponse.data;
+                    
+                    // Ensure we're working with an array
+                    const propertiesArray = Array.isArray(propertiesData) ? propertiesData : [];
+                    
+                    const processedProperties = propertiesArray.map((property: any) => ({
+                        ...property,
+                        // Map backend fields to frontend expectations
+                        title: property.name, // For backward compatibility
+                        price: property.pricePerNight || property.pricePerTwoNights || property.price || 0,
+                        propertyType: property.type,
+                        bedrooms: property.beds || property.bedrooms,
+                        bathrooms: property.baths || property.bathrooms,
+                        area: property.area || Math.floor(Math.random() * 3000) + 800, // Fallback if area not set
+                        dateListed: new Date(property.createdAt),
+                        image: property.images && Array.isArray(property.images) && property.images.length > 0 
+                            ? property.images[0] 
+                            : `https://picsum.photos/seed/${property.id}/600/400`,
+                        features: Array.isArray(property.features) ? property.features : 
+                                typeof property.features === 'string' ? 
+                                (property.features.startsWith('[') ? JSON.parse(property.features) : [property.features]) : 
+                                []
+                    }));
+
+                    setProperties(processedProperties);
+                } else {
+                    throw new Error(
+                        dashboardResponse.message || 
+                        propertiesResponse.message || 
+                        'Failed to fetch data'
+                    );
+                }
+            } catch (error: any) {
+                console.error('Error fetching properties:', error);
+                setError(error.message || 'Failed to load properties. Please try again.');
+            } finally {
+                setLoading(false);
+            }
         };
 
-        setTimeout(() => {
-            setProperties(generateMockProperties());
-            setLoading(false);
-        }, 1200);
+        fetchData();
     }, []);
+
+    // Alternative stats calculation if you want more accurate numbers
+    // You could also calculate stats from the properties array directly:
+
+    const calculateStatsFromProperties = (properties: Property[]) => {
+        const statusCounts = properties.reduce((acc, property) => {
+            acc[property.status] = (acc[property.status] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        return {
+            total: properties.length,
+            active: statusCounts.active || 0,
+            pending: statusCounts.pending || 0,
+            checkedIn: statusCounts.checkedin || 0,
+            checkedOut: statusCounts.checkedout || 0,
+            inactive: statusCounts.inactive || 0
+        };
+    };
 
     // Update goToPageInput when currentPage changes
     useEffect(() => {
         setGoToPageInput(currentPage.toString());
     }, [currentPage]);
-
-    // Calculate summary stats
-    const summaryStats = useMemo(() => {
-        return {
-            total: properties.length,
-            active: properties.filter(p => p.status === 'active').length,
-            pending: properties.filter(p => p.status === 'pending').length,
-            checkedIn: properties.filter(p => p.status === 'checkedin').length,
-            checkedOut: properties.filter(p => p.status === 'checkedout').length,
-            inactive: properties.filter(p => p.status === 'inactive').length
-        };
-    }, [properties]);
 
     // Filter and sort logic
     useEffect(() => {
@@ -137,7 +218,7 @@ const HostPropertiesPage: React.FC = () => {
 
         if (searchTerm) {
             filtered = filtered.filter(p =>
-                p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.name || p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 p.location.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
@@ -147,7 +228,7 @@ const HostPropertiesPage: React.FC = () => {
         }
 
         if (typeFilter !== 'all') {
-            filtered = filtered.filter(p => p.propertyType === typeFilter);
+            filtered = filtered.filter(p => p.type === typeFilter || p.propertyType === typeFilter);
         }
 
         if (priceRangeFilter !== 'all') {
@@ -158,17 +239,17 @@ const HostPropertiesPage: React.FC = () => {
         filtered.sort((a, b) => {
             let comparison = 0;
             switch (sortField) {
-                case 'title':
-                    comparison = a.title.localeCompare(b.title);
+                case 'name':
+                    comparison = (a.name || a.title || '').localeCompare(b.name || b.title || '');
                     break;
                 case 'price':
                     comparison = a.price - b.price;
                     break;
                 case 'area':
-                    comparison = a.area - b.area;
+                    comparison = (a.area || 0) - (b.area || 0);
                     break;
-                case 'dateListed':
-                    comparison = a.dateListed.getTime() - b.dateListed.getTime();
+                case 'createdAt':
+                    comparison = new Date(a.dateListed || a.createdAt).getTime() - new Date(b.dateListed || b.createdAt).getTime();
                     break;
             }
             return sortOrder === 'asc' ? comparison : -comparison;
@@ -206,12 +287,37 @@ const HostPropertiesPage: React.FC = () => {
         setShowEditModal(false);
         setEditingProperty(null);
         setUnavailableDate('');
+        router.push('/all/host/properties')
     };
 
-    const handleSaveEdit = () => {
-        if (!editingProperty) return; // Guard clause
-        console.log('Saving property:', editingProperty.id, 'Unavailable until:', unavailableDate);
-        handleCloseModal();
+    const handleSaveEdit = async () => {
+        if (!editingProperty) return;
+        
+        try {
+            const updateData: any = {};
+            
+            // Only update unavailableUntil if it's provided
+            if (unavailableDate) {
+                updateData.unavailableUntil = unavailableDate;
+            }
+
+            const response = await api.put(`/properties/${editingProperty.id}`, updateData);
+            
+            if (response.data.success) {
+                // Update the local state
+                setProperties(prev => prev.map(p => 
+                    p.id === editingProperty.id 
+                        ? { ...p, unavailableUntil: unavailableDate }
+                        : p
+                ));
+                handleCloseModal();
+            } else {
+                throw new Error(response.data.message || 'Failed to update property');
+            }
+        } catch (error: any) {
+            console.error('Error updating property:', error);
+            alert(error.message || 'Failed to update property. Please try again.');
+        }
     };
     
     const handleGoToPage = (value: string) => {
@@ -237,7 +343,7 @@ const HostPropertiesPage: React.FC = () => {
     // Extracted Modal Component for clarity
     const EditModal = () => {
         if (!editingProperty) {
-            return null; // Explicitly return null if no property is being edited
+            return null;
         }
 
         return (
@@ -255,7 +361,7 @@ const HostPropertiesPage: React.FC = () => {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                                <p className="text-sm sm:text-base text-gray-900 break-words">{editingProperty.title}</p>
+                                <p className="text-sm sm:text-base text-gray-900 break-words">{editingProperty.name || editingProperty.title}</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
@@ -302,6 +408,10 @@ const HostPropertiesPage: React.FC = () => {
     };
 
     return (
+    <>
+        <head>
+            <title>My Properties - Jambolush</title>
+        </head>
         <div className="pt-14 font-sans">
             <style jsx>{`
                 @keyframes scale-in {
@@ -313,9 +423,25 @@ const HostPropertiesPage: React.FC = () => {
             <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Host Properties</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Properties</h1>
                     <p className="text-sm sm:text-base text-gray-600 mt-2">Manage your active and completed property listings.</p>
                 </div>
+
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-red-800">{error}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
@@ -466,19 +592,19 @@ const HostPropertiesPage: React.FC = () => {
                         {paginatedProperties.map((p) => (
                             <div key={p.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
                                 <div className="relative">
-                                    <img src={p.image} alt={p.title} className="w-full h-48 sm:h-56 object-cover" />
+                                    <img src={p.image || `https://picsum.photos/seed/${p.id}/600/400`} alt={p.name || p.title} className="w-full h-48 sm:h-56 object-cover" />
                                     <span className={`absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(p.status)}`}>
                                         {p.status}
                                     </span>
                                 </div>
                                 <div className="p-3 sm:p-4 flex flex-col flex-grow">
-                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{p.title}</h3>
+                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{p.name || p.title}</h3>
                                     <p className="text-sm sm:text-base text-gray-500 mb-3 truncate">{p.location}</p>
                                     <p className="text-xl sm:text-2xl font-bold text-gray-800 mb-3">${p.price.toLocaleString()}</p>
                                     <div className="flex justify-around text-center text-xs sm:text-base text-gray-600 border-t border-b py-2 sm:py-3 my-3">
-                                        <span><i className="bi bi-rulers mr-1"></i>{p.area} sqft</span>
-                                        <span><i className="bi bi-door-open-fill mr-1"></i>{p.bedrooms} beds</span>
-                                        <span><i className="bi bi-droplet-fill mr-1"></i>{p.bathrooms} baths</span>
+                                        <span><i className="bi bi-rulers mr-1"></i>{p.area || 'N/A'} sqft</span>
+                                        <span><i className="bi bi-door-open-fill mr-1"></i>{p.beds || p.bedrooms} beds</span>
+                                        <span><i className="bi bi-droplet-fill mr-1"></i>{p.baths || p.bathrooms} baths</span>
                                     </div>
                                     <div className="mt-auto flex gap-2">
                                         <button 
@@ -514,10 +640,10 @@ const HostPropertiesPage: React.FC = () => {
                                         <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                         <th className="px-3 sm:px-6 py-3 sm:py-4 text-left">
                                             <button 
-                                                onClick={() => handleSort('dateListed')} 
+                                                onClick={() => handleSort('createdAt')} 
                                                 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1 hover:text-gray-800 cursor-pointer"
                                             >
-                                                Date Listed <i className={`bi bi-arrow-${sortField === 'dateListed' ? (sortOrder === 'asc' ? 'up' : 'down') : 'down-up'}`}></i>
+                                                Date Listed <i className={`bi bi-arrow-${sortField === 'createdAt' ? (sortOrder === 'asc' ? 'up' : 'down') : 'down-up'}`}></i>
                                             </button>
                                         </th>
                                         <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -528,9 +654,9 @@ const HostPropertiesPage: React.FC = () => {
                                         <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                                                 <div className="flex items-center">
-                                                    <img src={p.image} alt={p.title} className="w-16 h-12 sm:w-28 sm:h-20 rounded-md object-cover mr-2 sm:mr-4 flex-shrink-0" />
+                                                    <img src={p.image || `https://picsum.photos/seed/${p.id}/600/400`} alt={p.name || p.title} className="w-16 h-12 sm:w-28 sm:h-20 rounded-md object-cover mr-2 sm:mr-4 flex-shrink-0" />
                                                     <div className="min-w-0 flex-1">
-                                                        <div className="text-sm sm:text-base font-semibold text-gray-900 truncate">{p.title}</div>
+                                                        <div className="text-sm sm:text-base font-semibold text-gray-900 truncate">{p.name || p.title}</div>
                                                         <div className="text-xs sm:text-base text-gray-500 truncate">{p.location}</div>
                                                     </div>
                                                 </div>
@@ -544,7 +670,7 @@ const HostPropertiesPage: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-base text-gray-600">
-                                                {format(p.dateListed, 'MMM dd, yyyy')}
+                                                {format(p.dateListed || p.createdAt, 'MMM dd, yyyy')}
                                             </td>
                                             <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-base sm:text-lg font-medium">
                                                 <button 
@@ -641,6 +767,8 @@ const HostPropertiesPage: React.FC = () => {
 
             </div>
         </div>
+    </>
+
     );
 };
 

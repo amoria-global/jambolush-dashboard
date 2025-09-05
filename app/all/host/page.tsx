@@ -1,12 +1,11 @@
-import Dashboard from "@/app/pages/host/dashboard";
-import { Metadata } from "next";
+'use client';
 
-export const metadata: Metadata = {
-    title: "Dashboard - Jambolush",
-    description: "Overview of host activities and performance",
-};
+import Dashboard from "@/app/pages/host/dashboard";
+import { useRouter } from "next/navigation";
 
 const HostPage: React.FC = () => {
+    const router  = useRouter();
+    router.prefetch('/all/host/dashboard');
     return (
         <div className="mt-10">
             <Dashboard />
