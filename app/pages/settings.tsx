@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 // Types
 interface NotificationSettings {
@@ -33,9 +33,69 @@ interface ConnectedAccount {
   icon: string;
 }
 
-const SettingsPage: React.FC = () => {
-  // States
-  const [activeTab, setActiveTab] = useState('notifications');
+// Loading component for Suspense fallback
+function SettingsLoading() {
+  return (
+    <div className="pt-14 font-sans">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
+        <div className="mb-8">
+          <div className="h-8 bg-gray-200 rounded-lg w-48 mb-2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-lg mb-6 p-2">
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-10 bg-gray-200 rounded-lg flex-1 animate-pulse"></div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="space-y-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-lg shadow-lg p-6">
+              <div className="h-6 bg-gray-200 rounded-lg w-32 mb-4 animate-pulse"></div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((j) => (
+                  <div key={j} className="h-4 bg-gray-200 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main settings content that uses useSearchParams
+function SettingsContent() {
+  const [mounted, setMounted] = useState(false);
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
+  const [router, setRouter] = useState<any>(null);
+  const [pathname, setPathname] = useState<string>('');
+
+  // Safely get hooks after component mounts
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Initialize hooks after mount to avoid SSR issues
+  const actualSearchParams = mounted ? useSearchParams() : null;
+  const actualRouter = mounted ? useRouter() : null;
+  const actualPathname = mounted ? usePathname() : '';
+
+  useEffect(() => {
+    if (mounted) {
+      setSearchParams(actualSearchParams);
+      setRouter(actualRouter);
+      setPathname(actualPathname);
+    }
+  }, [mounted, actualSearchParams, actualRouter, actualPathname]);
+  
+  // Get initial tab from URL or default to 'notifications'
+  const initialTab = mounted && searchParams ? searchParams.get('tab') || 'notifications' : 'notifications';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -87,6 +147,31 @@ const SettingsPage: React.FC = () => {
     { name: 'Orange', value: '#F97316' },
     { name: 'Teal', value: '#14B8A6' },
   ];
+
+  // Update URL when tab changes
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (mounted && router && searchParams && pathname) {
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.set('tab', tabId);
+      router.push(`${pathname}?${newSearchParams.toString()}`, { scroll: false });
+    }
+  };
+
+  // Update tab when URL changes
+  useEffect(() => {
+    if (mounted && searchParams) {
+      const tabFromUrl = searchParams.get('tab');
+      if (tabFromUrl && ['notifications', 'appearance', 'security', 'general'].includes(tabFromUrl)) {
+        setActiveTab(tabFromUrl);
+      }
+    }
+  }, [mounted, searchParams]);
+
+  // Don't render content until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return <SettingsLoading />;
+  }
 
   // Handlers
   const handleNotificationToggle = (key: keyof NotificationSettings) => {
@@ -574,6 +659,9 @@ const SettingsPage: React.FC = () => {
           to { transform: scale(1); opacity: 1; }
         }
         .animate-scale-in { animation: scale-in 0.2s ease-out; }
+        .bi::before {
+          font-family: 'Bootstrap Icons';
+        }
       `}</style>
       
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
@@ -594,7 +682,7 @@ const SettingsPage: React.FC = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-base font-medium cursor-pointer ${
                   activeTab === tab.id
                     ? 'text-white shadow-lg'
@@ -733,9 +821,9 @@ const SettingsPage: React.FC = () => {
                   <i className={`bi bi-${showVerificationModal === 'email' ? 'envelope' : showVerificationModal === 'phone' ? 'telephone' : 'person-badge'} text-blue-600 text-3xl`}></i>
                 </div>
                 <p className="text-gray-600 mb-6">
-                  {showVerificationModal === 'email' && 'We\'ll send a verification code to your email address.'}
-                  {showVerificationModal === 'phone' && 'We\'ll send a verification code to your phone number.'}
-                  {showVerificationModal === 'identity' && 'Please upload a government-issued ID to verify your identity.'}
+                  {showVerificationModal === 'email' && "We'll send a verification code to your email address."}
+                  {showVerificationModal === 'phone' && "We'll send a verification code to your phone number."}
+                  {showVerificationModal === 'identity' && "Please upload a government-issued ID to verify your identity."}
                 </p>
                 
                 {showVerificationModal === 'identity' && (
@@ -771,6 +859,13 @@ const SettingsPage: React.FC = () => {
       )}
     </div>
   );
-};
+}
 
-export default SettingsPage;
+// Main component with Suspense wrapper
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<SettingsLoading />}>
+      <SettingsContent />
+    </Suspense>
+  );
+}

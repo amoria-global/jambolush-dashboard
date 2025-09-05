@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 // Types
 interface Notification {
@@ -19,7 +20,89 @@ interface Notification {
 type SortField = 'timestamp' | 'priority' | 'category' | 'type';
 type SortOrder = 'asc' | 'desc';
 
-const NotificationsPage: React.FC = () => {
+interface SearchParamsProps {
+  search: string;
+  type: string;
+  category: string;
+  priority: string;
+  status: string;
+  sortField: SortField;
+  sortOrder: SortOrder;
+}
+
+// Loading component for Suspense fallback
+function NotificationsLoading() {
+  return (
+    <div className="pt-14 bg-gray-50 min-h-screen">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div className="h-8 bg-gray-200 rounded-lg w-48 mb-2 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded-lg w-96 animate-pulse"></div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-10 bg-gray-200 rounded-lg w-24 animate-pulse"></div>
+              <div className="h-10 bg-gray-200 rounded-lg w-32 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i}>
+                <div className="h-6 bg-gray-200 rounded w-20 mb-2 animate-pulse"></div>
+                <div className="h-10 bg-gray-200 rounded-lg w-full animate-pulse"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="p-4 border-b">
+            <div className="h-6 bg-gray-200 rounded w-full animate-pulse"></div>
+          </div>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="p-6 border-b">
+              <div className="flex items-start gap-4">
+                <div className="w-6 h-6 bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="flex-1">
+                  <div className="h-5 bg-gray-200 rounded w-3/4 mb-2 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full mb-2 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Component that handles search params and passes them down
+function SearchParamsProvider({ children }: { children: (params: SearchParamsProps) => React.ReactNode }) {
+  const searchParams = useSearchParams();
+  
+  const params: SearchParamsProps = {
+    search: searchParams.get('search') || '',
+    type: searchParams.get('type') || 'all',
+    category: searchParams.get('category') || 'all',
+    priority: searchParams.get('priority') || 'all',
+    status: searchParams.get('status') || 'all',
+    sortField: (searchParams.get('sortField') as SortField) || 'timestamp',
+    sortOrder: (searchParams.get('sortOrder') as SortOrder) || 'desc'
+  };
+
+  return <>{children(params)}</>;
+}
+
+// Main notifications content that receives search params as props
+function NotificationsContent({ initialParams }: { initialParams: SearchParamsProps }) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   // Date formatting helper function
   const format = (date: Date, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -70,18 +153,44 @@ const NotificationsPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
   
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
-  const [readStatusFilter, setReadStatusFilter] = useState<string>('all');
+  // Filter states initialized from props
+  const [searchTerm, setSearchTerm] = useState(initialParams.search);
+  const [typeFilter, setTypeFilter] = useState(initialParams.type);
+  const [categoryFilter, setCategoryFilter] = useState(initialParams.category);
+  const [priorityFilter, setPriorityFilter] = useState(initialParams.priority);
+  const [readStatusFilter, setReadStatusFilter] = useState(initialParams.status);
   
   // Sort states
-  const [sortField, setSortField] = useState<SortField>('timestamp');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<SortField>(initialParams.sortField);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(initialParams.sortOrder);
 
-  // BACK-END PLACEHOLDER: Mock data generation remains unchanged
+  // Update URL when filters change
+  const updateURL = (updates: Record<string, string>) => {
+    const searchParams = new URLSearchParams();
+    
+    // Get current values
+    const currentParams = {
+      search: searchTerm,
+      type: typeFilter,
+      category: categoryFilter,
+      priority: priorityFilter,
+      status: readStatusFilter,
+      sortField: sortField,
+      sortOrder: sortOrder,
+      ...updates
+    };
+    
+    Object.entries(currentParams).forEach(([key, value]) => {
+      if (value !== 'all' && value !== '' && !(key === 'sortField' && value === 'timestamp') && !(key === 'sortOrder' && value === 'desc')) {
+        searchParams.set(key, value);
+      }
+    });
+
+    const queryString = searchParams.toString();
+    router.push(`${pathname}${queryString ? `?${queryString}` : ''}`, { scroll: false });
+  };
+
+  // Generate mock data
   useEffect(() => {
     const generateMockNotifications = (): Notification[] => {
       const types: ('info' | 'warning' | 'error' | 'success')[] = ['info', 'warning', 'error', 'success'];
@@ -211,14 +320,42 @@ const NotificationsPage: React.FC = () => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const urgentCount = notifications.filter(n => n.priority === 'urgent').length;
 
-  // Handlers
+  // Handlers with URL updates
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    updateURL({ search: value });
+  };
+
+  const handleTypeFilterChange = (value: string) => {
+    setTypeFilter(value);
+    updateURL({ type: value });
+  };
+
+  const handleCategoryFilterChange = (value: string) => {
+    setCategoryFilter(value);
+    updateURL({ category: value });
+  };
+
+  const handlePriorityFilterChange = (value: string) => {
+    setPriorityFilter(value);
+    updateURL({ priority: value });
+  };
+
+  const handleReadStatusFilterChange = (value: string) => {
+    setReadStatusFilter(value);
+    updateURL({ status: value });
+  };
+
   const handleSort = (field: SortField) => {
+    let newOrder: SortOrder;
     if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
     } else {
-      setSortField(field);
-      setSortOrder('asc');
+      newOrder = 'asc';
     }
+    setSortField(field);
+    setSortOrder(newOrder);
+    updateURL({ sortField: field, sortOrder: newOrder });
   };
 
   const handleViewDetails = (notification: Notification) => {
@@ -292,6 +429,12 @@ const NotificationsPage: React.FC = () => {
 
   return (
     <div className="pt-14 bg-gray-50 min-h-screen">
+      <style jsx>{`
+        .bi::before {
+          font-family: 'Bootstrap Icons';
+        }
+      `}</style>
+      
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -300,15 +443,14 @@ const NotificationsPage: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Notifications</h1>
               <p className="text-gray-600 mt-2">Stay updated with your latest alerts and messages</p>
             </div>
-            {/* MODIFICATION: Added flex-wrap to allow buttons to stack on narrow screens */}
             <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 sm:gap-4">
               <div className="flex items-center gap-2 bg-blue-500 px-3 py-2 rounded-lg">
-                <i className="bi bi-bell text-black"></i>
+                <i className="bi bi-bell text-white"></i>
                 <span className="text-base font-medium text-white">{unreadCount} unread</span>
               </div>
               {urgentCount > 0 && (
                 <div className="flex items-center gap-2 bg-red-500 px-3 py-2 rounded-lg">
-                  <i className="bi bi-exclamation-triangle text-red-10"></i>
+                  <i className="bi bi-exclamation-triangle text-white"></i>
                   <span className="text-base font-medium text-white">{urgentCount} urgent</span>
                 </div>
               )}
@@ -333,7 +475,7 @@ const NotificationsPage: React.FC = () => {
                   type="text"
                   placeholder="Search notifications..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 />
                 <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -345,7 +487,7 @@ const NotificationsPage: React.FC = () => {
               <label className="block text-base font-medium text-gray-700 mb-2">Type</label>
               <select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => handleTypeFilterChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All Types</option>
@@ -361,7 +503,7 @@ const NotificationsPage: React.FC = () => {
               <label className="block text-base font-medium text-gray-700 mb-2">Category</label>
               <select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={(e) => handleCategoryFilterChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All Categories</option>
@@ -376,7 +518,7 @@ const NotificationsPage: React.FC = () => {
               <label className="block text-base font-medium text-gray-700 mb-2">Priority</label>
               <select
                 value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
+                onChange={(e) => handlePriorityFilterChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All Priorities</option>
@@ -392,7 +534,7 @@ const NotificationsPage: React.FC = () => {
               <label className="block text-base font-medium text-gray-700 mb-2">Status</label>
               <select
                 value={readStatusFilter}
-                onChange={(e) => setReadStatusFilter(e.target.value)}
+                onChange={(e) => handleReadStatusFilterChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All</option>
@@ -510,30 +652,30 @@ const NotificationsPage: React.FC = () => {
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-base font-medium">
                         <div className="flex items-center justify-end gap-2">
-                            <button
+                          <button
                             onClick={(e) => {
-                                e.stopPropagation();
-                                if (notification.isRead) {
+                              e.stopPropagation();
+                              if (notification.isRead) {
                                 handleMarkAsUnread(notification.id);
-                                } else {
+                              } else {
                                 handleMarkAsRead(notification.id);
-                                }
+                              }
                             }}
                             className="text-blue-600 hover:text-blue-900 p-1 cursor-pointer"
                             title={notification.isRead ? 'Mark as unread' : 'Mark as read'}
-                            >
+                          >
                             <i className={`bi ${notification.isRead ? 'bi-envelope' : 'bi-envelope-open'} text-lg`}></i>
-                            </button>
-                            <button
+                          </button>
+                          <button
                             onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(notification.id);
+                              e.stopPropagation();
+                              handleDelete(notification.id);
                             }}
                             className="text-red-600 hover:text-red-900 p-1 cursor-pointer"
                             title="Delete notification"
-                            >
+                          >
                             <i className="bi bi-trash text-lg"></i>
-                            </button>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -662,7 +804,6 @@ const NotificationsPage: React.FC = () => {
 
                   {/* Details */}
                   <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    {/* MODIFICATION: Detail rows now stack on mobile (flex-col) and become rows on larger screens (sm:flex-row) for improved readability. */}
                     <div className="flex flex-col sm:flex-row justify-between"><span className="text-gray-600">Category</span><span className="font-medium text-gray-900">{selectedNotification.category}</span></div>
                     <div className="flex flex-col sm:flex-row justify-between"><span className="text-gray-600">Notification ID</span><span className="font-medium text-gray-900">{selectedNotification.id}</span></div>
                     <div className="flex flex-col sm:flex-row justify-between"><span className="text-gray-600">Received</span><span className="font-medium text-gray-900">{format(selectedNotification.timestamp, 'MMM dd, yyyy')} at {format(selectedNotification.timestamp, 'HH:mm')}</span></div>
@@ -683,7 +824,6 @@ const NotificationsPage: React.FC = () => {
               </div>
               
               {/* Action Buttons */}
-              {/* MODIFICATION: Added flex-wrap for extra safety on small screens. */}
               <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 sm:px-8 py-3 sm:py-4 flex flex-wrap justify-end gap-3 z-10">
                 <button
                   onClick={() => {
@@ -722,6 +862,27 @@ const NotificationsPage: React.FC = () => {
         </div>
       )}
     </div>
+  );
+}
+
+// Main component with proper Suspense wrapper
+const NotificationsPage: React.FC = () => {
+  const defaultParams: SearchParamsProps = {
+    search: '',
+    type: 'all',
+    category: 'all',
+    priority: 'all',
+    status: 'all',
+    sortField: 'timestamp',
+    sortOrder: 'desc'
+  };
+
+  return (
+    <Suspense fallback={<NotificationsLoading />}>
+      <SearchParamsProvider>
+        {(params) => <NotificationsContent initialParams={params} />}
+      </SearchParamsProvider>
+    </Suspense>
   );
 };
 

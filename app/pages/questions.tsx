@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 
 interface Question {
   id: string;
@@ -14,24 +14,145 @@ interface Answer {
   selectedOptions: number[];
 }
 
-const AssessmentPage: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState(4800); // 80 minutes in seconds
-  const [showTimeAlert, setShowTimeAlert] = useState(false);
-  const [assessmentStarted, setAssessmentStarted] = useState(false);
-  const [assessmentCompleted, setAssessmentCompleted] = useState(false);
-  const [timeExpired, setTimeExpired] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+interface AssessmentState {
+  currentStep: number;
+  answers: Answer[];
+  timeRemaining: number;
+  showTimeAlert: boolean;
+  assessmentStarted: boolean;
+  assessmentCompleted: boolean;
+  timeExpired: boolean;
+}
 
-  // Agent information
-  const agentInfo = {
-    name: "Muben Scammer",
-    email: "muben.scammer@gmail.com"
+// Loading component
+function AssessmentLoading() {
+  return (
+    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
+      <header className="bg-gradient-to-br from-[#083A85] to-[#0a4499] px-4 sm:px-6 lg:px-8 py-6 shadow-md">
+        <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="h-8 bg-blue-400 rounded w-96 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-blue-300 rounded w-64 animate-pulse"></div>
+          </div>
+          <div className="h-12 bg-blue-400 rounded-xl w-32 animate-pulse"></div>
+        </div>
+      </header>
+
+      <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-100 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto">
+          <div className="h-3 bg-slate-200 rounded-full">
+            <div className="h-full bg-slate-300 rounded-full w-1/4 animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-grow w-full bg-white">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12">
+          <div className="space-y-10">
+            {[1, 2, 3].map((i) => (
+              <div key={i}>
+                <div className="flex items-start mb-5">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+                  <div className="ml-4 flex-1">
+                    <div className="h-6 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                  </div>
+                </div>
+                <div className="space-y-3 ml-14">
+                  {[1, 2, 3, 4].map((j) => (
+                    <div key={j} className="h-12 bg-gray-100 rounded-xl animate-pulse"></div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      <footer className="bg-slate-100 border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="h-10 bg-gray-200 rounded-full w-24 animate-pulse"></div>
+          <div className="flex items-center space-x-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-3 w-3 bg-gray-200 rounded-full animate-pulse"></div>
+            ))}
+          </div>
+          <div className="h-10 bg-gray-200 rounded-full w-24 animate-pulse"></div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// Timer component for better separation of concerns
+function AssessmentTimer({ 
+  timeRemaining, 
+  assessmentStarted, 
+  assessmentCompleted, 
+  showTimeAlert,
+  onTimeExpired,
+  onTimeAlert
+}: {
+  timeRemaining: number;
+  assessmentStarted: boolean;
+  assessmentCompleted: boolean;
+  showTimeAlert: boolean;
+  onTimeExpired: () => void;
+  onTimeAlert: () => void;
+}) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (assessmentStarted && !assessmentCompleted && timeRemaining > 0) {
+      intervalRef.current = setInterval(() => {
+        if (timeRemaining <= 1) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          onTimeExpired();
+          return;
+        }
+
+        if (timeRemaining === 3000 || timeRemaining === 1200) {
+          onTimeAlert();
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [assessmentStarted, assessmentCompleted, timeRemaining, onTimeExpired, onTimeAlert]);
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // All 40 questions
+  if (!assessmentStarted || assessmentCompleted) return null;
+
+  return (
+    <>
+      {showTimeAlert && (
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+          <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
+            <i className="bi bi-exclamation-circle-fill me-3"></i>
+            <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
+          </div>
+        </div>
+      )}
+      
+      <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'}`}>
+        <i className="bi bi-clock-fill text-white me-2"></i>
+        <span className="font-mono text-lg font-medium text-white">
+          {formatTime(timeRemaining)}
+        </span>
+      </div>
+    </>
+  );
+}
+
+// Questions data provider - separated for better organization
+function useQuestionsData() {
   const questions: Question[] = [
     {
       id: "Q1",
@@ -429,38 +550,69 @@ const AssessmentPage: React.FC = () => {
       ]
     }
   ];
-  
+
+  return questions;
+}
+
+// Main assessment content component
+function AssessmentContent() {
+  const questions = useQuestionsData();
   const questionsPerPage = 3;
   const totalQuestionPages = Math.ceil(questions.length / questionsPerPage);
   const totalSteps = totalQuestionPages + 2; // Includes Welcome and Submit pages
 
+  // Initial state with default values
+  const [state, setState] = useState<AssessmentState>({
+    currentStep: 0,
+    answers: [],
+    timeRemaining: 4800, // 80 minutes in seconds
+    showTimeAlert: false,
+    assessmentStarted: false,
+    assessmentCompleted: false,
+    timeExpired: false
+  });
+
+  const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Agent information
+  const agentInfo = {
+    name: "Muben Scammer",
+    email: "muben.scammer@gmail.com"
+  };
+
+  // Timer management
   useEffect(() => {
-    if (assessmentStarted && !assessmentCompleted && !timeExpired) {
-      intervalRef.current = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            setTimeExpired(true);
-            return 0;
+    let intervalRef: NodeJS.Timeout | null = null;
+
+    if (state.assessmentStarted && !state.assessmentCompleted && !state.timeExpired && state.timeRemaining > 0) {
+      intervalRef = setInterval(() => {
+        setState(prev => {
+          const newTimeRemaining = prev.timeRemaining - 1;
+          
+          if (newTimeRemaining <= 0) {
+            return { ...prev, timeRemaining: 0, timeExpired: true };
           }
 
-          if (prev === 3000 || prev === 1200) {
-            setShowTimeAlert(true);
+          // Show time alerts
+          if (newTimeRemaining === 3000 || newTimeRemaining === 1200) {
             if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
-            alertTimeoutRef.current = setTimeout(() => setShowTimeAlert(false), 5000);
+            alertTimeoutRef.current = setTimeout(() => {
+              setState(curr => ({ ...curr, showTimeAlert: false }));
+            }, 5000);
+            
+            return { ...prev, timeRemaining: newTimeRemaining, showTimeAlert: true };
           }
 
-          return prev - 1;
+          return { ...prev, timeRemaining: newTimeRemaining };
         });
       }, 1000);
     }
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef) clearInterval(intervalRef);
       if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
     };
-  }, [assessmentStarted, assessmentCompleted, timeExpired]);
-
+  }, [state.assessmentStarted, state.assessmentCompleted, state.timeExpired]);
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -470,20 +622,22 @@ const AssessmentPage: React.FC = () => {
   };
 
   const handleAnswerSelect = (questionId: string, optionIndex: number) => {
-    setAnswers(prev => {
-      const existing = prev.find(a => a.questionId === questionId);
+    setState(prev => {
+      const existing = prev.answers.find(a => a.questionId === questionId);
       if (existing) {
-        // For single answer: replace the selected option instead of toggling
-        return prev.map(a =>
-          a.questionId === questionId
-            ? {
-              ...a,
-              selectedOptions: [optionIndex] // Always set to single option
-            }
-            : a
-        );
+        return {
+          ...prev,
+          answers: prev.answers.map(a =>
+            a.questionId === questionId
+              ? { ...a, selectedOptions: [optionIndex] }
+              : a
+          )
+        };
       } else {
-        return [...prev, { questionId, selectedOptions: [optionIndex] }];
+        return {
+          ...prev,
+          answers: [...prev.answers, { questionId, selectedOptions: [optionIndex] }]
+        };
       }
     });
   };
@@ -495,40 +649,39 @@ const AssessmentPage: React.FC = () => {
   };
 
   const isAnswerSelected = (questionId: string, optionIndex: number) => {
-    const answer = answers.find(a => a.questionId === questionId);
+    const answer = state.answers.find(a => a.questionId === questionId);
     return answer ? answer.selectedOptions.includes(optionIndex) : false;
   };
 
   const isCurrentPageValid = () => {
-    if (currentStep === 0 || currentStep === totalSteps - 1) return true;
+    if (state.currentStep === 0 || state.currentStep === totalSteps - 1) return true;
     
-    const pageQuestions = getQuestionsForPage(currentStep - 1);
+    const pageQuestions = getQuestionsForPage(state.currentStep - 1);
     return pageQuestions.every(q =>
-      answers.some(a => a.questionId === q.id && a.selectedOptions.length > 0)
+      state.answers.some(a => a.questionId === q.id && a.selectedOptions.length > 0)
     );
   };
 
   const handleNext = () => {
-    if (currentStep === 0) {
-      setAssessmentStarted(true);
-    }
-    if (currentStep < totalSteps - 1) {
-      setCurrentStep(prev => prev + 1);
+    if (state.currentStep === 0) {
+      setState(prev => ({ ...prev, assessmentStarted: true, currentStep: prev.currentStep + 1 }));
+    } else if (state.currentStep < totalSteps - 1) {
+      setState(prev => ({ ...prev, currentStep: prev.currentStep + 1 }));
     }
   };
 
   const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+    if (state.currentStep > 0) {
+      setState(prev => ({ ...prev, currentStep: prev.currentStep - 1 }));
     }
   };
 
   const handleSubmit = () => {
-    setAssessmentCompleted(true);
-    console.log('Submitted answers:', answers);
+    setState(prev => ({ ...prev, assessmentCompleted: true }));
+    console.log('Submitted answers:', state.answers);
   };
 
-  if (timeExpired) {
+  if (state.timeExpired) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
@@ -547,7 +700,7 @@ const AssessmentPage: React.FC = () => {
     );
   }
 
-  if (assessmentCompleted) {
+  if (state.assessmentCompleted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
@@ -568,11 +721,16 @@ const AssessmentPage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
-      {showTimeAlert && (
+      {/* Bootstrap Icons */}
+      <style jsx global>{`
+        @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css');
+      `}</style>
+
+      {state.showTimeAlert && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
             <i className="bi bi-exclamation-circle-fill me-3"></i>
-            <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
+            <span className="font-semibold">Time Check: {formatTime(state.timeRemaining)} remaining</span>
           </div>
         </div>
       )}
@@ -584,35 +742,34 @@ const AssessmentPage: React.FC = () => {
               JAMBOLUSH FIELD AGENT ASSESSMENT
             </h1>
             <p className="text-blue-100 mt-1">
-              {currentStep === 0 ? 'Welcome to the Assessment' :
-                currentStep === totalSteps - 1 ? 'Review & Submit' :
-                  `Questions ${((currentStep - 1) * questionsPerPage) + 1}-${Math.min(currentStep * questionsPerPage, questions.length)} of ${questions.length}`}
+              {state.currentStep === 0 ? 'Welcome to the Assessment' :
+                state.currentStep === totalSteps - 1 ? 'Review & Submit' :
+                  `Questions ${((state.currentStep - 1) * questionsPerPage) + 1}-${Math.min(state.currentStep * questionsPerPage, questions.length)} of ${questions.length}`}
             </p>
           </div>
-          {assessmentStarted && !assessmentCompleted && (
-            <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'
-              }`}>
+          {state.assessmentStarted && !state.assessmentCompleted && (
+            <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${state.timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'}`}>
               <i className="bi bi-clock-fill text-white me-2"></i>
               <span className="font-mono text-lg font-medium text-white">
-                {formatTime(timeRemaining)}
+                {formatTime(state.timeRemaining)}
               </span>
             </div>
           )}
         </div>
       </header>
 
-      {currentStep > 0 && currentStep < totalSteps - 1 && (
+      {state.currentStep > 0 && state.currentStep < totalSteps - 1 && (
         <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-100 border-b border-slate-200">
           <div className="max-w-7xl mx-auto">
             <div className="relative">
               <div className="h-2.5 bg-slate-200 rounded-full">
                 <div
                   className="h-full bg-gradient-to-r from-[#083A85] to-[#0a4499] rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${((currentStep - 1) * questionsPerPage) / questions.length * 100}%` }}
+                  style={{ width: `${((state.currentStep - 1) * questionsPerPage) / questions.length * 100}%` }}
                 />
               </div>
               <span className="text-sm text-slate-600 font-medium mt-1.5 block text-right">
-                Progress: {Math.round(((currentStep - 1) * questionsPerPage) / questions.length * 100)}%
+                Progress: {Math.round(((state.currentStep - 1) * questionsPerPage) / questions.length * 100)}%
               </span>
             </div>
           </div>
@@ -621,7 +778,7 @@ const AssessmentPage: React.FC = () => {
 
       <main className="flex-grow w-full bg-white">
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12">
-          {currentStep === 0 && (
+          {state.currentStep === 0 && (
             <div className="space-y-8">
               <div className="bg-blue-50 border-l-4 border-[#083A85] rounded-r-lg p-6">
                 <div className="flex items-center mb-4">
@@ -671,10 +828,10 @@ const AssessmentPage: React.FC = () => {
             </div>
           )}
 
-          {currentStep > 0 && currentStep < totalSteps - 1 && (
+          {state.currentStep > 0 && state.currentStep < totalSteps - 1 && (
             <div className="space-y-10">
-              {getQuestionsForPage(currentStep - 1).map((question, idx) => {
-                const globalIdx = ((currentStep - 1) * questionsPerPage) + idx;
+              {getQuestionsForPage(state.currentStep - 1).map((question, idx) => {
+                const globalIdx = ((state.currentStep - 1) * questionsPerPage) + idx;
                 return (
                   <div key={question.id}>
                     <div className="flex items-start mb-5">
@@ -720,7 +877,7 @@ const AssessmentPage: React.FC = () => {
             </div>
           )}
 
-          {currentStep === totalSteps - 1 && (
+          {state.currentStep === totalSteps - 1 && (
             <div className="space-y-8">
               <div className="text-center py-8">
                 <h2 className="text-3xl font-extrabold text-slate-800 mb-4">
@@ -734,11 +891,11 @@ const AssessmentPage: React.FC = () => {
                   <div className="flex items-center justify-center mb-3">
                     <i className="bi bi-check-circle-fill text-green-600 me-3" style={{ fontSize: '2rem' }}></i>
                     <span className="text-xl font-bold text-slate-800">
-                      {answers.filter(a => a.selectedOptions.length > 0).length} of {questions.length} Questions Answered
+                      {state.answers.filter(a => a.selectedOptions.length > 0).length} of {questions.length} Questions Answered
                     </span>
                   </div>
                   <p className="font-medium text-slate-600">
-                    Time remaining: {formatTime(timeRemaining)}
+                    Time remaining: {formatTime(state.timeRemaining)}
                   </p>
                 </div>
 
@@ -766,7 +923,7 @@ const AssessmentPage: React.FC = () => {
           <button
             type="button"
             onClick={handlePrevious}
-            disabled={currentStep === 0}
+            disabled={state.currentStep === 0}
             className="cursor-pointer inline-flex items-center px-5 py-2.5 rounded-full font-semibold transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:hover:bg-slate-200"
           >
             <i className="bi bi-chevron-left me-1"></i>
@@ -778,9 +935,9 @@ const AssessmentPage: React.FC = () => {
                   <div
                       key={stepIndex}
                       className={`h-2.5 rounded-full transition-all duration-300 ${
-                          stepIndex === currentStep
+                          stepIndex === state.currentStep
                               ? 'w-8 bg-gradient-to-r from-[#083A85] to-[#0a4499]'
-                              : stepIndex < currentStep
+                              : stepIndex < state.currentStep
                               ? 'w-2.5 bg-[#083A85]'
                               : 'w-2.5 bg-slate-300'
                       }`}
@@ -788,14 +945,14 @@ const AssessmentPage: React.FC = () => {
               ))}
           </div>
 
-          {currentStep < totalSteps - 1 ? (
+          {state.currentStep < totalSteps - 1 ? (
             <button
               type="button"
               onClick={handleNext}
-              disabled={currentStep > 0 && !isCurrentPageValid()}
+              disabled={state.currentStep > 0 && !isCurrentPageValid()}
               className="cursor-pointer inline-flex items-center px-6 py-2.5 rounded-full font-semibold transition-all text-sm text-white bg-gradient-to-br from-[#083A85] to-[#0a4499] hover:from-[#0a4499] hover:to-[#0c52b8] shadow-md hover:shadow-lg disabled:from-slate-400 disabled:to-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
             >
-              {currentStep === 0 ? 'Start' : 'Next'}
+              {state.currentStep === 0 ? 'Start' : 'Next'}
               <i className="bi bi-chevron-right ms-1"></i>
             </button>
           ) : (
@@ -805,6 +962,13 @@ const AssessmentPage: React.FC = () => {
       </footer>
     </div>
   );
-};
+}
 
-export default AssessmentPage;
+// Main page component with Suspense boundary
+export default function AssessmentPage() {
+  return (
+    <Suspense fallback={<AssessmentLoading />}>
+      <AssessmentContent />
+    </Suspense>
+  );
+}
