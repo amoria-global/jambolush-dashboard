@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import api from "../api/apiService"; // Import your API service
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
@@ -54,9 +54,34 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+    // URL parameters state
+    const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
+
     const pathname = usePathname();
     const router = useRouter();
-    const searchParams = useSearchParams();
+
+    // Client-side URL parameter extraction
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setUrlParams(params);
+        }
+    }, []);
+
+    // Function to get URL token
+    const getUrlToken = (): string | null => {
+        if (typeof window === 'undefined' || !urlParams) return null;
+        return urlParams.get('token');
+    };
+
+    // Function to clean URL after token extraction
+    const cleanUrlParams = () => {
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('token');
+            window.history.replaceState({}, '', url.toString());
+        }
+    };
 
     // Function to fetch user session from API
     const fetchUserSession = async () => {
@@ -64,7 +89,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             setIsLoading(true);
             
             // Always prioritize token from URL parameters
-            const urlToken = searchParams.get('token');
+            const urlToken = getUrlToken();
             let authToken: string | null = null;
 
             if (urlToken) {
@@ -75,9 +100,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 localStorage.setItem('authToken', urlToken);
                 
                 // Clean URL after storing token
-                const url = new URL(window.location.href);
-                url.searchParams.delete('token');
-                window.history.replaceState({}, '', url.toString());
+                cleanUrlParams();
                 
                 console.log('Token retrieved from URL and stored in localStorage');
             } else {
@@ -157,8 +180,10 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
     // Initialize authentication on component mount and when URL params change
     useEffect(() => {
-        fetchUserSession();
-    }, [searchParams]);
+        if (urlParams !== null) {
+            fetchUserSession();
+        }
+    }, [urlParams]);
 
     // Monitor localStorage changes (for when token is removed externally)
     useEffect(() => {
@@ -169,8 +194,10 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             }
         };
 
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        if (typeof window !== 'undefined') {
+            window.addEventListener('storage', handleStorageChange);
+            return () => window.removeEventListener('storage', handleStorageChange);
+        }
     }, [isAuthenticated]);
 
     // Close sidebar on route change (mobile)
@@ -414,4 +441,4 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     );
 };
 
-export default SideBar;
+export default SideBar; 
