@@ -473,7 +473,7 @@ const HostPropertiesPage: React.FC = () => {
 
                 {/* Add Property & Filters */}
                 <div className="mb-4 sm:mb-6 text-center sm:text-right">
-                    <Link href="/all/host/add-property" className="inline-block w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-lg text-white text-sm sm:text-base font-medium transition-transform hover:scale-105 cursor-pointer" style={{ backgroundColor: '#F20C8F' }}>
+                    <Link href="/all/add-property" className="inline-block w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-lg text-white text-sm sm:text-base font-medium transition-transform hover:scale-105 cursor-pointer" style={{ backgroundColor: '#F20C8F' }}>
                         <i className="bi bi-plus-lg mr-2"></i>Add Property
                     </Link>
                 </div>
