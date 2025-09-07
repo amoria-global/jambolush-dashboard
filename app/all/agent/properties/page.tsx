@@ -172,14 +172,14 @@ const HostPropertiesPage: React.FC = () => {
                     setProperties(processedProperties);
                 } else {
                     throw new Error(
-                        dashboardResponse.message || 
-                        propertiesResponse.message || 
+                        dashboardResponse.data.message || 
+                        propertiesResponse.data.message || 
                         'Failed to fetch data'
                     );
                 }
             } catch (error: any) {
                 console.error('Error fetching properties:', error);
-                setError(error.message || 'Failed to load properties. Please try again.');
+                setError(error.data.message || 'Failed to load properties. Please try again.');
             } finally {
                 setLoading(false);
             }
