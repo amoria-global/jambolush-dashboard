@@ -84,7 +84,7 @@ const HostPropertiesPage: React.FC = () => {
         checkedOut: 0,
         inactive: 0
     });
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const [viewMode, setViewMode] = useState<ViewMode>('table');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(9);
     const [loading, setLoading] = useState(true);
