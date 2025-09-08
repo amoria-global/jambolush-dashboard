@@ -1,31 +1,86 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '@/app/api/apiService'; // Your API service
 
-// Types
+// Updated types to match server response
 interface Guest {
   id: string;
-  guestName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  profileImage?: string;
+  verificationStatus: 'verified' | 'unverified' | 'pending';
+  joinDate: string;
+  totalBookings: number;
+  totalSpent: number;
+  averageRating: number;
+  lastBooking?: string;
+  preferredCommunication: 'email' | 'phone' | 'sms';
+  notes?: string;
+}
+
+interface Booking {
+  id: string;
+  propertyId: number;
   propertyName: string;
-  propertyId: string;
-  checkIn: Date;
-  checkOut: Date;
-  bookingStatus: 'confirmed' | 'pending' | 'cancelled' | 'completed';
-  amountPaid: number;
-  totalAmount: number;
-  paymentStatus: 'paid' | 'unpaid' | 'refunded' | 'pending';
-  guestCount: number;
-  bookingDate: Date;
+  guestId: number;
+  guestName: string;
+  guestEmail: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  totalPrice: number;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface GuestWithBookings extends Guest {
+  guestName: string;
+  recentBookings?: Booking[];
+  bookingStatus?: 'confirmed' | 'pending' | 'cancelled' | 'completed';
+  amountPaid?: number;
+  totalAmount?: number;
+  paymentStatus?: 'paid' | 'unpaid' | 'refunded' | 'pending';
+  guestCount?: number;
+  bookingDate?: string;
   specialRequests?: string;
   avatar: string;
+  propertyName?: string;
+  propertyId?: string;
+  checkIn?: Date;
+  checkOut?: Date;
+}
+
+interface GuestDetailData {
+  guest: Guest;
+  bookings: Booking[];
+  stats: {
+    totalBookings: number;
+    totalSpent: number;
+    averageRating: number;
+  };
 }
 
 type ViewMode = 'grid' | 'list';
-type SortField = 'guestName' | 'checkIn' | 'amountPaid' | 'bookingDate';
+type SortField = 'name' | 'bookings' | 'spending' | 'joinDate';
 type SortOrder = 'asc' | 'desc';
+
+interface GuestSearchFilters {
+  search?: string;
+  verificationStatus?: 'verified' | 'pending' | 'unverified';
+  bookingStatus?: 'active' | 'past' | 'upcoming';
+  sortBy?: 'name' | 'bookings' | 'spending' | 'joinDate';
+  sortOrder?: 'asc' | 'desc';
+  startDate?: string;
+  endDate?: string;
+}
 
 const GuestsListingPage: React.FC = () => {
   // Date formatting helper
-  const format = (date: Date, formatStr: string) => {
+  const format = (date: Date | string, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const d = new Date(date);
     const year = d.getFullYear();
@@ -43,15 +98,24 @@ const GuestsListingPage: React.FC = () => {
   };
 
   // States
+
   const [guests, setGuests] = useState<Guest[]>([]);
   const [filteredGuests, setFilteredGuests] = useState<Guest[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  const [guests, setGuests] = useState<GuestWithBookings[]>([]);
+  const [filteredGuests, setFilteredGuests] = useState<GuestWithBookings[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
-  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedGuest, setSelectedGuest] = useState<GuestWithBookings | null>(null);
+  const [selectedGuestDetails, setSelectedGuestDetails] = useState<GuestDetailData | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
   
   // Filter states
@@ -63,7 +127,7 @@ const GuestsListingPage: React.FC = () => {
   const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
   
   // Sort states
-  const [sortField, setSortField] = useState<SortField>('checkIn');
+  const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Edit modal states
@@ -71,61 +135,143 @@ const GuestsListingPage: React.FC = () => {
   const [editPaymentStatus, setEditPaymentStatus] = useState<string>('');
   const [editSpecialRequests, setEditSpecialRequests] = useState('');
 
-  // Mock data generation
-  useEffect(() => {
-    const generateMockGuests = (): Guest[] => {
-      const bookingStatuses: ('confirmed' | 'pending' | 'cancelled' | 'completed')[] = 
-        ['confirmed', 'pending', 'cancelled', 'completed'];
-      const paymentStatuses: ('paid' | 'unpaid' | 'refunded' | 'pending')[] = 
-        ['paid', 'unpaid', 'refunded', 'pending'];
-      const guestNames = [
-        'John Smith', 'Emma Johnson', 'Michael Brown', 'Sarah Davis',
-        'James Wilson', 'Lisa Anderson', 'Robert Taylor', 'Maria Garcia',
-        'David Martinez', 'Jennifer Lopez', 'William Jones', 'Patricia Miller'
-      ];
-      const propertyNames = [
-        'Ocean View Villa', 'Downtown Loft', 'Mountain Retreat',
-        'Beach House Paradise', 'City Center Apartment', 'Lakeside Cabin',
-        'Luxury Penthouse', 'Cozy Studio', 'Garden Cottage'
-      ];
-      
-      return Array.from({ length: 48 }, (_, i) => {
-        const checkIn = new Date(2025, 0, Math.floor(Math.random() * 60) + 1);
-        const checkOut = new Date(checkIn);
-        checkOut.setDate(checkOut.getDate() + Math.floor(Math.random() * 7) + 1);
-        const bookingDate = new Date(checkIn);
-        bookingDate.setDate(bookingDate.getDate() - Math.floor(Math.random() * 30) - 1);
-        
-        const totalAmount = Math.floor(Math.random() * 2000) + 300;
-        const bookingStatus = bookingStatuses[Math.floor(Math.random() * bookingStatuses.length)];
-        const paymentStatus = bookingStatus === 'cancelled' 
-          ? (Math.random() > 0.5 ? 'refunded' : 'unpaid')
-          : paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
-        
-        return {
-          id: `BK${String(i + 1).padStart(5, '0')}`,
-          guestName: guestNames[Math.floor(Math.random() * guestNames.length)] + ` ${i + 1}`,
-          propertyName: propertyNames[Math.floor(Math.random() * propertyNames.length)],
-          propertyId: `PROP${String(Math.floor(Math.random() * 9) + 1).padStart(3, '0')}`,
-          checkIn,
-          checkOut,
-          bookingStatus,
-          amountPaid: paymentStatus === 'paid' ? totalAmount : (paymentStatus === 'pending' ? totalAmount * 0.5 : 0),
-          totalAmount,
-          paymentStatus,
-          guestCount: Math.floor(Math.random() * 4) + 1,
-          bookingDate,
-          specialRequests: Math.random() > 0.5 ? 'Late check-in requested' : undefined,
-          avatar: `https://ui-avatars.com/api/?name=${guestNames[Math.floor(Math.random() * guestNames.length)].replace(' ', '+')}&background=083A85&color=fff`
-        };
-      });
-    };
+  // Helper function to map frontend booking status to backend values
+  const mapBookingStatusToBackend = (status: string): 'active' | 'past' | 'upcoming' | undefined => {
+    switch (status) {
+      case 'confirmed': return 'active';
+      case 'pending': return 'upcoming';
+      case 'completed': return 'past';
+      case 'cancelled': return 'past';
+      case 'all': return undefined;
+      default: return undefined;
+    }
+  };
 
-    setTimeout(() => {
-      setGuests(generateMockGuests());
+  // Transform guest data for display
+  const transformGuestForDisplay = (guest: Guest): GuestWithBookings => {
+    return {
+      ...guest,
+      guestName: `${guest.firstName} ${guest.lastName}`,
+      avatar: guest.profileImage || `https://ui-avatars.com/api/?name=${guest.firstName}+${guest.lastName}&background=083A85&color=fff`,
+      // Set default values for fields that will be populated when viewing details
+      bookingStatus: 'completed', // Default status for list view
+      paymentStatus: 'paid', // Default status for list view
+      amountPaid: guest.totalSpent,
+      totalAmount: guest.totalSpent,
+      guestCount: 1,
+      bookingDate: guest.lastBooking || guest.joinDate,
+      propertyName: 'Multiple Properties', // Default for list view
+      propertyId: '0',
+      checkIn: guest.lastBooking ? new Date(guest.lastBooking) : new Date(guest.joinDate),
+      checkOut: guest.lastBooking ? new Date(guest.lastBooking) : new Date(guest.joinDate),
+    };
+  };
+
+  // Fetch guests data from API
+  const fetchGuests = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Build filters object that matches backend expectations
+      const filters: GuestSearchFilters = {};
+
+      // Add search term if provided
+      if (searchTerm && searchTerm.trim()) {
+        filters.search = searchTerm.trim();
+      }
+
+      // Add booking status filter (mapped to backend values)
+      const mappedBookingStatus = mapBookingStatusToBackend(bookingStatusFilter);
+      if (mappedBookingStatus) {
+        filters.bookingStatus = mappedBookingStatus;
+      }
+
+      // Add sort parameters
+      filters.sortBy = sortField;
+      filters.sortOrder = sortOrder;
+
+      // Add date range filters
+      if (dateRangeFilter === 'custom' && (customDateRange.start || customDateRange.end)) {
+        if (customDateRange.start) filters.startDate = customDateRange.start;
+        if (customDateRange.end) filters.endDate = customDateRange.end;
+      } else if (dateRangeFilter !== 'all') {
+        // Calculate date ranges for predefined filters
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        
+        switch (dateRangeFilter) {
+          case 'today':
+            filters.startDate = todayStr;
+            filters.endDate = todayStr;
+            break;
+          case 'week':
+            const weekEnd = new Date(today);
+            weekEnd.setDate(today.getDate() + 7);
+            filters.startDate = todayStr;
+            filters.endDate = weekEnd.toISOString().split('T')[0];
+            break;
+          case 'month':
+            const monthEnd = new Date(today);
+            monthEnd.setMonth(today.getMonth() + 1);
+            filters.startDate = todayStr;
+            filters.endDate = monthEnd.toISOString().split('T')[0];
+            break;
+        }
+      }
+
+      // Remove undefined values
+      Object.keys(filters).forEach(key => {
+        if (filters[key as keyof GuestSearchFilters] === undefined) {
+          delete filters[key as keyof GuestSearchFilters];
+        }
+      });
+
+      console.log('Sending filters to backend:', filters);
+
+      // Make API call to get host guests - ONLY the list, no individual calls
+      const response = await api.get('/properties/host/guests', {
+        params: filters
+      });
+
+      if (response.ok) {
+        // Transform the data using only the list response
+        const transformedGuests = response.data.data.map((guest: Guest) => 
+          transformGuestForDisplay(guest)
+        );
+
+        setGuests(transformedGuests);
+      }
+    } catch (err: any) {
+      console.error('Error fetching guests:', err);
+      setError(err.response?.data?.message || 'Failed to fetch guests');
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
+
+  // Fetch individual guest details - only called when viewing details
+  const fetchGuestDetails = async (guestId: string): Promise<GuestDetailData | null> => {
+    try {
+      setLoadingDetails(true);
+      const response = await api.get(`/properties/host/guests/${guestId}`);
+      
+      if (response.ok) {
+        return response.data;
+      }
+      return null;
+    } catch (err: any) {
+      console.error('Error fetching guest details:', err);
+      throw new Error(err.response?.data?.message || 'Failed to fetch guest details');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Fetch guests on component mount and when filters change
+  useEffect(() => {
+    fetchGuests();
+  }, [searchTerm, dateRangeFilter, customDateRange, sortField, sortOrder, bookingStatusFilter]);
 
   // Update goToPageInput when currentPage changes
   useEffect(() => {
@@ -140,106 +286,45 @@ const GuestsListingPage: React.FC = () => {
     
     return {
       total: guests.length,
-      confirmed: guests.filter(g => g.bookingStatus === 'confirmed').length,
-      pending: guests.filter(g => g.bookingStatus === 'pending').length,
+      confirmed: guests.filter(g => g.verificationStatus === 'verified').length,
+      pending: guests.filter(g => g.verificationStatus === 'pending').length,
       upcomingThisWeek: guests.filter(g => 
-        g.bookingStatus === 'confirmed' && 
-        g.checkIn >= today && 
-        g.checkIn <= thisWeek
+        g.lastBooking && 
+        new Date(g.lastBooking) >= today && 
+        new Date(g.lastBooking) <= thisWeek
       ).length,
-      revenue: guests
-        .filter(g => g.paymentStatus === 'paid')
-        .reduce((sum, g) => sum + g.amountPaid, 0)
+      revenue: guests.reduce((sum, g) => sum + g.totalSpent, 0)
     };
   }, [guests]);
 
-  // Get unique properties for filter
+  // Get unique properties for filter - simplified since we don't have property data initially
   const uniqueProperties = useMemo(() => {
-    const props = new Map();
-    guests.forEach(g => props.set(g.propertyId, g.propertyName));
-    return Array.from(props, ([id, name]) => ({ id, name }));
+    return []; // Will be empty until we have actual property data
   }, [guests]);
 
-  // Filter and sort logic
-  useEffect(() => {
+  // Client-side filtering for filters not supported by backend
+  const applyClientSideFilters = (guests: GuestWithBookings[]): GuestWithBookings[] => {
     let filtered = [...guests];
 
-    // Search filter (name or booking ID)
-    if (searchTerm) {
-      filtered = filtered.filter(guest =>
-        guest.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        guest.id.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Property filter
+    // Property filter (client-side only) - skip for now since we don't have property data
     if (propertyFilter !== 'all') {
       filtered = filtered.filter(guest => guest.propertyId === propertyFilter);
     }
 
-    // Booking status filter
-    if (bookingStatusFilter !== 'all') {
-      filtered = filtered.filter(guest => guest.bookingStatus === bookingStatusFilter);
-    }
-
-    // Payment status filter
+    // Payment status filter (client-side only) - skip for now since it's derived
     if (paymentStatusFilter !== 'all') {
       filtered = filtered.filter(guest => guest.paymentStatus === paymentStatusFilter);
     }
 
-    // Date range filter
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (dateRangeFilter === 'today') {
-      filtered = filtered.filter(guest => {
-        const checkIn = new Date(guest.checkIn);
-        checkIn.setHours(0, 0, 0, 0);
-        return checkIn.getTime() === today.getTime();
-      });
-    } else if (dateRangeFilter === 'week') {
-      const weekEnd = new Date(today);
-      weekEnd.setDate(today.getDate() + 7);
-      filtered = filtered.filter(guest => 
-        guest.checkIn >= today && guest.checkIn <= weekEnd
-      );
-    } else if (dateRangeFilter === 'month') {
-      const monthEnd = new Date(today);
-      monthEnd.setMonth(today.getMonth() + 1);
-      filtered = filtered.filter(guest => 
-        guest.checkIn >= today && guest.checkIn <= monthEnd
-      );
-    } else if (dateRangeFilter === 'custom' && (customDateRange.start || customDateRange.end)) {
-      const start = customDateRange.start ? new Date(customDateRange.start) : new Date(0);
-      const end = customDateRange.end ? new Date(customDateRange.end) : new Date(9999, 11, 31);
-      filtered = filtered.filter(guest => 
-        guest.checkIn >= start && guest.checkIn <= end
-      );
-    }
+    return filtered;
+  };
 
-    // Sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'guestName':
-          comparison = a.guestName.localeCompare(b.guestName);
-          break;
-        case 'checkIn':
-          comparison = a.checkIn.getTime() - b.checkIn.getTime();
-          break;
-        case 'amountPaid':
-          comparison = a.amountPaid - b.amountPaid;
-          break;
-        case 'bookingDate':
-          comparison = a.bookingDate.getTime() - b.bookingDate.getTime();
-          break;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
+  // Apply client-side filters
+  useEffect(() => {
+    const filtered = applyClientSideFilters(guests);
     setFilteredGuests(filtered);
     setCurrentPage(1);
-  }, [guests, searchTerm, propertyFilter, bookingStatusFilter, paymentStatusFilter, dateRangeFilter, customDateRange, sortField, sortOrder]);
+  }, [guests, propertyFilter, paymentStatusFilter]);
 
   // Pagination
   const paginatedGuests = useMemo(() => {
@@ -259,45 +344,96 @@ const GuestsListingPage: React.FC = () => {
     }
   };
 
-  const handleViewDetails = (guest: Guest) => {
+  const handleViewDetails = async (guest: GuestWithBookings) => {
     setSelectedGuest(guest);
+    setSelectedGuestDetails(null);
     setShowDetailModal(true);
-  };
-
-  const handleEditGuest = (guest: Guest) => {
-    setSelectedGuest(guest);
-    setEditBookingStatus(guest.bookingStatus);
-    setEditPaymentStatus(guest.paymentStatus);
-    setEditSpecialRequests(guest.specialRequests || '');
-    setShowEditModal(true);
-  };
-
-  const handleSaveEdit = () => {
-    if (selectedGuest) {
-      setGuests(prev => 
-        prev.map(guest => 
-          guest.id === selectedGuest.id 
-            ? {
-                ...guest,
-                bookingStatus: editBookingStatus as any,
-                paymentStatus: editPaymentStatus as any,
-                specialRequests: editSpecialRequests || undefined,
-                amountPaid: editPaymentStatus === 'paid' ? guest.totalAmount : 
-                           editPaymentStatus === 'pending' ? guest.totalAmount * 0.5 : 0
-              }
-            : guest
-        )
-      );
-      setShowEditModal(false);
-      alert('Guest booking updated successfully!');
+    
+    // Fetch detailed guest data
+    try {
+      const details = await fetchGuestDetails(guest.id);
+      if (details) {
+        setSelectedGuestDetails(details);
+      }
+    } catch (error) {
+      console.error('Failed to load guest details:', error);
     }
   };
 
-  const handleDeleteGuest = (guestId: string) => {
+  const handleEditGuest = async (guest: GuestWithBookings) => {
+    setSelectedGuest(guest);
+    
+    // Fetch guest details if not already loaded
+    if (!selectedGuestDetails) {
+      try {
+        const details = await fetchGuestDetails(guest.id);
+        if (details && details.bookings.length > 0) {
+          setSelectedGuestDetails(details);
+          const recentBooking = details.bookings[0];
+          setEditBookingStatus(recentBooking.status);
+          setEditSpecialRequests(recentBooking.message || '');
+        }
+      } catch (error) {
+        console.error('Failed to load guest details for editing:', error);
+        alert('Failed to load guest details. Please try again.');
+        return;
+      }
+    } else if (selectedGuestDetails.bookings.length > 0) {
+      const recentBooking = selectedGuestDetails.bookings[0];
+      setEditBookingStatus(recentBooking.status);
+      setEditSpecialRequests(recentBooking.message || '');
+    }
+    
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (selectedGuestDetails && selectedGuestDetails.bookings.length > 0) {
+      try {
+        const bookingId = selectedGuestDetails.bookings[0].id;
+        const updateData = {
+          status: editBookingStatus,
+          notes: editSpecialRequests
+        };
+
+        await api.put(`/properties/host/bookings/${bookingId}`, updateData);
+
+        // Refresh the data
+        await fetchGuests();
+        setShowEditModal(false);
+        setShowDetailModal(false);
+        alert('Guest booking updated successfully!');
+      } catch (error) {
+        console.error('Error updating booking:', error);
+        alert('Failed to update booking. Please try again.');
+      }
+    }
+  };
+
+  const handleDeleteGuest = async (guestId: string) => {
     if (window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
-      setGuests(prev => prev.filter(g => g.id !== guestId));
-      setShowDetailModal(false); // Close modal if open
-      alert('Booking deleted.');
+      try {
+        // Fetch guest details to get booking ID if not already loaded
+        let details = selectedGuestDetails;
+        if (!details) {
+          details = await fetchGuestDetails(guestId);
+        }
+        
+        if (details && details.bookings.length > 0) {
+          const bookingId = details.bookings[0].id;
+          await api.delete(`/properties/host/bookings/${bookingId}`);
+          
+          // Refresh the data
+          await fetchGuests();
+          setShowDetailModal(false);
+          alert('Booking deleted.');
+        } else {
+          alert('No bookings found to delete.');
+        }
+      } catch (error) {
+        console.error('Error deleting booking:', error);
+        alert('Failed to delete booking. Please try again.');
+      }
     }
   };
 
@@ -331,6 +467,15 @@ const GuestsListingPage: React.FC = () => {
     }
   };
 
+  const getVerificationStatusColor = (status: string) => {
+    switch (status) {
+      case 'verified': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'unverified': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const getBookingStatusIcon = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bi-check-circle';
@@ -340,6 +485,41 @@ const GuestsListingPage: React.FC = () => {
       default: return 'bi-calendar';
     }
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-2 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+            <span className="ml-3 text-lg text-gray-600">Loading guests...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-2 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+            <i className="bi bi-exclamation-triangle text-5xl text-red-500 mb-4"></i>
+            <h3 className="text-xl font-medium text-red-800 mb-2">Error Loading Guests</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={fetchGuests}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-14">
@@ -372,7 +552,7 @@ const GuestsListingPage: React.FC = () => {
           <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">Confirmed</p>
+                <p className="text-base text-gray-600">Verified</p>
                 <p className="text-2xl font-bold text-green-600">{summaryStats.confirmed}</p>
               </div>
               <i className="bi bi-check-circle text-2xl text-green-500"></i>
@@ -392,7 +572,7 @@ const GuestsListingPage: React.FC = () => {
           <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base text-gray-600">This Week</p>
+                <p className="text-base text-gray-600">Active</p>
                 <p className="text-2xl font-bold text-blue-600">{summaryStats.upcomingThisWeek}</p>
               </div>
               <i className="bi bi-calendar-week text-2xl text-blue-500"></i>
@@ -412,14 +592,14 @@ const GuestsListingPage: React.FC = () => {
 
         {/* Filters Section */}
         <div className="bg-gray-100 rounded-lg shadow-xl p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Search */}
             <div>
               <label className="block text-base font-medium text-gray-700 mb-2">Search</label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Guest name or booking ID..."
+                  placeholder="Guest name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -428,50 +608,41 @@ const GuestsListingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Property Filter */}
+            {/* Verification Status Filter */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Property</label>
-              <select
-                value={propertyFilter}
-                onChange={(e) => setPropertyFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="all">All Properties</option>
-                {uniqueProperties.map(prop => (
-                  <option key={prop.id} value={prop.id}>{prop.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Booking Status Filter */}
-            <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Booking Status</label>
+              <label className="block text-base font-medium text-gray-700 mb-2">Verification Status</label>
               <select
                 value={bookingStatusFilter}
                 onChange={(e) => setBookingStatusFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
                 <option value="all">All Status</option>
-                <option value="confirmed">Confirmed</option>
+                <option value="confirmed">Verified</option>
                 <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="completed">Unverified</option>
               </select>
             </div>
 
-            {/* Payment Status Filter */}
+            {/* Sort */}
             <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Payment Status</label>
+              <label className="block text-base font-medium text-gray-700 mb-2">Sort By</label>
               <select
-                value={paymentStatusFilter}
-                onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                value={`${sortField}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split('-') as [SortField, SortOrder];
+                  setSortField(field);
+                  setSortOrder(order);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               >
-                <option value="all">All Payments</option>
-                <option value="paid">Paid</option>
-                <option value="unpaid">Unpaid</option>
-                <option value="pending">Pending</option>
-                <option value="refunded">Refunded</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="joinDate-desc">Newest First</option>
+                <option value="joinDate-asc">Oldest First</option>
+                <option value="spending-desc">Highest Spending</option>
+                <option value="spending-asc">Lowest Spending</option>
+                <option value="bookings-desc">Most Bookings</option>
+                <option value="bookings-asc">Fewest Bookings</option>
               </select>
             </div>
           </div>
@@ -549,25 +720,18 @@ const GuestsListingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
-          </div>
-        )}
-
         {/* Empty State */}
         {!loading && filteredGuests.length === 0 && (
           <div className="bg-gray-100 rounded-lg shadow-xl p-12 text-center">
             <i className="bi bi-people text-6xl text-gray-300"></i>
             <h3 className="text-xl font-medium text-gray-900 mt-4">
               {guests.length === 0 
-                ? "No guest bookings yet"
+                ? "No guests yet"
                 : "No guests found"}
             </h3>
             <p className="text-gray-600 mt-2">
               {guests.length === 0 
-                ? "Your guest bookings will appear here"
+                ? "Your guests will appear here once they make bookings"
                 : "Try adjusting your filters or search criteria"}
             </p>
           </div>
@@ -587,45 +751,47 @@ const GuestsListingPage: React.FC = () => {
                     />
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900">{guest.guestName}</h3>
-                      <p className="text-base text-gray-500">{guest.id}</p>
+                      <p className="text-base text-gray-500">{guest.email}</p>
                     </div>
-                    <span className={`px-2 py-1 text-base font-semibold rounded-full ${getBookingStatusColor(guest.bookingStatus)}`}>
-                      <i className={`bi ${getBookingStatusIcon(guest.bookingStatus)} mr-1`}></i>
-                      {guest.bookingStatus}
+                    <span className={`px-2 py-1 text-base font-semibold rounded-full ${getVerificationStatusColor(guest.verificationStatus)}`}>
+                      {guest.verificationStatus}
                     </span>
                   </div>
                   
                   <div className="space-y-2 mb-4">
                     <p className="text-base text-gray-600">
-                      <i className="bi bi-house mr-2"></i>
-                      {guest.propertyName}
-                    </p>
-                    <p className="text-base text-gray-600">
                       <i className="bi bi-calendar-check mr-2"></i>
-                      {format(guest.checkIn, 'MMM dd')} - {format(guest.checkOut, 'MMM dd, yyyy')}
+                      Member since {format(guest.joinDate, 'MMM dd, yyyy')}
                     </p>
                     <p className="text-base text-gray-600">
-                      <i className="bi bi-people mr-2"></i>
-                      {guest.guestCount} {guest.guestCount === 1 ? 'Guest' : 'Guests'}
+                      <i className="bi bi-house mr-2"></i>
+                      {guest.totalBookings} booking{guest.totalBookings !== 1 ? 's' : ''}
                     </p>
+                    {guest.phone && (
+                      <p className="text-base text-gray-600">
+                        <i className="bi bi-telephone mr-2"></i>
+                        {guest.phone}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="border-t pt-3 mb-3">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-base text-gray-600">Total Price</span>
-                      <span className="text-lg font-semibold text-gray-900">${guest.totalAmount}</span>
+                      <span className="text-base text-gray-600">Total Spent</span>
+                      <span className="text-lg font-semibold text-gray-900">${guest.totalSpent}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-base text-gray-600">Payment</span>
-                      <span className={`px-2 py-1 text-base font-semibold rounded-full ${getPaymentStatusColor(guest.paymentStatus)}`}>
-                        {guest.paymentStatus}
+                      <span className="text-base text-gray-600">Avg Rating</span>
+                      <span className="text-base font-semibold text-yellow-600">
+                        {guest.averageRating > 0 ? `${guest.averageRating}/5` : 'No ratings'}
                       </span>
                     </div>
                   </div>
                   
-                  {guest.specialRequests && (
+                  {guest.lastBooking && (
                     <p className="text-base text-gray-500 italic mb-3">
-                      <i className="bi bi-info-circle mr-1"></i>{guest.specialRequests}
+                      <i className="bi bi-clock mr-1"></i>
+                      Last booking: {format(guest.lastBooking, 'MMM dd, yyyy')}
                     </p>
                   )}
                   
@@ -634,21 +800,7 @@ const GuestsListingPage: React.FC = () => {
                       onClick={() => handleViewDetails(guest)}
                       className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-base font-medium cursor-pointer"
                     >
-                      <i className="bi bi-eye mr-1"></i>View
-                    </button>
-                    <button
-                      onClick={() => handleEditGuest(guest)}
-                      className="flex-1 px-3 py-2 text-white rounded-lg transition-colors text-base font-medium cursor-pointer"
-                      style={{ backgroundColor: '#083A85' }}
-                    >
-                      <i className="bi bi-pencil mr-1"></i>Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteGuest(guest.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                      title="Delete booking"
-                    >
-                      <i className="bi bi-trash"></i>
+                      <i className="bi bi-eye mr-1"></i>View Details
                     </button>
                   </div>
                 </div>
@@ -666,42 +818,45 @@ const GuestsListingPage: React.FC = () => {
                   <tr>
                     <th className="px-6 py-3 text-left">
                       <button
-                        onClick={() => handleSort('guestName')}
+                        onClick={() => handleSort('name')}
                         className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
                         Guest
-                        <i className={`bi bi-chevron-${sortField === 'guestName' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                        <i className={`bi bi-chevron-${sortField === 'name' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
                       </button>
                     </th>
                     <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Property
+                      Contact
                     </th>
                     <th className="px-6 py-3 text-left">
                       <button
-                        onClick={() => handleSort('checkIn')}
+                        onClick={() => handleSort('joinDate')}
                         className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
-                        Check-in
-                        <i className={`bi bi-chevron-${sortField === 'checkIn' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                        Join Date
+                        <i className={`bi bi-chevron-${sortField === 'joinDate' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
                       </button>
                     </th>
                     <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Check-out
-                    </th>
-                    <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Booking Status
+                      Status
                     </th>
                     <th className="px-6 py-3 text-left">
                       <button
-                        onClick={() => handleSort('amountPaid')}
+                        onClick={() => handleSort('bookings')}
                         className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
-                        Amount
-                        <i className={`bi bi-chevron-${sortField === 'amountPaid' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                        Bookings
+                        <i className={`bi bi-chevron-${sortField === 'bookings' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Payment
+                    <th className="px-6 py-3 text-left">
+                      <button
+                        onClick={() => handleSort('spending')}
+                        className="text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+                      >
+                        Total Spent
+                        <i className={`bi bi-chevron-${sortField === 'spending' && sortOrder === 'asc' ? 'up' : 'down'} text-base`}></i>
+                      </button>
                     </th>
                     <th className="px-6 py-3 text-right text-base font-medium text-gray-700 uppercase tracking-wider">
                       Actions
@@ -720,38 +875,42 @@ const GuestsListingPage: React.FC = () => {
                           />
                           <div>
                             <div className="text-base font-medium text-gray-900">{guest.guestName}</div>
-                            <div className="text-base text-gray-500">{guest.id}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base text-gray-900">{guest.propertyName}</div>
-                        <div className="text-base text-gray-500">{guest.guestCount} guests</div>
+                        <div className="text-base text-gray-900">{guest.email}</div>
+                        {guest.phone && (
+                          <div className="text-base text-gray-500">{guest.phone}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-base text-gray-900">
-                          {format(guest.checkIn, 'MMM dd, yyyy')}
+                          {format(guest.joinDate, 'MMM dd, yyyy')}
                         </div>
+                        {guest.lastBooking && (
+                          <div className="text-base text-gray-500">
+                            Last: {format(guest.lastBooking, 'MMM dd, yyyy')}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-base text-gray-900">
-                          {format(guest.checkOut, 'MMM dd, yyyy')}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getBookingStatusColor(guest.bookingStatus)}`}>
-                          {guest.bookingStatus}
+                        <span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getVerificationStatusColor(guest.verificationStatus)}`}>
+                          {guest.verificationStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-base text-gray-900">
-                          ${guest.amountPaid} / ${guest.totalAmount}
+                          {guest.totalBookings}
+                        </div>
+                        <div className="text-base text-gray-500">
+                          Avg: {guest.averageRating > 0 ? `${guest.averageRating}/5` : 'No ratings'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-base leading-5 font-semibold rounded-full ${getPaymentStatusColor(guest.paymentStatus)}`}>
-                          {guest.paymentStatus}
-                        </span>
+                        <div className="text-base text-gray-900">
+                          ${guest.totalSpent}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-base font-medium">
                         <button
@@ -760,20 +919,6 @@ const GuestsListingPage: React.FC = () => {
                           title="View details"
                         >
                           <i className="bi bi-eye text-lg"></i>
-                        </button>
-                        <button
-                          onClick={() => handleEditGuest(guest)}
-                          className="text-green-600 hover:text-green-900 mr-3 cursor-pointer"
-                          title="Edit booking"
-                        >
-                          <i className="bi bi-pencil text-lg"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteGuest(guest.id)}
-                          className="text-red-600 hover:text-red-800 cursor-pointer"
-                          title="Delete booking"
-                        >
-                          <i className="bi bi-trash text-lg"></i>
                         </button>
                       </td>
                     </tr>
@@ -876,7 +1021,6 @@ const GuestsListingPage: React.FC = () => {
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Guest Details</h2>
-                    <p className="text-gray-600 mt-1">Booking {selectedGuest.id}</p>
                   </div>
                   <button
                     onClick={() => setShowDetailModal(false)}
@@ -886,135 +1030,124 @@ const GuestsListingPage: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Guest Information</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <img 
-                          src={selectedGuest.avatar} 
-                          alt={selectedGuest.guestName}
-                          className="w-16 h-16 rounded-full mr-4"
-                        />
-                        <div>
-                          <p className="font-semibold text-xl text-gray-900">{selectedGuest.guestName}</p>
+                {loadingDetails ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900"></div>
+                    <span className="ml-3 text-lg text-gray-600">Loading details...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">Guest Information</h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center">
+                            <img 
+                              src={selectedGuest.avatar} 
+                              alt={selectedGuest.guestName}
+                              className="w-16 h-16 rounded-full mr-4"
+                            />
+                            <div>
+                              <p className="font-semibold text-xl text-gray-900">{selectedGuest.guestName}</p>
+                              <p className="text-gray-600">{selectedGuest.email}</p>
+                              {selectedGuest.phone && (
+                                <p className="text-gray-600">{selectedGuest.phone}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">Guest Stats</h3>
+                        <div className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Bookings:</span>
+                            <span className="font-medium">{selectedGuest.totalBookings}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Spent:</span>
+                            <span className="font-medium">${selectedGuest.totalSpent}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Average Rating:</span>
+                            <span className="font-medium">{selectedGuest.averageRating > 0 ? `${selectedGuest.averageRating}/5` : 'No ratings'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Member Since:</span>
+                            <span className="font-medium">{format(selectedGuest.joinDate, 'MMM dd, yyyy')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Verification Status:</span>
+                            <span className={`px-2 py-1 text-xs rounded-full ${getVerificationStatusColor(selectedGuest.verificationStatus)}`}>
+                              {selectedGuest.verificationStatus}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3">Booking Status</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Booking:</span>
-                        <span className={`px-2 py-1 text-base font-semibold rounded-full ${getBookingStatusColor(selectedGuest.bookingStatus)}`}>
-                          {selectedGuest.bookingStatus}
-                        </span>
+                    {selectedGuestDetails && selectedGuestDetails.bookings.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold mb-2">Recent Bookings</h3>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {selectedGuestDetails.bookings.slice(0, 5).map((booking, index) => (
+                            <div key={index} className="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+                              <div>
+                                <p className="font-medium">{booking.propertyName}</p>
+                                <p className="text-sm text-gray-600">
+                                  {format(booking.checkIn, 'MMM dd, yyyy')} - {format(booking.checkOut, 'MMM dd, yyyy')}
+                                </p>
+                                <p className="text-sm text-gray-600">{booking.guests} guests</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold">${booking.totalPrice}</p>
+                                <span className={`px-2 py-1 text-xs rounded-full ${getBookingStatusColor(booking.status)}`}>
+                                  {booking.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Payment:</span>
-                        <span className={`px-2 py-1 text-base font-semibold rounded-full ${getPaymentStatusColor(selectedGuest.paymentStatus)}`}>
-                          {selectedGuest.paymentStatus}
-                        </span>
+                    )}
+
+                    {selectedGuestDetails && selectedGuestDetails.bookings.length > 0 && (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            setShowDetailModal(false);
+                            handleEditGuest(selectedGuest);
+                          }}
+                          className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer"
+                          style={{ backgroundColor: '#083A85' }}
+                        >
+                          <i className="bi bi-pencil mr-2"></i>
+                          Edit Recent Booking
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGuest(selectedGuest.id)}
+                          className="flex-1 px-6 py-3 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors font-medium cursor-pointer"
+                        >
+                          <i className="bi bi-trash mr-2"></i>
+                          Delete Recent Booking
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-house text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Property</p>
-                    <p className="font-semibold">{selectedGuest.propertyName}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-calendar-check text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Check-in</p>
-                    <p className="font-semibold">{format(selectedGuest.checkIn, 'MMM dd, yyyy')}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-calendar-x text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Check-out</p>
-                    <p className="font-semibold">{format(selectedGuest.checkOut, 'MMM dd, yyyy')}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-people text-gray-600 text-xl mb-1"></i>
-                    <p className="text-base text-gray-600">Guests</p>
-                    <p className="font-semibold">{selectedGuest.guestCount}</p>
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Payment Information</h3>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-600">Total Amount:</span>
-                      <span className="font-semibold">${selectedGuest.totalAmount}</span>
-                    </div>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-gray-600">Amount Paid:</span>
-                      <span className="font-semibold text-green-600">${selectedGuest.amountPaid}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Balance:</span>
-                      <span className="font-semibold text-red-600">
-                        ${selectedGuest.totalAmount - selectedGuest.amountPaid}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedGuest.specialRequests && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-2">Special Requests</h3>
-                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3">
-                      <i className="bi bi-info-circle mr-2"></i>
-                      {selectedGuest.specialRequests}
-                    </p>
-                  </div>
+                    )}
+                  </>
                 )}
-
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Booking Date</h3>
-                  <p className="text-gray-600">
-                    <i className="bi bi-calendar mr-2"></i>
-                    {format(selectedGuest.bookingDate, 'MMM dd, yyyy')}
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setShowDetailModal(false);
-                      handleEditGuest(selectedGuest);
-                    }}
-                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer"
-                    style={{ backgroundColor: '#083A85' }}
-                  >
-                    <i className="bi bi-pencil mr-2"></i>
-                    Edit Booking
-                  </button>
-                  <button
-                    onClick={() => handleDeleteGuest(selectedGuest.id)}
-                    className="flex-1 px-6 py-3 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors font-medium cursor-pointer"
-                  >
-                    <i className="bi bi-trash mr-2"></i>
-                    Delete Booking
-                  </button>
-                </div>
               </div>
             </div>
           </div>
         )}
 
         {/* Edit Modal */}
-        {showEditModal && selectedGuest && (
+        {showEditModal && selectedGuest && selectedGuestDetails && (
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-semibold text-gray-900">Edit Booking</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">Edit Recent Booking</h3>
                   <button
                     onClick={() => setShowEditModal(false)}
                     className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
@@ -1026,7 +1159,9 @@ const GuestsListingPage: React.FC = () => {
                 <div className="mb-4">
                   <p className="text-base text-gray-600 mb-4">
                     Guest: <span className="font-semibold">{selectedGuest.guestName}</span><br/>
-                    Property: <span className="font-semibold">{selectedGuest.propertyName}</span>
+                    {selectedGuestDetails.bookings.length > 0 && (
+                      <>Property: <span className="font-semibold">{selectedGuestDetails.bookings[0].propertyName}</span></>
+                    )}
                   </p>
 
                   <div className="space-y-4">
@@ -1043,22 +1178,6 @@ const GuestsListingPage: React.FC = () => {
                         <option value="pending">Pending</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-base font-medium text-gray-700 mb-2">
-                        Payment Status
-                      </label>
-                      <select
-                        value={editPaymentStatus}
-                        onChange={(e) => setEditPaymentStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                      >
-                        <option value="paid">Paid</option>
-                        <option value="unpaid">Unpaid</option>
-                        <option value="pending">Pending</option>
-                        <option value="refunded">Refunded</option>
                       </select>
                     </div>
 

@@ -1,8 +1,12 @@
-"use client";
 
 import React from "react";
-import AgentClientsPage from "../../../pages/agent/agent-clients";
+import GuestsListingPage from "../../../pages/host/host-guests";
+import { Metadata } from "next";
 
-export default function AgentClients() {
-  return <AgentClientsPage />;
+export const metadata: Metadata = {
+    title: "Clients - JamboLush",
+    description: "Overview of guests and their bookings",
+};
+export default function Guests() {
+  return <GuestsListingPage />;
 }

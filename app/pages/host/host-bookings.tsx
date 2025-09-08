@@ -1,32 +1,52 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '@/app/api/apiService';
 
-// Types
-interface Booking {
+// Types based on your backend service
+interface BookingInfo {
   id: string;
+  propertyId: number;
+  propertyName: string;
+  guestId: number;
   guestName: string;
   guestEmail: string;
-  guestPhone: string;
-  propertyName: string;
-  propertyAddress: string;
-  checkIn: Date;
-  checkOut: Date;
-  bookingDate: Date;
-  status: 'confirmed' | 'pending' | 'cancelled';
-  amount: number;
-  paymentStatus: 'paid' | 'due' | 'refunded';
+  checkIn: string;
+  checkOut: string;
   guests: number;
+  totalPrice: number;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BookingFilters {
+  status?: string[];
+  propertyId?: number;
+  guestId?: number;
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+interface BookingUpdateDto {
+  status?: string;
+  notes?: string;
   specialRequests?: string;
-  propertyImage?: string; // Added propertyImage field
+  checkInInstructions?: string;
+  checkOutInstructions?: string;
 }
 
 type ViewMode = 'grid' | 'list';
-type SortField = 'checkIn' | 'propertyName' | 'amount' | 'status';
+type SortField = 'checkIn' | 'propertyName' | 'totalPrice' | 'status' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
 
 const BookingsPage: React.FC = () => {
   // Date formatting helper function
-  const format = (date: Date, formatStr: string) => {
+  const format = (date: Date | string, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -50,14 +70,25 @@ const BookingsPage: React.FC = () => {
   };
 
   // States
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  const [bookings, setBookings] = useState<BookingInfo[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<BookingInfo[]>([]);
+  const [properties, setProperties] = useState<Array<{id: number; name: string}>>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingInfo | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
   
   // Filter states
@@ -70,112 +101,133 @@ const BookingsPage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('checkIn');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // Mock data generation
-  useEffect(() => {
-    const generateMockBookings = (): Booking[] => {
-      const statuses: ('confirmed' | 'pending' | 'cancelled')[] = ['confirmed', 'pending', 'cancelled'];
-      const paymentStatuses: ('paid' | 'due' | 'refunded')[] = ['paid', 'due', 'refunded'];
-      const properties = ['Sunset Villa', 'Ocean View Apartment', 'Mountain Lodge', 'City Center Loft', 'Beach House'];
-      const guests = ['John Smith', 'Emma Wilson', 'Michael Brown', 'Sarah Davis', 'James Johnson', 'Lisa Anderson', 'Robert Miller', 'Maria Garcia'];
-      
-      return Array.from({ length: 45 }, (_, i) => ({
-        id: `BK${String(i + 1).padStart(5, '0')}`,
-        guestName: guests[Math.floor(Math.random() * guests.length)],
-        guestEmail: `guest${i + 1}@email.com`,
-        guestPhone: `+1 555-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
-        propertyName: properties[Math.floor(Math.random() * properties.length)],
-        propertyAddress: `${Math.floor(Math.random() * 999) + 1} ${['Main St', 'Ocean Blvd', 'Park Ave', 'Mountain Rd'][Math.floor(Math.random() * 4)]}`,
-        checkIn: new Date(2025, Math.floor(Math.random() * 3), Math.floor(Math.random() * 28) + 1),
-        checkOut: new Date(2025, Math.floor(Math.random() * 3) + 1, Math.floor(Math.random() * 28) + 1),
-        bookingDate: new Date(2025, 0, Math.floor(Math.random() * 15) + 1),
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        amount: Math.floor(Math.random() * 2000) + 500,
-        paymentStatus: paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)],
-        guests: Math.floor(Math.random() * 4) + 1,
-        specialRequests: Math.random() > 0.5 ? 'Late check-in requested' : undefined,
-        propertyImage: `https://picsum.photos/seed/${i + 1}/600/400` // Added image URL
+  // Edit modal states
+  const [editStatus, setEditStatus] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editCheckInInstructions, setEditCheckInInstructions] = useState('');
+  const [editCheckOutInstructions, setEditCheckOutInstructions] = useState('');
+
+// Fixed fetchProperties function - based on your API response structure
+const fetchProperties = async () => {
+  try {
+    const response = await api.get('/properties/host/my-properties');
+    
+    if (response.data && response.data.success && response.data.data && Array.isArray(response.data.data)) {
+      const propertyList = response.data.data.map((p: any) => ({
+        id: p.id,
+        name: p.name
       }));
+      setProperties(propertyList);
+    } else {
+      console.warn('Unexpected response structure for properties:', response.data);
+      setProperties([]);
+    }
+  } catch (err) {
+    console.error('Error fetching properties:', err);
+    setProperties([]);
+  }
+};
+
+// Fixed fetchBookings function - based on your API response structure
+const fetchBookings = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    // Build filters object
+    const filters: BookingFilters = {
+      sortBy: sortField,
+      sortOrder: sortOrder,
     };
 
-    setTimeout(() => {
-      setBookings(generateMockBookings());
-      setLoading(false);
-    }, 1000);
+    if (statusFilter !== 'all') {
+      filters.status = [statusFilter];
+    }
+
+    if (propertyFilter !== 'all') {
+      filters.propertyId = parseInt(propertyFilter);
+    }
+
+    if (dateRange.start && dateRange.end) {
+      filters.dateRange = {
+        start: dateRange.start,
+        end: dateRange.end
+      };
+    }
+
+    // Make API call to get host bookings
+    const response = await api.get('/properties/host/bookings', {
+      params: {
+        ...filters,
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm || undefined
+      }
+    });
+
+    if (response.data && response.data.success && response.data.data) {
+      // Updated to match your API response structure
+      setBookings(response.data.data.bookings || []);
+      setTotal(response.data.data.total || 0);
+      setTotalPages(response.data.data.totalPages || 0);
+    } else {
+      console.warn('Unexpected response structure for bookings:', response.data);
+      setBookings([]);
+      setTotal(0);
+      setTotalPages(0);
+    }
+  } catch (err: any) {
+    console.error('Error fetching bookings:', err);
+    setError(err.response?.data?.message || 'Failed to fetch bookings');
+    // Ensure bookings is always an array to prevent filter errors
+    setBookings([]);
+    setTotal(0);
+    setTotalPages(0);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchProperties();
   }, []);
+
+  // Fetch bookings when filters change
+  useEffect(() => {
+    fetchBookings();
+  }, [currentPage, sortField, sortOrder, statusFilter, propertyFilter, dateRange, searchTerm]);
 
   // Update goToPageInput when currentPage changes
   useEffect(() => {
     setGoToPageInput(currentPage.toString());
   }, [currentPage]);
 
-  // Filter and sort logic
+  // Set filtered bookings (for client-side operations)
   useEffect(() => {
-    let filtered = [...bookings];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(booking =>
-        booking.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.propertyName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(booking => booking.status === statusFilter);
-    }
-
-    // Property filter
-    if (propertyFilter !== 'all') {
-      filtered = filtered.filter(booking => booking.propertyName === propertyFilter);
-    }
-
-    // Date range filter
-    if (dateRange.start && dateRange.end) {
-      const startDate = new Date(dateRange.start);
-      const endDate = new Date(dateRange.end);
-      filtered = filtered.filter(booking => {
-        const checkInDate = new Date(booking.checkIn);
-        return checkInDate >= startDate && checkInDate <= endDate;
-      });
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'checkIn':
-          comparison = a.checkIn.getTime() - b.checkIn.getTime();
-          break;
-        case 'propertyName':
-          comparison = a.propertyName.localeCompare(b.propertyName);
-          break;
-        case 'amount':
-          comparison = a.amount - b.amount;
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
-          break;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    setFilteredBookings(filtered);
-    setCurrentPage(1);
-  }, [bookings, searchTerm, statusFilter, propertyFilter, dateRange, sortField, sortOrder]);
-
-  // Pagination
-  const paginatedBookings = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredBookings.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredBookings, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
-
-  // Get unique properties for filter
-  const uniqueProperties = useMemo(() => {
-    return [...new Set(bookings.map(b => b.propertyName))];
+    setFilteredBookings(bookings);
   }, [bookings]);
+
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const today = new Date();
+    const thisWeek = new Date(today);
+    thisWeek.setDate(today.getDate() + 7);
+    
+    return {
+      total: total,
+      confirmed: bookings.filter(b => b.status === 'confirmed').length,
+      pending: bookings.filter(b => b.status === 'pending').length,
+      upcomingThisWeek: bookings.filter(b => 
+        b.status === 'confirmed' && 
+        new Date(b.checkIn) >= today && 
+        new Date(b.checkIn) <= thisWeek
+      ).length,
+      totalRevenue: bookings
+        .filter(b => b.status === 'completed')
+        .reduce((sum, b) => sum + b.totalPrice, 0)
+    };
+  }, [bookings, total]);
 
   // Handlers
   const handleSort = (field: SortField) => {
@@ -187,18 +239,60 @@ const BookingsPage: React.FC = () => {
     }
   };
 
-  const handleViewDetails = (booking: Booking) => {
+  const handleViewDetails = (booking: BookingInfo) => {
     setSelectedBooking(booking);
     setShowModal(true);
   };
 
-  const handleDelete = (bookingId: string) => {
-    if (confirm('Are you sure you want to delete this booking?')) {
-      setBookings(prev => prev.filter(b => b.id !== bookingId));
+  const handleEditBooking = (booking: BookingInfo) => {
+    setSelectedBooking(booking);
+    setEditStatus(booking.status);
+    setEditNotes(booking.message || '');
+    setEditCheckInInstructions('');
+    setEditCheckOutInstructions('');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedBooking) return;
+
+    try {
+      const updateData: BookingUpdateDto = {
+        status: editStatus,
+        notes: editNotes,
+        checkInInstructions: editCheckInInstructions,
+        checkOutInstructions: editCheckOutInstructions
+      };
+
+      await api.put(`/properties/host/bookings/${selectedBooking.id}`, updateData);
+      
+      // Refresh bookings
+      await fetchBookings();
+      setShowEditModal(false);
+      alert('Booking updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating booking:', error);
+      alert(error.response?.data?.message || 'Failed to update booking');
     }
   };
 
-  const handlePrint = (booking: Booking) => {
+  const handleDeleteBooking = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/properties/host/bookings/${bookingId}`);
+      await fetchBookings();
+      setShowModal(false);
+      alert('Booking deleted successfully.');
+    } catch (error: any) {
+      console.error('Error deleting booking:', error);
+      alert(error.response?.data?.message || 'Failed to delete booking');
+    }
+  };
+
+  const handlePrint = (booking: BookingInfo) => {
     const printWindow = window.open('', '', 'width=800,height=600');
     if (printWindow) {
       printWindow.document.write(`
@@ -219,8 +313,10 @@ const BookingsPage: React.FC = () => {
             <div class="detail"><span class="label">Property:</span> ${booking.propertyName}</div>
             <div class="detail"><span class="label">Check-in:</span> ${format(booking.checkIn, 'MMM dd, yyyy')}</div>
             <div class="detail"><span class="label">Check-out:</span> ${format(booking.checkOut, 'MMM dd, yyyy')}</div>
-            <div class="detail"><span class="label">Amount:</span> $${booking.amount}</div>
+            <div class="detail"><span class="label">Guests:</span> ${booking.guests}</div>
+            <div class="detail"><span class="label">Amount:</span> $${booking.totalPrice}</div>
             <div class="detail"><span class="label">Status:</span> ${booking.status}</div>
+            ${booking.message ? `<div class="detail"><span class="label">Notes:</span> ${booking.message}</div>` : ''}
           </body>
         </html>
       `);
@@ -244,18 +340,53 @@ const BookingsPage: React.FC = () => {
       case 'confirmed': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'paid': return 'text-green-600';
-      case 'due': return 'text-orange-600';
-      case 'refunded': return 'text-gray-600';
-      default: return 'text-gray-600';
+      case 'confirmed': return 'bi-check-circle';
+      case 'pending': return 'bi-clock';
+      case 'cancelled': return 'bi-x-circle';
+      case 'completed': return 'bi-check-square';
+      default: return 'bi-calendar';
     }
   };
+
+  if (loading && bookings.length === 0) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+            <span className="ml-3 text-lg text-gray-600">Loading bookings...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+            <i className="bi bi-exclamation-triangle text-5xl text-red-500 mb-4"></i>
+            <h3 className="text-xl font-medium text-red-800 mb-2">Error Loading Bookings</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={fetchBookings}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-14">
@@ -264,6 +395,59 @@ const BookingsPage: React.FC = () => {
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">My Bookings</h1>
           <p className="text-gray-600 mt-2">Manage and track all your property bookings</p>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-white to-gray-100 rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base text-gray-600">Total Bookings</p>
+                <p className="text-2xl font-bold text-gray-900">{summaryStats.total}</p>
+              </div>
+              <i className="bi bi-calendar-check text-2xl text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base text-gray-600">Confirmed</p>
+                <p className="text-2xl font-bold text-green-600">{summaryStats.confirmed}</p>
+              </div>
+              <i className="bi bi-check-circle text-2xl text-green-500"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">{summaryStats.pending}</p>
+              </div>
+              <i className="bi bi-clock text-2xl text-yellow-500"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base text-gray-600">This Week</p>
+                <p className="text-2xl font-bold text-blue-600">{summaryStats.upcomingThisWeek}</p>
+              </div>
+              <i className="bi bi-calendar-week text-2xl text-blue-500"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-xl p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-base text-gray-600">Revenue</p>
+                <p className="text-2xl font-bold text-green-600">${summaryStats.totalRevenue.toLocaleString()}</p>
+              </div>
+              <i className="bi bi-cash-stack text-2xl text-green-500"></i>
+            </div>
+          </div>
         </div>
 
         {/* Filters Section */}
@@ -295,6 +479,7 @@ const BookingsPage: React.FC = () => {
                 <option value="all">All Status</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
@@ -308,8 +493,8 @@ const BookingsPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-sm sm:text-base"
               >
                 <option value="all">All Properties</option>
-                {uniqueProperties.map(property => (
-                  <option key={property} value={property}>{property}</option>
+                {properties.map(property => (
+                  <option key={property.id} value={property.id.toString()}>{property.name}</option>
                 ))}
               </select>
             </div>
@@ -337,7 +522,7 @@ const BookingsPage: React.FC = () => {
           {/* View Mode Toggle & Results Count */}
           <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
             <p className="text-sm sm:text-base text-gray-600 order-2 sm:order-1">
-              Showing {paginatedBookings.length} of {filteredBookings.length} bookings
+              Showing {bookings.length} of {total} bookings
             </p>
        <div className="flex gap-2 order-1 sm:order-2">
   <button
@@ -369,7 +554,8 @@ const BookingsPage: React.FC = () => {
         {/* Loading State */}
         {loading && (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-900"></div>
+            <span className="ml-2 text-gray-600">Loading...</span>
           </div>
         )}
 
@@ -378,7 +564,11 @@ const BookingsPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-8 sm:p-12 text-center">
             <i className="bi bi-calendar-x text-5xl sm:text-6xl text-gray-300"></i>
             <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">No bookings found</h3>
-            <p className="text-gray-600 mt-2 text-sm sm:text-base">Try adjusting your filters or search criteria</p>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">
+              {total === 0 
+                ? "You don't have any bookings yet"
+                : "Try adjusting your filters or search criteria"}
+            </p>
           </div>
         )}
 
@@ -450,10 +640,7 @@ const BookingsPage: React.FC = () => {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Property
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Guest Info
+                      Property & Guest
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-left">
                       <button
@@ -475,11 +662,11 @@ const BookingsPage: React.FC = () => {
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-left">
                       <button
-                        onClick={() => handleSort('amount')}
+                        onClick={() => handleSort('totalPrice')}
                         className="text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
                       >
                         Amount
-                        <i className={`bi bi-chevron-${sortField === 'amount' && sortOrder === 'asc' ? 'up' : 'down'} text-xs sm:text-base`}></i>
+                        <i className={`bi bi-chevron-${sortField === 'totalPrice' && sortOrder === 'asc' ? 'up' : 'down'} text-xs sm:text-base`}></i>
                       </button>
                     </th>
                     <th className="px-3 sm:px-6 py-3 text-right text-xs sm:text-base font-medium text-gray-700 uppercase tracking-wider">
@@ -488,20 +675,14 @@ const BookingsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedBookings.map((booking) => (
+                  {filteredBookings.map((booking) => (
                     <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                        <div className="flex-1 items-center">
-                          <img src={booking.propertyImage} alt={booking.propertyName} className="w-20 h-16 sm:w-28 sm:h-20 rounded-md object-cover mr-2 sm:mr-4" />
-                          <div>
-                            <div className="text-sm sm:text-base font-medium text-gray-900">{booking.propertyName}</div>
-                            <div className="text-sm text-gray-500 hidden sm:block">{booking.propertyAddress}</div>
-                          </div>
+                      <td className="px-3 sm:px-6 py-4">
+                        <div>
+                          <div className="text-sm sm:text-base font-medium text-gray-900">{booking.propertyName}</div>
+                          <div className="text-sm text-gray-500">{booking.guestName}</div>
+                          <div className="text-xs text-gray-400">{booking.guests} guests</div>
                         </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm sm:text-base font-medium text-gray-900">{booking.guestName}</div>
-                        <div className="text-sm text-gray-500">{booking.id}</div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <div className="text-sm sm:text-base text-gray-900">
@@ -513,33 +694,44 @@ const BookingsPage: React.FC = () => {
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+
+                          <i className={`bi ${getStatusIcon(booking.status)} mr-1`}></i>
+
                           {booking.status}
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm sm:text-base font-medium text-gray-900">${booking.amount}</div>
-                        <div className={`text-sm sm:text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
-                          {booking.paymentStatus}
-                        </div>
+                        <div className="text-sm sm:text-base font-medium text-gray-900">${booking.totalPrice.toLocaleString()}</div>
+                        <div className="text-xs text-gray-500">Booking #{booking.id.slice(-8)}</div>
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm sm:text-base font-medium">
                         <button
                           onClick={() => handleViewDetails(booking)}
                           className="text-blue-600 hover:text-blue-900 mr-2 sm:mr-3 cursor-pointer"
+                          title="View details"
                         >
-                          <i className="bi bi-eye text-base sm:text-lg font-bold"></i>
+                          <i className="bi bi-eye text-base sm:text-lg"></i>
+                        </button>
+                        <button
+                          onClick={() => handleEditBooking(booking)}
+                          className="text-green-600 hover:text-green-900 mr-2 sm:mr-3 cursor-pointer"
+                          title="Edit booking"
+                        >
+                          <i className="bi bi-pencil text-base sm:text-lg"></i>
                         </button>
                         <button
                           onClick={() => handlePrint(booking)}
                           className="text-gray-600 hover:text-gray-900 mr-2 sm:mr-3 cursor-pointer"
+                          title="Print booking"
                         >
-                          <i className="bi bi-printer text-base sm:text-lg font-bold"></i>
+                          <i className="bi bi-printer text-base sm:text-lg"></i>
                         </button>
                         <button
-                          onClick={() => handleDelete(booking.id)}
+                          onClick={() => handleDeleteBooking(booking.id)}
                           className="text-red-600 hover:text-red-900 cursor-pointer"
+                          title="Delete booking"
                         >
-                          <i className="bi bi-trash text-base sm:text-lg font-bold"></i>
+                          <i className="bi bi-trash text-base sm:text-lg"></i>
                         </button>
                       </td>
                     </tr>
@@ -549,6 +741,89 @@ const BookingsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Grid View */}
+        {!loading && filteredBookings.length > 0 && viewMode === 'grid' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredBookings.map((booking) => (
+              <div key={booking.id} className="bg-white rounded-lg shadow-sm border hover:shadow-lg transition-all duration-300 overflow-hidden">
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 truncate">{booking.propertyName}</h3>
+                      <p className="text-sm text-gray-600">Guest: {booking.guestName}</p>
+                      <p className="text-xs text-gray-500">Booking #{booking.id.slice(-8)}</p>
+                    </div>
+                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                      <i className={`bi ${getStatusIcon(booking.status)} mr-1`}></i>
+                      {booking.status}
+                    </span>
+                  </div>
+
+                  <div className="text-sm text-gray-600 border-t border-b py-3 my-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <i className="bi bi-calendar-check text-gray-400"></i>
+                      <span>{format(booking.checkIn, 'MMM dd')} - {format(booking.checkOut, 'MMM dd, yyyy')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <i className="bi bi-people text-gray-400"></i>
+                      <span>{booking.guests} guests</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <i className="bi bi-envelope text-gray-400"></i>
+                      <span className="truncate">{booking.guestEmail}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Total Amount</span>
+                      <span className="text-xl font-bold text-gray-900">${booking.totalPrice.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {booking.message && (
+                    <div className="mb-4 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                      <i className="bi bi-info-circle mr-1"></i>
+                      {booking.message}
+                    </div>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleViewDetails(booking)}
+                      className="flex-1 text-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium cursor-pointer"
+                    >
+                      <i className="bi bi-eye mr-1"></i>View
+                    </button>
+                    <button
+                      onClick={() => handleEditBooking(booking)}
+                      className="flex-1 text-center px-3 py-2 text-white rounded-lg transition-colors text-sm font-medium cursor-pointer"
+                      style={{ backgroundColor: '#083A85' }}
+                    >
+                      <i className="bi bi-pencil mr-1"></i>Edit
+                    </button>
+                    <button
+                      onClick={() => handlePrint(booking)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                      title="Print"
+                    >
+                      <i className="bi bi-printer text-lg"></i>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBooking(booking.id)}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
+                      title="Delete"
+                    >
+                      <i className="bi bi-trash text-lg"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
 
         {/* Pagination */}
         {!loading && totalPages > 1 && (
@@ -654,14 +929,15 @@ const BookingsPage: React.FC = () => {
                         <span className="font-medium text-gray-900">{selectedBooking.id}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Booking Date</span>
+                        <span className="text-gray-600">Created</span>
                         <span className="font-medium text-gray-900">
-                          {format(selectedBooking.bookingDate, 'MMM dd, yyyy')}
+                          {format(selectedBooking.createdAt, 'MMM dd, yyyy')}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Status</span>
                         <span className={`px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getStatusColor(selectedBooking.status)}`}>
+                          <i className={`bi ${getStatusIcon(selectedBooking.status)} mr-1`}></i>
                           {selectedBooking.status}
                         </span>
                       </div>
@@ -681,10 +957,6 @@ const BookingsPage: React.FC = () => {
                         <span className="font-medium text-gray-900 truncate">{selectedBooking.guestEmail}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Phone</span>
-                        <span className="font-medium text-gray-900">{selectedBooking.guestPhone}</span>
-                      </div>
-                      <div className="flex justify-between">
                         <span className="text-gray-600">Number of Guests</span>
                         <span className="font-medium text-gray-900">{selectedBooking.guests}</span>
                       </div>
@@ -698,10 +970,6 @@ const BookingsPage: React.FC = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Property Name</span>
                         <span className="font-medium text-gray-900">{selectedBooking.propertyName}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Address</span>
-                        <span className="font-medium text-gray-900 text-right">{selectedBooking.propertyAddress}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Check-in</span>
@@ -724,23 +992,17 @@ const BookingsPage: React.FC = () => {
                     <div className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Total Amount</span>
-                        <span className="text-lg font-bold text-gray-900">${selectedBooking.amount}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Payment Status</span>
-                        <span className={`font-medium ${getPaymentStatusColor(selectedBooking.paymentStatus)}`}>
-                          {selectedBooking.paymentStatus.charAt(0).toUpperCase() + selectedBooking.paymentStatus.slice(1)}
-                        </span>
+                        <span className="text-lg font-bold text-gray-900">${selectedBooking.totalPrice.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Special Requests */}
-                  {selectedBooking.specialRequests && (
+                  {selectedBooking.message && (
                     <div>
-                      <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Special Requests</h3>
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <p className="text-gray-700">{selectedBooking.specialRequests}</p>
+                      <h3 className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider mb-3">Guest Message</h3>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-gray-700">{selectedBooking.message}</p>
                       </div>
                     </div>
                   )}
@@ -757,20 +1019,127 @@ const BookingsPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => {
-                    handleDelete(selectedBooking.id);
                     setShowModal(false);
+                    handleEditBooking(selectedBooking);
+                  }}
+                  className="px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
+                  style={{ backgroundColor: '#083A85' }}
+                >
+                  <i className="bi bi-pencil sm:mr-2"></i><span className="hidden sm:inline">Edit</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteBooking(selectedBooking.id);
                   }}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                 >
                   <i className="bi bi-trash sm:mr-2"></i><span className="hidden sm:inline">Delete</span>
                 </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  style={{ backgroundColor: '#083A85' }}
-                >
-                  Close
-                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && selectedBooking && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-md">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900">Edit Booking</h3>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                  >
+                    <i className="bi bi-x-lg text-xl"></i>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      <strong>Guest:</strong> {selectedBooking.guestName}<br/>
+                      <strong>Property:</strong> {selectedBooking.propertyName}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                    <textarea
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      placeholder="Internal notes about this booking..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Check-in Instructions</label>
+                    <textarea
+                      value={editCheckInInstructions}
+                      onChange={(e) => setEditCheckInInstructions(e.target.value)}
+                      placeholder="Instructions for guest check-in..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Check-out Instructions</label>
+                    <textarea
+                      value={editCheckOutInstructions}
+                      onChange={(e) => setEditCheckOutInstructions(e.target.value)}
+                      placeholder="Instructions for guest check-out..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer disabled:opacity-50"
+                    style={{ backgroundColor: '#083A85' }}
+                  >
+                    {loading ? (
+                      <>
+                        <i className="bi bi-arrow-clockwise animate-spin mr-2"></i>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-check-lg mr-2"></i>
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           </div>
