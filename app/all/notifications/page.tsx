@@ -413,7 +413,7 @@ function NotificationsContent() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Notifications</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Notifications</h1>
               <p className="text-gray-600 mt-2">Stay updated with your latest alerts and messages</p>
             </div>
             <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 sm:gap-4">

@@ -240,7 +240,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/guest/tour' },
             { label: 'Payments', icon: 'bi-credit-card', path: '/all/guest/payments' },
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/guest/wishlist' },
-            { label: 'Settings', icon: 'bi-gear', path: '/all/guest/settings' }
+            { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
         
         host: [
@@ -256,7 +256,11 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         agent: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent' },
             { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
+
+            { label: 'Properties', icon: 'bi-building', path: '/all/agent/property' },
+
             { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
+
             { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
@@ -268,7 +272,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/tourguide/schedule' },
             { label: 'Guests', icon: 'bi-people', path: '/all/tourguide/guests' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/tourguide/earnings' },
-            { label: 'Reviews', icon: 'bi-star', path: '/all/tour-guide-reviews' },
+            { label: 'Reviews', icon: 'bi-star', path: '/all/tourguide/reviews' },
             { label: 'Messages', icon: 'bi-envelope', path: '/all/messages' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ]

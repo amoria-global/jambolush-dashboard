@@ -37,8 +37,6 @@ interface Booking {
 }
 
 type ViewMode = 'calendar' | 'list';
-type SortField = 'date' | 'tourTitle' | 'status' | 'guests';
-type SortOrder = 'asc' | 'desc';
 
 const TourGuideSchedulePage: React.FC = () => {
   // Date formatting helpers
@@ -66,6 +64,10 @@ const TourGuideSchedulePage: React.FC = () => {
     }
   };
 
+const formatCurrency = (amount: number): string => {
+    return amount.toLocaleString('en-US');
+  };
+
   // States
   const [schedules, setSchedules] = useState<TourSchedule[]>([]);
   const [filteredSchedules, setFilteredSchedules] = useState<TourSchedule[]>([]);
@@ -84,10 +86,6 @@ const TourGuideSchedulePage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tourTypeFilter, setTourTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  
-  // Sort states
-  const [sortField, setSortField] = useState<SortField>('date');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   // Mock data generation
   useEffect(() => {
@@ -154,7 +152,7 @@ const TourGuideSchedulePage: React.FC = () => {
         }
       }
       
-      return schedules;
+      return schedules.sort((a, b) => a.date.getTime() - b.date.getTime());
     };
 
     const generateBookings = (guestCount: number): Booking[] => {
@@ -209,7 +207,7 @@ const TourGuideSchedulePage: React.FC = () => {
     };
   }, [schedules]);
 
-  // Filter and sort logic
+  // Filter logic (simplified - no sorting toggles)
   useEffect(() => {
     let filtered = [...schedules];
 
@@ -240,29 +238,9 @@ const TourGuideSchedulePage: React.FC = () => {
       );
     }
 
-    // Sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'date':
-          comparison = a.date.getTime() - b.date.getTime();
-          break;
-        case 'tourTitle':
-          comparison = a.tourTitle.localeCompare(b.tourTitle);
-          break;
-        case 'status':
-          comparison = a.status.localeCompare(b.status);
-          break;
-        case 'guests':
-          comparison = a.currentGuests - b.currentGuests;
-          break;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
     setFilteredSchedules(filtered);
     setCurrentPage(1);
-  }, [schedules, searchTerm, statusFilter, tourTypeFilter, dateRange, sortField, sortOrder]);
+  }, [schedules, searchTerm, statusFilter, tourTypeFilter, dateRange]);
 
   // Pagination for list view
   const paginatedSchedules = useMemo(() => {
@@ -310,15 +288,6 @@ const TourGuideSchedulePage: React.FC = () => {
   }, [currentMonth, filteredSchedules]);
 
   // Handlers
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
-
   const handleViewDetails = (schedule: TourSchedule) => {
     setSelectedSchedule(schedule);
     setShowDetailModal(true);
@@ -432,7 +401,7 @@ const TourGuideSchedulePage: React.FC = () => {
       <div className="mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tour Guide Schedule</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Tour Guide Schedule</h1>
           <p className="text-gray-600 mt-2 text-sm sm:text-base">Manage your availability and scheduled tours</p>
         </div>
 
@@ -509,14 +478,14 @@ const TourGuideSchedulePage: React.FC = () => {
           </div>
           
           <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Revenue</p>
-                <p className="text-lg sm:text-xl font-bold text-green-600">${summaryStats.revenue}</p>
-              </div>
-              <i className="bi bi-cash-stack text-lg sm:text-2xl text-green-500"></i>
-            </div>
-          </div>
+         <div className="flex items-center justify-between">
+         <div>
+        <p className="text-xs sm:text-sm text-gray-600">Revenue</p>
+      <p className="text-lg sm:text-xl font-bold text-green-600">${formatCurrency(summaryStats.revenue)}</p>
+        </div>
+      <i className="bi bi-cash-stack text-lg sm:text-2xl text-green-500"></i>
+       </div>
+        </div>
         </div>
 
         {/* Filters Section */}
@@ -592,21 +561,12 @@ const TourGuideSchedulePage: React.FC = () => {
             </div>
           </div>
 
-          {/* View Mode Toggle & Add New Button */}
+          {/* View Mode Toggle */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 gap-4">
             <p className="text-sm sm:text-base text-gray-600">
               Showing {viewMode === 'list' ? paginatedSchedules.length : filteredSchedules.length} of {filteredSchedules.length} tours
             </p>
             <div className="flex gap-2 w-full sm:w-auto">
-              <button
-                onClick={handleAddNew}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                style={{ backgroundColor: '#083A85' }}
-              >
-                <i className="bi bi-plus-circle mr-1 sm:mr-2"></i>
-                <span className="hidden xs:inline">Add New Tour</span>
-                <span className="xs:hidden">Add Tour</span>
-              </button>
               <button
                 onClick={() => setViewMode('calendar')}
                 className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
@@ -772,7 +732,7 @@ const TourGuideSchedulePage: React.FC = () => {
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
                           <h3 className="font-medium text-gray-900 text-sm">{schedule.tourTitle}</h3>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-800 mt-1">
                             <i className={`bi ${getTourTypeIcon(schedule.tourType)} mr-1`}></i>
                             {schedule.tourType} • {schedule.duration}h
                           </p>
@@ -782,7 +742,7 @@ const TourGuideSchedulePage: React.FC = () => {
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-800 mb-3">
                         <div>
                           <i className="bi bi-calendar mr-1"></i>
                           {format(schedule.date, 'MMM dd')}
@@ -803,7 +763,7 @@ const TourGuideSchedulePage: React.FC = () => {
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-900">
-                          ${schedule.price * schedule.currentGuests}
+                          ${formatCurrency(schedule.price * schedule.currentGuests)}
                         </span>
                         <div className="flex gap-2">
                           <button
@@ -842,49 +802,25 @@ const TourGuideSchedulePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Desktop Table View */}
+            {/* Desktop Table View - Simplified without sortable headers */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 lg:px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('date')}
-                        className="text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Date & Time
-                        <i className={`bi bi-chevron-${sortField === 'date' && sortOrder === 'asc' ? 'up' : 'down'} text-sm`}></i>
-                      </button>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
+                      Date & Time
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('tourTitle')}
-                        className="text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Tour
-                        <i className={`bi bi-chevron-${sortField === 'tourTitle' && sortOrder === 'asc' ? 'up' : 'down'} text-sm`}></i>
-                      </button>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
+                      Tour
                     </th>
                     <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
                       Location
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('guests')}
-                        className="text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Guests
-                        <i className={`bi bi-chevron-${sortField === 'guests' && sortOrder === 'asc' ? 'up' : 'down'} text-sm`}></i>
-                      </button>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
+                      Guests
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-left">
-                      <button
-                        onClick={() => handleSort('status')}
-                        className="text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                      >
-                        Status
-                        <i className={`bi bi-chevron-${sortField === 'status' && sortOrder === 'asc' ? 'up' : 'down'} text-sm`}></i>
-                      </button>
+                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
+                      Status
                     </th>
                     <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
                       Revenue
@@ -897,12 +833,9 @@ const TourGuideSchedulePage: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedSchedules.map((schedule) => {
                     const isUpcoming = schedule.date >= new Date() && schedule.status !== 'completed';
-                    const isPast = schedule.date < new Date() || schedule.status === 'completed';
                     
                     return (
-                      <tr key={schedule.id} className={`hover:bg-gray-50 transition-colors ${
-                        isPast ? 'opacity-60' : ''
-                      }`}>
+                      <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm lg:text-base font-medium text-gray-900">
@@ -956,12 +889,12 @@ const TourGuideSchedulePage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm lg:text-base font-medium text-gray-900">
-                            ${schedule.price * schedule.currentGuests}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ${schedule.price}/person
-                          </div>
+                        <div className="text-sm lg:text-base font-medium text-gray-900">
+                        ${formatCurrency(schedule.price * schedule.currentGuests)}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                        ${formatCurrency(schedule.price)}/person
+                        </div>
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm lg:text-base font-medium">
                           <button
@@ -1104,7 +1037,7 @@ const TourGuideSchedulePage: React.FC = () => {
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-cash-stack text-gray-600 text-lg sm:text-xl mb-1"></i>
                     <p className="text-sm sm:text-base text-gray-600">Revenue</p>
-                    <p className="font-semibold text-sm sm:text-base">${selectedSchedule.price * selectedSchedule.currentGuests}</p>
+                    <p className="font-semibold text-sm sm:text-base">${formatCurrency(selectedSchedule.price * selectedSchedule.currentGuests)}</p>
                   </div>
                 </div>
 
@@ -1236,242 +1169,7 @@ const TourGuideSchedulePage: React.FC = () => {
           </div>
         )}
 
-        {/* Add/Edit Modal */}
-        {showAddEditModal && editingSchedule && (
-          <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-white rounded-lg w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4 sm:mb-6">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {editingSchedule.id ? 'Edit Tour Schedule' : 'Add New Tour Schedule'}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowAddEditModal(false);
-                      setEditingSchedule(null);
-                    }}
-                    className="text-gray-400 hover:text-red-600 cursor-pointer"
-                  >
-                    <i className="bi bi-x-lg text-xl sm:text-2xl"></i>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Tour Title */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Tour Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={editingSchedule.tourTitle || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, tourTitle: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Downtown Walking Tour"
-                    />
-                  </div>
-
-                  {/* Tour Type */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Tour Type *
-                    </label>
-                    <select
-                      value={editingSchedule.tourType || 'city'}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, tourType: e.target.value as TourSchedule['tourType'] }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="city">City Tour</option>
-                      <option value="nature">Nature</option>
-                      <option value="cultural">Cultural</option>
-                      <option value="adventure">Adventure</option>
-                      <option value="food">Food & Culinary</option>
-                      <option value="historical">Historical</option>
-                    </select>
-                  </div>
-
-                  {/* Date */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Date *
-                    </label>
-                    <input
-                      type="date"
-                      value={editingSchedule.date ? new Date(editingSchedule.date).toISOString().split('T')[0] : ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, date: new Date(e.target.value) }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Start Time */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Start Time *
-                    </label>
-                    <input
-                      type="time"
-                      value={editingSchedule.startTime || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, startTime: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* End Time */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      End Time *
-                    </label>
-                    <input
-                      type="time"
-                      value={editingSchedule.endTime || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, endTime: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Max Guests */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Maximum Guests *
-                    </label>
-                    <input
-                      type="number"
-                      value={editingSchedule.maxGuests || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, maxGuests: parseInt(e.target.value) }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="1"
-                      max="50"
-                    />
-                  </div>
-
-                  {/* Price */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Price per Person ($) *
-                    </label>
-                    <input
-                      type="number"
-                      value={editingSchedule.price || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Status *
-                    </label>
-                    <select
-                      value={editingSchedule.status || 'available'}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, status: e.target.value as TourSchedule['status'] }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                    >
-                      <option value="available">Available</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="pending">Pending</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
-
-                  {/* Location */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Location *
-                    </label>
-                    <input
-                      type="text"
-                      value={editingSchedule.location || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, location: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Downtown District"
-                    />
-                  </div>
-
-                  {/* Meeting Point */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Meeting Point *
-                    </label>
-                    <input
-                      type="text"
-                      value={editingSchedule.meetingPoint || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, meetingPoint: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Main entrance, near the information desk"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Tour Description
-                    </label>
-                    <textarea
-                      value={editingSchedule.description || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={3}
-                      placeholder="Describe the tour experience..."
-                    />
-                  </div>
-
-                  {/* Special Instructions */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Special Instructions for Guests
-                    </label>
-                    <textarea
-                      value={editingSchedule.specialInstructions || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, specialInstructions: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={2}
-                      placeholder="e.g., Please wear comfortable walking shoes..."
-                    />
-                  </div>
-
-                  {/* Guest Notes */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                      Internal Notes
-                    </label>
-                    <textarea
-                      value={editingSchedule.guestNotes || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, guestNotes: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={2}
-                      placeholder="Private notes about this tour or guests..."
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <button
-                    onClick={handleSaveSchedule}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                    style={{ backgroundColor: '#083A85' }}
-                  >
-                    <i className="bi bi-check-lg mr-2"></i>
-                    {editingSchedule.id ? 'Update Tour' : 'Create Tour'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddEditModal(false);
-                      setEditingSchedule(null);
-                    }}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+       </div>
     </div>
   );
 };

@@ -258,7 +258,7 @@ const AgentClientsPage: React.FC = () => {
   const ClientCard: React.FC<{ client: Client }> = ({ client }) => (
     <div className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 h-20">
-        <span className={`absolute top-3 left-3 px-3 py-1 text-base font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
+        <span className={`absolute top-3 left-3 px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
           {client.status}
         </span>
         <div className={`absolute -bottom-6 left-4 w-12 h-12 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow-lg`}>
@@ -307,7 +307,7 @@ const AgentClientsPage: React.FC = () => {
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Client Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Management</h1>
           <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
         </div>
 
@@ -441,7 +441,7 @@ const AgentClientsPage: React.FC = () => {
                             <div className="text-base text-gray-500">{client.email}</div>
                           </div>
                         </div>
-                        <span className={`inline-flex px-2 py-1 text-base font-medium rounded-full ${getStatusColor(client.status)}`}>
+                        <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${getStatusColor(client.status)}`}>
                           {client.status}
                         </span>
                       </div>
@@ -569,7 +569,7 @@ const AgentClientsPage: React.FC = () => {
                           <div className="text-base text-green-600 font-semibold">${client.amountPerClient}/client</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-base font-medium rounded-full ${getStatusColor(client.status)}`}>
+                          <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${getStatusColor(client.status)}`}>
                             {client.status}
                           </span>
                         </td>

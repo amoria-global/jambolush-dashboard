@@ -288,7 +288,7 @@ const WishlistPage: React.FC = () => {
       <div className="mx-auto py-8">
         {/* Header */}
         <div className="mb-8 text-center sm:text-left">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">My Wishlist</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#083A85]">My Wishlist</h1>
           <p className="text-gray-600 mt-2 text-base sm:text-lg">Track and manage your favorite properties</p>
         </div>
 
@@ -792,7 +792,7 @@ const WishlistPage: React.FC = () => {
 
         {/* Detail Modal */}
         {showModal && selectedItem && (
-          <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 backdrop-blur-xs bg-black/20 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg w-full max-w-md sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="relative">
                 <img 
