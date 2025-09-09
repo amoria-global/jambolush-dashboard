@@ -70,16 +70,10 @@ const BookingsPage: React.FC = () => {
   };
 
   // States
-
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
   const [bookings, setBookings] = useState<BookingInfo[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<BookingInfo[]>([]);
   const [properties, setProperties] = useState<Array<{id: number; name: string}>>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
@@ -393,7 +387,7 @@ const fetchBookings = async () => {
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">My Bookings</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Bookings</h1>
           <p className="text-gray-600 mt-2">Manage and track all your property bookings</p>
         </div>
 
@@ -524,30 +518,30 @@ const fetchBookings = async () => {
             <p className="text-sm sm:text-base text-gray-600 order-2 sm:order-1">
               Showing {bookings.length} of {total} bookings
             </p>
-       <div className="flex gap-2 order-1 sm:order-2">
-  <button
-    onClick={() => setViewMode('grid')}
-    className={`px-3 py-2 sm:px-4 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
-      viewMode === 'grid' 
-        ? 'bg-blue-900 text-white' 
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-    style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
-  >
-    <i className="bi bi-grid-3x3-gap sm:mr-2"></i><span className="hidden sm:inline">Grid View</span>
-  </button>
-  <button
-    onClick={() => setViewMode('list')}
-    className={`px-3 py-2 sm:px-4 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
-      viewMode === 'list' 
-        ? 'bg-blue-900 text-white' 
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-    style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
-  >
-    <i className="bi bi-list-ul sm:mr-2"></i><span className="hidden sm:inline">List View</span>
-  </button>
-</div>
+            <div className="flex gap-2 order-1 sm:order-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-2 sm:px-4 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
+                  viewMode === 'list' 
+                    ? 'bg-blue-900 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
+              >
+                <i className="bi bi-list-ul sm:mr-2"></i><span className="hidden sm:inline">List View</span>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-2 sm:px-4 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
+                  viewMode === 'grid' 
+                    ? 'bg-blue-900 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
+              >
+                <i className="bi bi-grid-3x3-gap sm:mr-2"></i><span className="hidden sm:inline">Grid View</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -572,67 +566,7 @@ const fetchBookings = async () => {
           </div>
         )}
 
-        {/* Grid View */}
-        {!loading && filteredBookings.length > 0 && viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedBookings.map((booking) => (
-              <div key={booking.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
-                <div className="relative">
-                  <img src={booking.propertyImage} alt={booking.propertyName} className="w-full h-56 object-cover" />
-                  <span className={`absolute top-3 left-3 px-3 py-1 text-sm sm:text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(booking.status)}`}>{booking.status}</span>
-                </div>
-                <div className="p-4 flex flex-col flex-grow">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">{booking.propertyName}</h3>
-                  <p className="text-sm sm:text-base text-gray-500 mb-3 truncate">Guest: {booking.guestName}</p>
-
-                  <div className="text-sm sm:text-base text-gray-600 border-t border-b py-3 my-3">
-                    <div className="flex items-center gap-2">
-                      <i className="bi bi-calendar-check text-gray-400"></i>
-                      <span>{format(booking.checkIn, 'MMM dd')} - {format(booking.checkOut, 'MMM dd, yyyy')}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <i className="bi bi-people text-gray-400"></i>
-                      <span>{booking.guests} guests</span>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-auto">
-                    <div className="flex justify-between items-center mb-3">
-                      <div>
-                        <p className="text-xl font-bold text-gray-900">${booking.amount}</p>
-                        <p className={`text-sm sm:text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
-                          {booking.paymentStatus}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleViewDetails(booking)}
-                        className="flex-1 text-center px-3 py-2.5 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85] transition-colors text-sm sm:text-base font-medium cursor-pointer"
-                      >
-                        <i className="bi bi-eye mr-1"></i>View
-                      </button>
-                      <button
-                        onClick={() => handlePrint(booking)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <i className="bi bi-printer text-lg"></i>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(booking.id)}
-                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <i className="bi bi-trash text-lg"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-          {/* List View */}
+        {/* List View */}
         {!loading && filteredBookings.length > 0 && viewMode === 'list' && (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -694,9 +628,7 @@ const fetchBookings = async () => {
                       </td>
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(booking.status)}`}>
-
                           <i className={`bi ${getStatusIcon(booking.status)} mr-1`}></i>
-
                           {booking.status}
                         </span>
                       </td>
@@ -824,7 +756,6 @@ const fetchBookings = async () => {
           </div>
         )}
 
-
         {/* Pagination */}
         {!loading && totalPages > 1 && (
           <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -905,7 +836,7 @@ const fetchBookings = async () => {
       {/* Detail Modal */}
       {showModal && selectedBooking && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/10 backdrop-blur-xs transition-opacity" />
+          <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
           <div className="flex items-center justify-center min-h-screen p-4">
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between z-10">

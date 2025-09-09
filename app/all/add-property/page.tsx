@@ -753,7 +753,7 @@ const AddPropertyPage: React.FC = () => {
           setIsModalOpen(false);
           resetForm();
           // Redirect to properties page
-          window.location.href = '/host/properties';
+          window.location.href = '/agent/properties';
         }, 2000);
       } else {
         // Handle different types of server errors
@@ -944,7 +944,7 @@ const AddPropertyPage: React.FC = () => {
                       <p className="text-xs sm:text-sm text-green-600 mt-1">✓ Existing Host Account</p>
                     )}
                   </div>
-                 <button onClick={() => {setIsModalOpen(false); router.push("/all/host/properties")}} className="cursor-pointer">
+                 <button onClick={() => {setIsModalOpen(false); router.push("/all/agent/properties")}} className="cursor-pointer">
                    <div className="w-8 h-8 sm:w-10 sm:h-10 p-2 sm:p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors flex items-center justify-center">
                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

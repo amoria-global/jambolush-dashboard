@@ -98,11 +98,6 @@ const GuestsListingPage: React.FC = () => {
   };
 
   // States
-
-  const [guests, setGuests] = useState<Guest[]>([]);
-  const [filteredGuests, setFilteredGuests] = useState<Guest[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
   const [guests, setGuests] = useState<GuestWithBookings[]>([]);
   const [filteredGuests, setFilteredGuests] = useState<GuestWithBookings[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');

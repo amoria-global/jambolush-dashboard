@@ -56,7 +56,7 @@ type ViewMode = 'grid' | 'table';
 type SortField = 'name' | 'price' | 'createdAt' | 'area';
 type SortOrder = 'asc' | 'desc';
 
-const HostPropertiesPage: React.FC = () => {
+const PropertiesPage: React.FC = () => {
     // Date formatting helper
     const format = (date: Date | string, formatStr: string) => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -93,6 +93,7 @@ const HostPropertiesPage: React.FC = () => {
     const [unavailableDate, setUnavailableDate] = useState('');
     const [goToPageInput, setGoToPageInput] = useState('');
     const [error, setError] = useState<string>('');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -105,19 +106,57 @@ const HostPropertiesPage: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
     const router = useRouter();
-    
-    // Fixed data mapping in the useEffect where you fetch dashboard data
 
+    // Authentication check and token setup
+    useEffect(() => {
+        const initializeAuth = () => {
+            try {
+                // Try to get token from localStorage, sessionStorage, or cookies
+                const token = localStorage.getItem('accessToken') || 
+                            sessionStorage.getItem('accessToken') || 
+                            getCookieValue('accessToken');
+                
+                if (token) {
+                    api.setAuth(token);
+                    setIsAuthenticated(true);
+                } else {
+                    setError('Please log in to view your properties.');
+                    setLoading(false);
+                    // Optionally redirect to login
+                    // router.push('/login');
+                }
+            } catch (error) {
+                console.error('Auth initialization error:', error);
+                setError('Authentication error. Please log in again.');
+                setLoading(false);
+            }
+        };
+
+        initializeAuth();
+    }, [router]);
+
+    // Helper function to get cookie value
+    const getCookieValue = (name: string): string | null => {
+        if (typeof document === 'undefined') return null;
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+        return null;
+    };
+
+    // Data fetching with proper authentication
     useEffect(() => {
         const fetchData = async () => {
+            if (!isAuthenticated) return;
+
             try {
                 setLoading(true);
                 setError('');
 
                 // Fetch dashboard stats and properties
                 const [dashboardResponse, propertiesResponse] = await Promise.all([
-                    api.get('/properties/host/dashboard'),
-                    api.get('/properties/host/my-properties')
+                    api.get('/properties/agent/dashboard'),
+                    api.get('/properties/agent/properties')
                 ]);
                 
                 console.log('Dashboard Response:', dashboardResponse);
@@ -179,14 +218,26 @@ const HostPropertiesPage: React.FC = () => {
                 }
             } catch (error: any) {
                 console.error('Error fetching properties:', error);
-                setError(error.data.message || 'Failed to load properties. Please try again.');
+                
+                // Handle specific authentication errors
+                if (error.status === 401) {
+                    setError('Your session has expired. Please log in again.');
+                    setIsAuthenticated(false);
+                    // Clear stored tokens
+                    localStorage.removeItem('accessToken');
+                    sessionStorage.removeItem('accessToken');
+                    // Optionally redirect to login
+                    // router.push('/login');
+                } else {
+                    setError(error.data?.message || error.message || 'Failed to load properties. Please try again.');
+                }
             } finally {
                 setLoading(false);
             }
         };
 
         fetchData();
-    }, []);
+    }, [isAuthenticated, router]);
 
     // Alternative stats calculation if you want more accurate numbers
     // You could also calculate stats from the properties array directly:
@@ -287,7 +338,7 @@ const HostPropertiesPage: React.FC = () => {
         setShowEditModal(false);
         setEditingProperty(null);
         setUnavailableDate('');
-        router.push('/all/host/properties')
+        router.push('/all/agent/properties')
     };
 
     const handleSaveEdit = async () => {
@@ -407,6 +458,33 @@ const HostPropertiesPage: React.FC = () => {
         );
     };
 
+    // Show login prompt if not authenticated
+    if (!isAuthenticated && !loading) {
+        return (
+            <div className="pt-14 font-sans">
+                <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
+                    <div className="bg-white rounded-lg shadow-lg p-8 sm:p-12 text-center">
+                        <i className="bi bi-shield-lock text-4xl sm:text-6xl text-gray-300"></i>
+                        <h3 className="text-lg sm:text-xl font-medium text-gray-800 mt-4">
+                            Authentication Required
+                        </h3>
+                        <p className="text-sm sm:text-base text-gray-500 mt-2">
+                            Please log in to view your properties.
+                        </p>
+                        <div className="mt-6">
+                            <Link 
+                                href="/login" 
+                                className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                            >
+                                Go to Login
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
     <>
         <head>
@@ -438,11 +516,22 @@ const HostPropertiesPage: React.FC = () => {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-red-800">{error}</p>
+                                {error.includes('session has expired') && (
+                                    <div className="mt-2">
+                                        <Link 
+                                            href="/login" 
+                                            className="text-sm text-red-600 underline hover:text-red-800"
+                                        >
+                                            Go to Login
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 )}
 
+                {/* Rest of your existing JSX remains the same... */}
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
@@ -772,4 +861,4 @@ const HostPropertiesPage: React.FC = () => {
     );
 };
 
-export default HostPropertiesPage;
+export default PropertiesPage;

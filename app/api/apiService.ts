@@ -1,4 +1,4 @@
-// apiService.ts - Complete Frontend API service for JamboLush
+// apiService.ts - Enhanced Frontend API service with automatic token refresh
 
 export interface APIConfig {
   method?: string;
@@ -6,6 +6,7 @@ export interface APIConfig {
   body?: any;
   params?: Record<string, any>;
   timeout?: number;
+  skipTokenRefresh?: boolean; // Flag to prevent infinite refresh loops
 }
 
 export interface APIResponse<T = any> {
@@ -23,7 +24,21 @@ export interface BackendResponse<T = any> {
   errors?: string[];
 }
 
-// Property interfaces
+// Token refresh response
+interface TokenRefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn?: number;
+}
+
+// Auth tokens interface
+interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt?: number;
+}
+
+// Property interfaces (keeping existing interfaces...)
 export interface Property {
   id: number;
   name: string;
@@ -214,18 +229,206 @@ class FrontendAPIService {
   private defaultHeaders: Record<string, string> = {
     'Accept': 'application/json'
   };
+  
+  // Token refresh state
+  private refreshPromise: Promise<AuthTokens> | null = null;
+  private isRefreshing = false;
+  
+  // Event callbacks
+  private onTokenRefresh?: (tokens: AuthTokens) => void;
+  private onAuthError?: () => void;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'http://localhost:5000/api';
+    this.baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'https://backend.jambolush.com/api';
   }
 
-  setAuth(token: string): void {
-    this.defaultHeaders['Authorization'] = `Bearer ${token}`;
+  // ============ TOKEN MANAGEMENT ============
+
+  /**
+   * Set authentication tokens and callbacks
+   */
+  setAuth(accessToken: string, refreshToken?: string): void {
+    this.defaultHeaders['Authorization'] = `Bearer ${accessToken}`;
+    
+    if (refreshToken) {
+      this.storeTokens({
+        accessToken,
+        refreshToken,
+        expiresAt: this.calculateTokenExpiry(accessToken)
+      });
+    }
   }
 
+  /**
+   * Clear authentication
+   */
   clearAuth(): void {
     delete this.defaultHeaders['Authorization'];
+    this.clearStoredTokens();
+    this.refreshPromise = null;
+    this.isRefreshing = false;
   }
+
+  /**
+   * Set event callbacks for token refresh and auth errors
+   */
+  setAuthCallbacks(
+    onTokenRefresh?: (tokens: AuthTokens) => void,
+    onAuthError?: () => void
+  ): void {
+    this.onTokenRefresh = onTokenRefresh;
+    this.onAuthError = onAuthError;
+  }
+
+  /**
+   * Get stored tokens from localStorage
+   */
+  private getStoredTokens(): AuthTokens | null {
+    try {
+      const stored = localStorage.getItem('jambolush_auth_tokens');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Store tokens in localStorage
+   */
+  private storeTokens(tokens: AuthTokens): void {
+    try {
+      localStorage.setItem('jambolush_auth_tokens', JSON.stringify(tokens));
+    } catch (error) {
+      console.error('Failed to store tokens:', error);
+    }
+  }
+
+  /**
+   * Clear stored tokens
+   */
+  private clearStoredTokens(): void {
+    try {
+      localStorage.removeItem('jambolush_auth_tokens');
+      localStorage.removeItem('authToken'); // Legacy token storage
+    } catch (error) {
+      console.error('Failed to clear tokens:', error);
+    }
+  }
+
+  /**
+   * Calculate token expiry time from JWT
+   */
+  private calculateTokenExpiry(token: string): number {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp ? payload.exp * 1000 : Date.now() + (3600 * 1000); // Default 1 hour
+    } catch {
+      return Date.now() + (3600 * 1000); // Default 1 hour
+    }
+  }
+
+  /**
+   * Check if token is expired or will expire soon (within 5 minutes)
+   */
+  private isTokenExpired(expiresAt?: number): boolean {
+    if (!expiresAt) return false;
+    const fiveMinutesFromNow = Date.now() + (5 * 60 * 1000);
+    return expiresAt <= fiveMinutesFromNow;
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  private async refreshAccessToken(): Promise<AuthTokens> {
+    // Prevent multiple concurrent refresh attempts
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    const storedTokens = this.getStoredTokens();
+    if (!storedTokens?.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    this.isRefreshing = true;
+    
+    this.refreshPromise = (async () => {
+      try {
+        console.log('Refreshing access token...');
+        
+        const response = await this.request<BackendResponse<TokenRefreshResponse>>(
+          '/auth/refresh-token', 
+          {
+            method: 'POST',
+            body: { refreshToken: storedTokens.refreshToken },
+            skipTokenRefresh: true // Prevent infinite loop
+          }
+        );
+
+        if (!response.data.success || !response.data.data) {
+          throw new Error('Invalid refresh response');
+        }
+
+        const { accessToken, refreshToken, expiresIn } = response.data.data;
+        
+        const newTokens: AuthTokens = {
+          accessToken,
+          refreshToken: refreshToken || storedTokens.refreshToken,
+          expiresAt: expiresIn ? 
+            Date.now() + (expiresIn * 1000) : 
+            this.calculateTokenExpiry(accessToken)
+        };
+
+        // Update authorization header
+        this.defaultHeaders['Authorization'] = `Bearer ${accessToken}`;
+        
+        // Store new tokens
+        this.storeTokens(newTokens);
+        
+        // Notify callback
+        if (this.onTokenRefresh) {
+          this.onTokenRefresh(newTokens);
+        }
+
+        console.log('Token refreshed successfully');
+        return newTokens;
+        
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+        
+        // Clear auth and notify error callback
+        this.clearAuth();
+        if (this.onAuthError) {
+          this.onAuthError();
+        }
+        
+        throw error;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
+  /**
+   * Ensure valid access token before making requests
+   */
+  private async ensureValidToken(): Promise<void> {
+    const tokens = this.getStoredTokens();
+    
+    if (!tokens) {
+      return; // No tokens, continue without auth
+    }
+
+    // Check if token needs refresh
+    if (this.isTokenExpired(tokens.expiresAt)) {
+      await this.refreshAccessToken();
+    }
+  }
+
+  // ============ HTTP REQUEST METHODS ============
 
   setHeaders(headers: Record<string, string>): void {
     Object.assign(this.defaultHeaders, headers);
@@ -302,7 +505,12 @@ class FrontendAPIService {
   }
 
   async request<T = any>(endpoint: string, config: APIConfig = {}): Promise<APIResponse<T>> {
-    const { method = 'GET', headers = {}, body, params, timeout = 30000 } = config;
+    const { method = 'GET', headers = {}, body, params, timeout = 50000, skipTokenRefresh = false } = config;
+    
+    // Ensure valid token before request (unless skipping refresh)
+    if (!skipTokenRefresh && !endpoint.includes('/auth/')) {
+      await this.ensureValidToken();
+    }
     
     const url = this.buildURL(endpoint, params);
     const mergedHeaders = { ...this.defaultHeaders, ...headers };
@@ -344,6 +552,34 @@ class FrontendAPIService {
           data = JSON.parse(text);
         } catch {
           data = text as T;
+        }
+      }
+
+      // Handle 401 Unauthorized - attempt token refresh
+      if (response.status === 401 && !skipTokenRefresh && !endpoint.includes('/auth/')) {
+        console.log('Received 401, attempting token refresh...');
+        
+        try {
+          await this.refreshAccessToken();
+          
+          // Retry the original request with new token
+          return this.request<T>(endpoint, { ...config, skipTokenRefresh: true });
+          
+        } catch (refreshError) {
+          console.error('Token refresh failed, clearing auth:', refreshError);
+          
+          // Clear auth and throw original error
+          this.clearAuth();
+          if (this.onAuthError) {
+            this.onAuthError();
+          }
+          
+          throw {
+            message: `HTTP ${response.status}: ${response.statusText}`,
+            status: response.status,
+            data,
+            response
+          };
         }
       }
 
@@ -400,7 +636,15 @@ class FrontendAPIService {
     lastName: string;
     phone?: string;
   }): Promise<APIResponse<BackendResponse<{ user: User; accessToken: string; refreshToken: string }>>> {
-    return this.post<BackendResponse<{ user: User; accessToken: string; refreshToken: string }>>('/auth/register', userData);
+    const response = await this.post<BackendResponse<{ user: User; accessToken: string; refreshToken: string }>>('/auth/register', userData);
+    
+    // Store tokens after successful registration
+    if (response.data.success && response.data.data) {
+      const { accessToken, refreshToken } = response.data.data;
+      this.setAuth(accessToken, refreshToken);
+    }
+    
+    return response;
   }
 
   /**
@@ -410,21 +654,35 @@ class FrontendAPIService {
     email: string;
     password: string;
   }): Promise<APIResponse<BackendResponse<{ user: User; accessToken: string; refreshToken: string }>>> {
-    return this.post<BackendResponse<{ user: User; accessToken: string; refreshToken: string }>>('/auth/login', credentials);
+    const response = await this.post<BackendResponse<{ user: User; accessToken: string; refreshToken: string }>>('/auth/login', credentials);
+    
+    // Store tokens after successful login
+    if (response.data.success && response.data.data) {
+      const { accessToken, refreshToken } = response.data.data;
+      this.setAuth(accessToken, refreshToken);
+    }
+    
+    return response;
   }
 
   /**
    * User logout
    */
   async logout(): Promise<APIResponse<BackendResponse<any>>> {
-    return this.post<BackendResponse<any>>('/auth/logout');
+    try {
+      const response = await this.post<BackendResponse<any>>('/auth/logout');
+      return response;
+    } finally {
+      // Always clear auth, even if logout API fails
+      this.clearAuth();
+    }
   }
 
   /**
-   * Refresh access token
+   * Refresh access token (public method)
    */
   async refreshToken(refreshToken: string): Promise<APIResponse<BackendResponse<{ accessToken: string; refreshToken: string }>>> {
-    return this.post<BackendResponse<{ accessToken: string; refreshToken: string }>>('/auth/refresh', { refreshToken });
+    return this.post<BackendResponse<{ accessToken: string; refreshToken: string }>>('/auth/refresh-token', { refreshToken });
   }
 
   /**
@@ -528,8 +786,6 @@ class FrontendAPIService {
     return this.get<BackendResponse<any[]>>(`/bookings/property/${propertyId}`);
   }
 
-
-  
   // ============ PROPERTY API METHODS ============
 
   /**
@@ -635,149 +891,145 @@ class FrontendAPIService {
     return this.delete<BackendResponse<any>>(`/properties/${propertyId}`);
   }
 
-// Updated Review-related methods for apiService.ts
-// Add these methods to your existing FrontendAPIService class
+  // ============ REVIEW API METHODS ============
 
-// ============ REVIEW API METHODS ============
-
-/**
- * Create a new review for a property
- */
-async addPropertyReview(
-  propertyId: number,
-  reviewData: {
-    rating: number;
-    comment: string;
-    images?: string[];
+  /**
+   * Create a new review for a property
+   */
+  async addPropertyReview(
+    propertyId: number,
+    reviewData: {
+      rating: number;
+      comment: string;
+      images?: string[];
+    }
+  ): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>(
+      `/properties/${propertyId}/reviews`,
+      reviewData
+    );
   }
-): Promise<APIResponse<BackendResponse<any>>> {
-  return this.post<BackendResponse<any>>(
-    `/properties/${propertyId}/reviews`,
-    reviewData
-  );
-}
 
-/**
- * Get all reviews for a specific property (with pagination)
- */
-async getPropertyReviews(
-  propertyId: number,
-  page: number = 1,
-  limit: number = 10
-): Promise<
-  APIResponse<
-    BackendResponse<{
-      reviews: any[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    }>
-  >
-> {
-  return this.get<
-    BackendResponse<{
-      reviews: any[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    }>
-  >(`/properties/${propertyId}/reviews`, {
-    params: { page, limit },
-  });
-}
-
-/**
- * Get all reviews written by a specific user (with pagination)
- */
-async getUserReviews(
-  userId: number,
-  page: number = 1,
-  limit: number = 10
-): Promise<
-  APIResponse<
-    BackendResponse<{
-      reviews: any[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    }>
-  >
-> {
-  return this.get<
-    BackendResponse<{
-      reviews: any[];
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    }>
-  >(`/reviews/user/${userId}`, {
-    params: { page, limit },
-  });
-}
-
-/**
- * Update an existing review (owner only)
- */
-async updateReview(
-  reviewId: string,
-  updateData: {
-    rating?: number;
-    comment?: string;
-    images?: string[];
+  /**
+   * Get all reviews for a specific property (with pagination)
+   */
+  async getPropertyReviews(
+    propertyId: number,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<
+    APIResponse<
+      BackendResponse<{
+        reviews: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>
+    >
+  > {
+    return this.get<
+      BackendResponse<{
+        reviews: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>
+    >(`/properties/${propertyId}/reviews`, {
+      params: { page, limit },
+    });
   }
-): Promise<APIResponse<BackendResponse<any>>> {
-  return this.put<BackendResponse<any>>(`/reviews/${reviewId}`, updateData);
-}
 
-/**
- * Delete a review (owner only)
- */
-async deleteReview(
-  reviewId: string
-): Promise<APIResponse<BackendResponse<any>>> {
-  return this.delete<BackendResponse<any>>(`/reviews/${reviewId}`);
-}
+  /**
+   * Get all reviews written by a specific user (with pagination)
+   */
+  async getUserReviews(
+    userId: number,
+    page: number = 1,
+    limit: number = 10
+  ): Promise<
+    APIResponse<
+      BackendResponse<{
+        reviews: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>
+    >
+  > {
+    return this.get<
+      BackendResponse<{
+        reviews: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>
+    >(`/reviews/user/${userId}`, {
+      params: { page, limit },
+    });
+  }
 
-// ============ REVIEW HELPER METHODS ============
+  /**
+   * Update an existing review (owner only)
+   */
+  async updateReview(
+    reviewId: string,
+    updateData: {
+      rating?: number;
+      comment?: string;
+      images?: string[];
+    }
+  ): Promise<APIResponse<BackendResponse<any>>> {
+    return this.put<BackendResponse<any>>(`/reviews/${reviewId}`, updateData);
+  }
 
-/**
- * Check if user can review a property (has completed booking)
- */
-async canUserReviewProperty(
-  propertyId: number
-): Promise<APIResponse<BackendResponse<{ canReview: boolean; reason?: string }>>> {
-  return this.get<BackendResponse<{ canReview: boolean; reason?: string }>>(
-    `/properties/${propertyId}/can-review`
-  );
-}
+  /**
+   * Delete a review (owner only)
+   */
+  async deleteReview(
+    reviewId: string
+  ): Promise<APIResponse<BackendResponse<any>>> {
+    return this.delete<BackendResponse<any>>(`/reviews/${reviewId}`);
+  }
 
-/**
- * Get review statistics for a property
- */
-async getPropertyReviewStats(
-  propertyId: number
-): Promise<
-  APIResponse<
-    BackendResponse<{
-      averageRating: number;
-      totalReviews: number;
-      ratingDistribution: { [key: number]: number };
-    }>
-  >
-> {
-  return this.get<
-    BackendResponse<{
-      averageRating: number;
-      totalReviews: number;
-      ratingDistribution: { [key: number]: number };
-    }>
-  >(`/properties/${propertyId}/review-stats`);
-}
+  // ============ REVIEW HELPER METHODS ============
 
+  /**
+   * Check if user can review a property (has completed booking)
+   */
+  async canUserReviewProperty(
+    propertyId: number
+  ): Promise<APIResponse<BackendResponse<{ canReview: boolean; reason?: string }>>> {
+    return this.get<BackendResponse<{ canReview: boolean; reason?: string }>>(
+      `/properties/${propertyId}/can-review`
+    );
+  }
+
+  /**
+   * Get review statistics for a property
+   */
+  async getPropertyReviewStats(
+    propertyId: number
+  ): Promise<
+    APIResponse<
+      BackendResponse<{
+        averageRating: number;
+        totalReviews: number;
+        ratingDistribution: { [key: number]: number };
+      }>
+    >
+  > {
+    return this.get<
+      BackendResponse<{
+        averageRating: number;
+        totalReviews: number;
+        ratingDistribution: { [key: number]: number };
+      }>
+    >(`/properties/${propertyId}/review-stats`);
+  }
 
   // ============ PAYMENT METHODS ============
 
@@ -903,4 +1155,3 @@ async getPropertyReviewStats(
 // Export singleton instance for frontend use
 const api = new FrontendAPIService();
 export default api;
-
