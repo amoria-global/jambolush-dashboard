@@ -254,68 +254,6 @@ const HostAnalyticsPage: React.FC = () => {
   const marketComparison = analytics.marketComparison || defaultMarketComparison;
 
   return (
-
-    <div className="bg-gray-50 min-h-screen pt-20 p-4 sm:p-15 font-sans">
-      <div className="container mx-auto max-w-6xl">
-        <h1 className="text-xl sm:text-3xl font-bold text-[#083A85] mb-6 mt-4 leading-tight">
-          Host Analytics Dashboard
-        </h1>
-
-        {/* KPI Cards */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <StatCard 
-            title="Total Bookings" 
-            value={hostData.totalBookings.toLocaleString()} 
-            trend="+12%" 
-            icon={<CalendarIcon />}
-            gradient="from-blue-500 to-blue-600"
-          />
-          <StatCard 
-            title="Total Revenue" 
-            value={`$${hostData.totalRevenue.toLocaleString()}`} 
-            trend="+18%" 
-            icon={<DollarIcon />}
-            gradient="from-green-500 to-green-600"
-          />
-          <StatCard 
-            title="Occupancy Rate" 
-            value={`${hostData.occupancyRate}%`} 
-            trend="+5%" 
-            icon={<ChartIcon />}
-            gradient="from-purple-500 to-purple-600"
-          />
-          <StatCard 
-            title="Cancellations" 
-            value={hostData.cancellationsThisMonth} 
-            icon={<CancelIcon />}
-            gradient="from-red-500 to-red-600"
-          />
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Monthly Bookings Chart */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-800">Monthly Bookings</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setChartView('line')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    chartView === 'line'
-                      ? 'bg-[#083A85] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Line
-                </button>
-                <button
-                  onClick={() => setChartView('bar')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    chartView === 'bar'
-                      ? 'bg-[#083A85] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-
     <div className="pt-14">
       <div className="mx-auto px-4 py-8">
         {/* Header */}
@@ -336,7 +274,6 @@ const HostAnalyticsPage: React.FC = () => {
                     timeRange === range
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-
                   }`}
                 >
                   {range.charAt(0).toUpperCase() + range.slice(1)}
@@ -374,32 +311,6 @@ const HostAnalyticsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Booking Sources Chart */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-gray-800">Booking Sources</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPieView('donut')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    pieView === 'donut'
-                      ? 'bg-[#083A85] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Donut
-                </button>
-                <button
-                  onClick={() => setPieView('pie')}
-                  className={`px-3 py-1 rounded-lg text-sm cursor-pointer font-medium transition-all ${
-                    pieView === 'pie'
-                      ? 'bg-[#083A85] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Pie
-                </button>
-
           <div className="bg-white p-6 rounded-lg shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
@@ -409,7 +320,6 @@ const HostAnalyticsPage: React.FC = () => {
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
                 <i className="bi bi-bar-chart text-2xl text-purple-600"></i>
-                
               </div>
             </div>
           </div>

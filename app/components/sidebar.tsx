@@ -256,11 +256,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         agent: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent' },
             { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
-
-            { label: 'Properties', icon: 'bi-building', path: '/all/agent/property' },
-
             { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
-
             { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }

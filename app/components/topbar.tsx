@@ -238,7 +238,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     
     // Redirect to login
     console.log('Logging out and redirecting to login');
-    window.location.href = 'https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href);
+    //window.location.href = 'https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href);
   };
 
   // Initialize authentication on component mount and when URL params change

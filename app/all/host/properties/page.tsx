@@ -88,6 +88,9 @@ const HostPropertiesPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(9);
     const [loading, setLoading] = useState(true);
+    const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [unavailableDate, setUnavailableDate] = useState('');
     const [goToPageInput, setGoToPageInput] = useState('');
     const [error, setError] = useState<string>('');
 
@@ -336,7 +339,6 @@ const HostPropertiesPage: React.FC = () => {
             default: return 'bg-gray-100 text-gray-800';
         }
     };
-
     
     // Extracted Modal Component for clarity
     const EditModal = () => {
@@ -411,14 +413,17 @@ const HostPropertiesPage: React.FC = () => {
             <title>My Properties - Jambolush</title>
         </head>
         <div className="pt-14 font-sans">
+            <style jsx>{`
+                @keyframes scale-in {
+                  from { transform: scale(0.95); opacity: 0; }
+                  to { transform: scale(1); opacity: 1; }
+                }
+                .animate-scale-in { animation: scale-in 0.2s ease-out; }
+            `}</style>
             <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
-
-                    <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Host Properties</h1>
-
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Properties</h1>
-
                     <p className="text-sm sm:text-base text-gray-600 mt-2">Manage your active and completed property listings.</p>
                 </div>
 
@@ -490,7 +495,7 @@ const HostPropertiesPage: React.FC = () => {
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="status-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Status</label>
+                            <label htmlFor="status-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Status</label>
                             <select 
                                 id="status-filter" 
                                 value={statusFilter} 
@@ -506,7 +511,7 @@ const HostPropertiesPage: React.FC = () => {
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="type-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Property Type</label>
+                            <label htmlFor="type-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Property Type</label>
                             <select 
                                 id="type-filter" 
                                 value={typeFilter} 
@@ -521,7 +526,7 @@ const HostPropertiesPage: React.FC = () => {
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="price-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Price Range</label>
+                            <label htmlFor="price-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Price Range</label>
                             <select 
                                 id="price-filter" 
                                 value={priceRangeFilter} 
@@ -602,13 +607,13 @@ const HostPropertiesPage: React.FC = () => {
                                         <span><i className="bi bi-droplet-fill mr-1"></i>{p.baths || p.bathrooms} baths</span>
                                     </div>
                                     <div className="mt-auto flex gap-2">
-                                        <Link 
-                                            href={`/all/host/edit-property?id=${p.id}`}
+                                        <button 
+                                            onClick={() => handleEdit(p)} 
                                             className="flex-1 text-center px-3 py-2.5 text-white rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer" 
                                             style={{ backgroundColor: '#083A85' }}
                                         >
                                             <i className="bi bi-pencil-square mr-1"></i>Edit
-                                        </Link>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -668,13 +673,13 @@ const HostPropertiesPage: React.FC = () => {
                                                 {format(p.dateListed || p.createdAt, 'MMM dd, yyyy')}
                                             </td>
                                             <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-base sm:text-lg font-medium">
-                                                <Link 
-                                                    href={`/all/host/edit-property?id=${p.id}`}
+                                                <button 
+                                                    onClick={() => handleEdit(p)} 
                                                     className="text-green-600 hover:text-green-900 cursor-pointer p-2" 
                                                     title="Edit property"
                                                 >
                                                     <i className="bi bi-pencil-fill"></i>
-                                                </Link>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -756,6 +761,9 @@ const HostPropertiesPage: React.FC = () => {
                         </div>
                     </div>
                 )}
+                
+                {/* Render the modal only when showEditModal is true */}
+                {showEditModal && <EditModal />}
 
             </div>
         </div>
