@@ -112,9 +112,9 @@ const PropertiesPage: React.FC = () => {
         const initializeAuth = () => {
             try {
                 // Try to get token from localStorage, sessionStorage, or cookies
-                const token = localStorage.getItem('accessToken') || 
-                            sessionStorage.getItem('accessToken') || 
-                            getCookieValue('accessToken');
+                const token = localStorage.getItem('authToken') || 
+                            sessionStorage.getItem('authToken') || 
+                            getCookieValue('authToken');
                 
                 if (token) {
                     api.setAuth(token);

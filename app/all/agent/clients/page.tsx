@@ -1,6 +1,6 @@
 
 import React from "react";
-import GuestsListingPage from "../../../pages/host/host-guests";
+import AgentListingPage from "../../../pages/agent/agent-clients";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
     description: "Overview of guests and their bookings",
 };
 export default function Guests() {
-  return <GuestsListingPage />;
+  return <AgentListingPage />;
 }
