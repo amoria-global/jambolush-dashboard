@@ -200,6 +200,20 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         }
     }, [isAuthenticated]);
 
+    useEffect(() => {
+  const handleProfileImageUpdate = (event: CustomEvent) => {
+    if (user && event.detail.profile) {
+      setUser({ ...user, profile: event.detail.profile });
+    }
+  };
+
+  window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+  
+  return () => {
+    window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+  };
+}, [user]);
+
     // Close sidebar on route change (mobile)
     useEffect(() => {
         if (isSidebarOpen) {
@@ -340,17 +354,17 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 md:translate-x-0`}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-gray-100">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F20C8F' }}>
-                            <span className="text-white font-bold text-lg">J</span>
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-black">Jambolush</h1>
-                            <p className="text-base text-gray-600">{getRoleDisplayName(userSession.role)} Dashboard</p>
-                        </div>
-                    </div>
-                </div>
+<div className="p-6 border-b border-gray-100">
+  <div className="flex items-center space-x-3">
+    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
+      <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
+    </div>
+    <div>
+      <h1 className="text-xl font-bold text-black">Jambolush</h1>
+      <p className="text-base text-gray-600">{getRoleDisplayName(userSession.role)} Dashboard</p>
+    </div>
+  </div>
+</div>
 
                 {/* Navigation Items */}
                 <div className="p-4">

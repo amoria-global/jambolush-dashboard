@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api/apiService'; 
 
 // Types
 interface Booking {
@@ -12,17 +13,23 @@ interface Booking {
   checkIn: Date;
   checkOut: Date;
   bookingDate: Date;
-  status: 'confirmed' | 'pending' | 'cancelled';
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'refunded';
   amount: number;
-  paymentStatus: 'paid' | 'due' | 'refunded';
+  paymentStatus: 'paid' | 'due' | 'refunded' | 'pending';
   guests: number;
   specialRequests?: string;
   propertyImage?: string;
+  nights: number;
 }
 
 type ViewMode = 'grid' | 'list';
 type SortField = 'checkIn' | 'propertyName' | 'amount' | 'status';
 type SortOrder = 'asc' | 'desc';
+
+interface APIError {
+  message: string;
+  status?: number;
+}
 
 const UserMyBookings: React.FC = () => {
   // Date formatting helper function
@@ -48,6 +55,42 @@ const UserMyBookings: React.FC = () => {
     }
   };
 
+  // Transform backend booking data to frontend format
+  const transformBookingData = (backendBooking: any): Booking => {
+    const propertyImages = backendBooking.property?.images;
+    let propertyImage = 'https://picsum.photos/600/400';
+    
+    // Extract first available image from any category
+    if (propertyImages && typeof propertyImages === 'object') {
+      const imageCategories = ['exterior', 'livingRoom', 'bedroom', 'kitchen'];
+      for (const category of imageCategories) {
+        if (propertyImages[category] && propertyImages[category].length > 0) {
+          propertyImage = propertyImages[category][0];
+          break;
+        }
+      }
+    }
+
+    return {
+      id: backendBooking.id,
+      guestName: `${backendBooking.guest?.firstName || ''} ${backendBooking.guest?.lastName || ''}`.trim(),
+      guestEmail: backendBooking.guest?.email || '',
+      guestPhone: backendBooking.guest?.phone || '',
+      propertyName: backendBooking.property?.name || 'Unknown Property',
+      propertyAddress: backendBooking.property?.location || '',
+      checkIn: new Date(backendBooking.checkIn),
+      checkOut: new Date(backendBooking.checkOut),
+      bookingDate: new Date(backendBooking.createdAt),
+      status: backendBooking.status,
+      amount: backendBooking.totalPrice || 0,
+      paymentStatus: backendBooking.paymentStatus || 'pending',
+      guests: backendBooking.guests || 1,
+      specialRequests: backendBooking.specialRequests,
+      propertyImage,
+      nights: backendBooking.nights || 1
+    };
+  };
+
   // States
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
@@ -55,6 +98,7 @@ const UserMyBookings: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
@@ -69,45 +113,72 @@ const UserMyBookings: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('checkIn');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // BACK-END PLACEHOLDER: Mock data generation
-  useEffect(() => {
-    const generateMockBookings = (): Booking[] => {
-      const statuses: ('confirmed' | 'pending' | 'cancelled')[] = ['confirmed', 'pending', 'cancelled'];
-      const paymentStatuses: ('paid' | 'due' | 'refunded')[] = ['paid', 'due', 'refunded'];
-      const properties = ['Sunset Villa', 'Ocean View Apartment', 'Mountain Lodge', 'City Center Loft', 'Beach House'];
-      const guests = ['John Smith', 'Emma Wilson', 'Michael Brown', 'Sarah Davis', 'James Johnson'];
+  // Fetch bookings from API
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-      return Array.from({ length: 25 }, (_, i) => ({
-        id: `BK${String(i + 1).padStart(5, '0')}`,
-        guestName: guests[Math.floor(Math.random() * guests.length)],
-        guestEmail: `guest${i + 1}@email.com`,
-        guestPhone: `+1 555-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
-        propertyName: properties[Math.floor(Math.random() * properties.length)],
-        propertyAddress: `${Math.floor(Math.random() * 999) + 1} ${['Main St', 'Ocean Blvd', 'Park Ave'][Math.floor(Math.random() * 3)]}`,
-        checkIn: new Date(2025, Math.floor(Math.random() * 6), Math.floor(Math.random() * 28) + 1),
-        checkOut: new Date(2025, Math.floor(Math.random() * 6) + 6, Math.floor(Math.random() * 28) + 1),
-        bookingDate: new Date(2025, 0, Math.floor(Math.random() * 30) + 1),
-        status: statuses[Math.floor(Math.random() * statuses.length)],
-        amount: Math.floor(Math.random() * 1500) + 300,
-        paymentStatus: paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)],
-        guests: Math.floor(Math.random() * 5) + 1,
-        specialRequests: Math.random() > 0.6 ? 'Early check-in requested.' : undefined,
-        propertyImage: `https://picsum.photos/seed/${i + 1}/600/400`
-      }));
-    };
+      // Build filters for API call
+      const filters: any = {};
+      
+      if (statusFilter !== 'all') {
+        filters.status = [statusFilter];
+      }
+      
+      if (dateRange.start) filters.checkInDate = dateRange.start;
+      if (dateRange.end) filters.checkOutDate = dateRange.end;
+      if (searchTerm) filters.search = searchTerm;
+      
+      filters.sortBy = sortField;
+      filters.sortOrder = sortOrder;
+      filters.page = 1; // Get all for frontend filtering
+      filters.limit = 100; // Get more records for frontend filtering
 
-    setTimeout(() => {
-      setBookings(generateMockBookings());
+      console.log('Fetching bookings with filters:', filters);
+      
+      const response = await api.searchPropertyBookings(filters);
+      
+      if (response.data.success && response.data.data) {
+        const transformedBookings = response.data.data.bookings.map(transformBookingData);
+        setBookings(transformedBookings);
+        console.log('Fetched bookings:', transformedBookings);
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch bookings');
+      }
+    } catch (err: any) {
+      console.error('Error fetching bookings:', err);
+      const errorMessage = err?.data?.message || err?.message || 'Failed to load bookings. Please try again.';
+      setError(errorMessage);
+      
+      // If it's an auth error, you might want to redirect to login
+      if (err?.status === 401) {
+        // Handle unauthorized access
+        console.log('Unauthorized access - user needs to login');
+      }
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchBookings();
   }, []);
+
+  // Refetch when filters change
+  useEffect(() => {
+    if (!loading) {
+      fetchBookings();
+    }
+  }, [statusFilter, dateRange]);
 
   // Update goToPageInput when currentPage changes
   useEffect(() => {
     setGoToPageInput(currentPage.toString());
   }, [currentPage]);
 
-  // Filter and sort logic
+  // Frontend filtering and sorting (for search and property filters)
   useEffect(() => {
     let filtered = [...bookings];
 
@@ -118,23 +189,11 @@ const UserMyBookings: React.FC = () => {
       );
     }
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(booking => booking.status === statusFilter);
-    }
-
     if (propertyFilter !== 'all') {
       filtered = filtered.filter(booking => booking.propertyName === propertyFilter);
     }
 
-    if (dateRange.start && dateRange.end) {
-      const startDate = new Date(dateRange.start);
-      const endDate = new Date(dateRange.end);
-      filtered = filtered.filter(booking => {
-        const checkInDate = new Date(booking.checkIn);
-        return checkInDate >= startDate && checkInDate <= endDate;
-      });
-    }
-
+    // Sort bookings
     filtered.sort((a, b) => {
       let comparison = 0;
       switch (sortField) {
@@ -148,7 +207,7 @@ const UserMyBookings: React.FC = () => {
 
     setFilteredBookings(filtered);
     setCurrentPage(1);
-  }, [bookings, searchTerm, statusFilter, propertyFilter, dateRange, sortField, sortOrder]);
+  }, [bookings, searchTerm, propertyFilter, sortField, sortOrder]);
 
   // Pagination
   const paginatedBookings = useMemo(() => {
@@ -177,9 +236,26 @@ const UserMyBookings: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (bookingId: string) => {
-    if (confirm('Are you sure you want to delete this booking?')) {
-      setBookings(prev => prev.filter(b => b.id !== bookingId));
+  const handleDelete = async (bookingId: string) => {
+    if (confirm('Are you sure you want to cancel this booking?')) {
+      try {
+        setLoading(true);
+        await api.cancelPropertyBooking(bookingId, 'Cancelled by guest');
+        
+        // Refresh bookings after successful cancellation
+        await fetchBookings();
+        
+        // Close modal if the deleted booking was selected
+        if (selectedBooking?.id === bookingId) {
+          setShowModal(false);
+          setSelectedBooking(null);
+        }
+      } catch (err: any) {
+        console.error('Error cancelling booking:', err);
+        alert(err?.data?.message || 'Failed to cancel booking. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -215,12 +291,18 @@ const UserMyBookings: React.FC = () => {
     setGoToPageInput(currentPage.toString());
   };
 
+  const handleRefresh = () => {
+    fetchBookings();
+  };
+
   // Styling helpers
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-500';
       case 'pending': return 'bg-yellow-100 text-yellow-500';
       case 'cancelled': return 'bg-red-100 text-red-500';
+      case 'completed': return 'bg-blue-100 text-blue-500';
+      case 'refunded': return 'bg-purple-100 text-purple-500';
       default: return 'bg-gray-100 text-gray-500';
     }
   };
@@ -229,18 +311,48 @@ const UserMyBookings: React.FC = () => {
     switch (status) {
       case 'paid': return 'text-green-600';
       case 'due': return 'text-orange-600';
+      case 'pending': return 'text-yellow-600';
       case 'refunded': return 'text-gray-600';
       default: return 'text-gray-600';
     }
   };
 
+  // Error state
+  if (error && !loading) {
+    return (
+      <div className="pt-14 min-h-screen bg-gray-50">
+        <div className="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
+          <div className="bg-white rounded-lg shadow-sm p-8 sm:p-12 text-center">
+            <i className="bi bi-exclamation-triangle text-4xl sm:text-6xl text-red-300"></i>
+            <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">Error Loading Bookings</h3>
+            <p className="text-base sm:text-base text-gray-600 mt-2">{error}</p>
+            <button 
+              onClick={handleRefresh}
+              className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors cursor-pointer">
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-14 min-h-screen bg-gray-50">
       <div className="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#083A85]">My Bookings</h1>
-          <p className="text-base sm:text-base text-gray-600 mt-1 sm:mt-2">Here you can manage and track all your property bookings.</p>
+        <div className="mb-6 sm:mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#083A85]">My Bookings</h1>
+            <p className="text-base sm:text-base text-gray-600 mt-1 sm:mt-2">Here you can manage and track all your property bookings.</p>
+          </div>
+          <button 
+            onClick={handleRefresh}
+            disabled={loading}
+            className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors cursor-pointer disabled:opacity-50">
+            <i className={`bi bi-arrow-clockwise mr-2 ${loading ? 'animate-spin' : ''}`}></i>
+            Refresh
+          </button>
         </div>
 
         {/* Filters Section */}
@@ -269,6 +381,8 @@ const UserMyBookings: React.FC = () => {
                 <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="completed">Completed</option>
+                <option value="refunded">Refunded</option>
               </select>
             </div>
             <div>
@@ -334,7 +448,7 @@ const UserMyBookings: React.FC = () => {
           </div>
         )}
 
-        {!loading && filteredBookings.length === 0 && (
+        {!loading && filteredBookings.length === 0 && !error && (
           <div className="bg-white rounded-lg shadow-sm p-8 sm:p-12 text-center">
             <i className="bi bi-calendar-x text-4xl sm:text-6xl text-gray-300"></i>
             <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">No bookings found</h3>
@@ -428,12 +542,14 @@ const UserMyBookings: React.FC = () => {
                               title="Print">
                               <i className="bi bi-printer text-base sm:text-lg font-bold"></i>
                             </button>
-                            <button 
-                              onClick={() => handleDelete(booking.id)} 
-                              className="text-red-600 hover:text-red-900 p-1 cursor-pointer"
-                              title="Delete">
-                              <i className="bi bi-trash text-base sm:text-lg font-bold"></i>
-                            </button>
+                            {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                              <button 
+                                onClick={() => handleDelete(booking.id)} 
+                                className="text-red-600 hover:text-red-900 p-1 cursor-pointer"
+                                title="Cancel">
+                                <i className="bi bi-x-circle text-base sm:text-lg font-bold"></i>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -472,7 +588,7 @@ const UserMyBookings: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <i className="bi bi-people text-gray-400 text-base sm:text-base"></i>
-                        <span>{booking.guests} guests</span>
+                        <span>{booking.guests} guests • {booking.nights} nights</span>
                       </div>
                     </div>
                     <div className="mt-auto">
@@ -496,12 +612,14 @@ const UserMyBookings: React.FC = () => {
                           title="Print">
                           <i className="bi bi-printer text-base sm:text-lg"></i>
                         </button>
-                        <button 
-                          onClick={() => handleDelete(booking.id)} 
-                          className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
-                          title="Delete">
-                          <i className="bi bi-trash text-base sm:text-lg"></i>
-                        </button>
+                        {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                          <button 
+                            onClick={() => handleDelete(booking.id)} 
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
+                            title="Cancel">
+                            <i className="bi bi-x-circle text-base sm:text-lg"></i>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -617,7 +735,7 @@ const UserMyBookings: React.FC = () => {
                       </div>
                       <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-2">
                         <span className="text-gray-600 font-medium sm:font-normal">Phone</span>
-                        <span className="font-medium text-gray-900">{selectedBooking.guestPhone}</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.guestPhone || 'Not provided'}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-2">
                         <span className="text-gray-600 font-medium sm:font-normal">Number of Guests</span>
@@ -647,6 +765,10 @@ const UserMyBookings: React.FC = () => {
                       <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-2">
                         <span className="text-gray-600 font-medium sm:font-normal">Check-out</span>
                         <span className="font-medium text-gray-900">{format(selectedBooking.checkOut, 'EEEE, MMM dd, yyyy')}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-2">
+                        <span className="text-gray-600 font-medium sm:font-normal">Nights</span>
+                        <span className="font-medium text-gray-900">{selectedBooking.nights}</span>
                       </div>
                     </div>
                   </div>
@@ -689,11 +811,13 @@ const UserMyBookings: React.FC = () => {
                   className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-base sm:text-base">
                   <i className="bi bi-printer mr-1 sm:mr-2"></i>Print
                 </button>
-                <button 
-                  onClick={() => { handleDelete(selectedBooking.id); setShowModal(false); }} 
-                  className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-base sm:text-base">
-                  <i className="bi bi-trash mr-1 sm:mr-2"></i>Delete
-                </button>
+                {(selectedBooking.status === 'pending' || selectedBooking.status === 'confirmed') && (
+                  <button 
+                    onClick={() => { handleDelete(selectedBooking.id); }} 
+                    className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-base sm:text-base">
+                    <i className="bi bi-x-circle mr-1 sm:mr-2"></i>Cancel Booking
+                  </button>
+                )}
                 <button 
                   onClick={() => setShowModal(false)} 
                   className="px-3 sm:px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer text-base sm:text-base" 
