@@ -449,22 +449,22 @@ class FrontendAPIService {
   }
 
   private prepareBody(body: any): any {
-    if (!body) return null;
-    
-    if (body instanceof FormData || body instanceof File || body instanceof Blob || 
-        body instanceof ArrayBuffer || body instanceof URLSearchParams || 
-        typeof body === 'string') {
-      return body;
-    }
-
-    if (this.hasFiles(body)) {
-      const formData = new FormData();
-      this.buildFormData(formData, body);
-      return formData;
-    }
-
-    return JSON.stringify(body);
+  if (!body) return null;
+  
+  if (body instanceof FormData || body instanceof File || body instanceof Blob || 
+      body instanceof ArrayBuffer || body instanceof URLSearchParams || 
+      typeof body === 'string') {
+    return body;
   }
+
+  if (this.hasFiles(body)) {
+    const formData = new FormData();
+    this.buildFormData(formData, body);
+    return formData;
+  }
+
+  return JSON.stringify(body);
+}
 
   private hasFiles(obj: any): boolean {
     if (!obj || typeof obj !== 'object') return false;
@@ -1088,6 +1088,134 @@ class FrontendAPIService {
     
     return this.post<BackendResponse<{ urls: string[] }>>('/upload/multiple', formData);
   }
+
+
+
+  // ============ ENHANCED BOOKING API METHODS ============
+
+/**
+ * Search property bookings with filters (for user bookings page)
+ */
+async searchPropertyBookings(filters?: {
+  status?: string[];
+  checkInDate?: string;
+  checkOutDate?: string;
+  propertyId?: number;
+  minAmount?: number;
+  maxAmount?: number;
+  sortBy?: 'checkIn' | 'checkOut' | 'totalPrice' | 'createdAt' | 'status';
+  sortOrder?: 'asc' | 'desc';
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<APIResponse<BackendResponse<{
+  bookings: any[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}>>> {
+  const params: Record<string, any> = {};
+  
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        // Handle array parameters (like status)
+        if (Array.isArray(value)) {
+          params[key] = value.join(',');
+        } else {
+          params[key] = value;
+        }
+      }
+    });
+  }
+
+  return this.get<BackendResponse<{
+    bookings: any[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>>('/bookings/properties', { params });
+}
+
+/**
+ * Get specific property booking by ID
+ */
+async getPropertyBooking(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
+  return this.get<BackendResponse<any>>(`/bookings/properties/${bookingId}`);
+}
+
+/**
+ * Cancel property booking
+ */
+async cancelPropertyBooking(bookingId: string, reason?: string): Promise<APIResponse<BackendResponse<any>>> {
+  return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/cancel`, { 
+    reason: reason || 'Cancelled by user' 
+  });
+}
+
+/**
+ * Update property booking
+ */
+async updatePropertyBooking(bookingId: string, updateData: {
+  status?: string;
+  message?: string;
+  specialRequests?: string;
+}): Promise<APIResponse<BackendResponse<any>>> {
+  return this.put<BackendResponse<any>>(`/bookings/properties/${bookingId}`, updateData);
+}
+
+/**
+ * Get user booking statistics
+ */
+async getUserBookingStats(): Promise<APIResponse<BackendResponse<{
+  totalBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  totalSpent: number;
+  averageBookingValue: number;
+  favoriteDestinations: string[];
+  upcomingBookings: number;
+  memberSince: string;
+}>>> {
+  return this.get<BackendResponse<{
+    totalBookings: number;
+    completedBookings: number;
+    cancelledBookings: number;
+    totalSpent: number;
+    averageBookingValue: number;
+    favoriteDestinations: string[];
+    upcomingBookings: number;
+    memberSince: string;
+  }>>('/bookings/stats');
+}
+
+/**
+ * Get upcoming bookings
+ */
+async getUpcomingBookings(limit: number = 5): Promise<APIResponse<BackendResponse<any[]>>> {
+  return this.get<BackendResponse<any[]>>('/bookings/upcoming', { 
+    params: { limit } 
+  });
+}
+
+/**
+ * Get user booking calendar
+ */
+async getUserBookingCalendar(): Promise<APIResponse<BackendResponse<{
+  userId: number;
+  events: any[];
+  upcomingBookings: any[];
+  conflicts?: any[];
+}>>> {
+  return this.get<BackendResponse<{
+    userId: number;
+    events: any[];
+    upcomingBookings: any[];
+    conflicts?: any[];
+  }>>('/bookings/calendar');
+}
 
   // ============ UTILITY METHODS ============
 

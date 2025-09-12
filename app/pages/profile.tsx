@@ -410,7 +410,7 @@ export default function UserProfileSettingsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [postalCode, setPostalCode] = useState('');
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
   // Fetch user data from API
   useEffect(() => {
@@ -541,6 +541,52 @@ export default function UserProfileSettingsPage() {
     }
   };
 
+const hasChanges = () => {
+  if (!user || !originalUser) return false;
+  
+  // Check if there's a new image file selected
+  if (selectedFile) {
+    return true;
+  }
+  
+  // Check if profile image URL has changed
+  const currentProfile = (user.profile || '').trim();
+  const originalProfile = (originalUser.profile || '').trim();
+  if (currentProfile !== originalProfile) {
+    return true;
+  }
+  
+  // Get current postal code field name
+  const currentCountry = user.country ? countryData[user.country] : undefined;
+  const postalField = getPostalCodeFieldName(currentCountry);
+  
+  // Get original postal code for comparison
+  const originalPostalCode = originalUser.country && postalField ? 
+    (originalUser[postalField as keyof UserInfo] as string || '') : '';
+  
+  // Compare basic fields
+  const fieldsToCompare = [
+    'name', 'phone', 'phoneCountryCode', 'country', 
+    'street', 'city', 'state', 'province', 'district', 'county', 'region'
+  ];
+  
+  // Check if any basic field has changed
+  for (const field of fieldsToCompare) {
+    const currentValue = (user[field as keyof UserInfo] as string || '').trim();
+    const originalValue = (originalUser[field as keyof UserInfo] as string || '').trim();
+    if (currentValue !== originalValue) {
+      return true;
+    }
+  }
+  
+  // Check postal code
+  if (postalCode.trim() !== originalPostalCode.trim()) {
+    return true;
+  }
+  
+  return false;
+};
+
   // --- EVENT HANDLERS ---
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -566,88 +612,189 @@ export default function UserProfileSettingsPage() {
   };
 
   const handleImageUpload = async () => {
-    if (!selectedFile || !user) return;
+  if (!selectedFile || !user) return;
+  
+  try {
+    setIsSaving(true);
+    console.log('Starting image upload...');
     
-    try {
-      setIsSaving(true);
-      
-      const formData = new FormData();
-      formData.append('profile', selectedFile);
-      
-      const response = await api.put('auth/me/image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      if (response.data) {
-        setUser({ ...user, profile: response.data.profile, updated_at: new Date().toISOString() });
-        setUploadSuccess('Profile image uploaded successfully!');
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        setTimeout(() => setUploadSuccess(null), 3000);
-      }
-    } catch (error: any) {
-      console.error('Image upload failed:', error);
-      setSaveMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to upload image' 
-      });
-    } finally {
-      setIsSaving(false);
+    // Convert file to base64
+    const base64String = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        console.log('File converted to base64');
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(selectedFile);
+    });
+    
+    console.log('Base64 length:', base64String.length);
+    console.log('Base64 starts with:', base64String.substring(0, 30));
+    
+    // Use direct fetch instead of api service
+    const token = localStorage.getItem('authToken');
+    console.log('Token exists:', !!token);
+    
+    const requestBody = { imageUrl: base64String };
+    console.log('Request body prepared:', { imageUrl: base64String.substring(0, 50) + '...' });
+    
+    const response = await fetch('https://backend.jambolush.com/api/auth/me/image', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const responseData = await response.json();
+    console.log('Response data:', responseData);
+    
+    if (!response.ok) {
+      throw new Error(responseData.message || 'Upload failed');
     }
-  };
+    
+    if (responseData) {
+      setUser({ ...user, profile: responseData.profile, updated_at: new Date().toISOString() });
+      const profileUpdateEvent = new CustomEvent('profileImageUpdated', {
+        detail: { profile: responseData.profile }
+      });
+      window.dispatchEvent(profileUpdateEvent);
+      setUploadSuccess('Profile image uploaded successfully!');
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setTimeout(() => setUploadSuccess(null), 3000);
+    }
+  } catch (error: any) {
+    console.error('Image upload failed:', error);
+    setSaveMessage({ 
+      type: 'error', 
+      text: error.message || 'Failed to upload image' 
+    });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleSaveChanges = async () => {
-    if (!user) return;
+  if (!user) return;
+  
+  try {
+    setIsSaving(true);
+    setSaveMessage(null);
     
-    try {
-      setIsSaving(true);
-      setSaveMessage(null);
-      
-      // Prepare data for API
-      const updateData = {
-        name: user.name,
-        phone: user.phone,
-        phoneCountryCode: user.phoneCountryCode,
-        country: user.country,
-        street: user.street,
-        city: user.city,
-        state: user.state,
-        province: user.province,
-        district: user.district,
-        county: user.county,
-        region: user.region,
-        // Add postal code to appropriate field
-        ...(postalCode && { [getPostalCodeFieldName(countryData[user.country!]) || 'postalCode']: postalCode })
-      };
-
-      // Remove undefined/empty values
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key as keyof typeof updateData] === undefined || updateData[key as keyof typeof updateData] === '') {
-          delete updateData[key as keyof typeof updateData];
-        }
-      });
-
-      const response = await api.put('auth/me', updateData);
-      
-      if (response.data) {
-        setUser({ ...response.data, updated_at: new Date().toISOString() });
-        setOriginalUser({ ...response.data, updated_at: new Date().toISOString() });
-        setIsEditing(false);
-        setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
-        setTimeout(() => setSaveMessage(null), 3000);
-      }
-    } catch (error: any) {
-      console.error('Profile update failed:', error);
-      setSaveMessage({ 
-        type: 'error', 
-        text: error.response?.data?.message || 'Failed to update profile' 
-      });
-    } finally {
-      setIsSaving(false);
+    // Check if any changes were made (including selected image file)
+    if (!hasChanges()) {
+      setSaveMessage({ type: 'info', text: 'No changes made' });
+      setIsEditing(false);
+      setTimeout(() => setSaveMessage(null), 3000);
+      return;
     }
-  };
+    
+    let updatedProfileUrl = user.profile;
+    
+    // Handle image upload first if there's a selected file
+    if (selectedFile) {
+      try {
+        // Convert file to base64
+        const base64String = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
+        });
+        
+        // Upload image using direct fetch
+        const token = localStorage.getItem('authToken');
+        const imageResponse = await fetch('https://backend.jambolush.com/api/auth/me/image', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ imageUrl: base64String })
+        });
+        
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          updatedProfileUrl = imageData.profile;
+          
+          // Update user state with new profile image
+          setUser({ ...user, profile: updatedProfileUrl });
+          
+          // Clear selected file and preview
+          setSelectedFile(null);
+          setPreviewUrl(null);
+        } else {
+          throw new Error('Failed to upload image');
+        }
+      } catch (imageError) {
+        console.error('Image upload failed:', imageError);
+        setSaveMessage({ 
+          type: 'error', 
+          text: 'Failed to upload image. Please try again.' 
+        });
+        return;
+      }
+    }
+    
+    // Prepare data for profile update API
+    const updateData = {
+      name: user.name,
+      phone: user.phone,
+      phoneCountryCode: user.phoneCountryCode,
+      country: user.country,
+      street: user.street,
+      city: user.city,
+      state: user.state,
+      province: user.province,
+      district: user.district,
+      county: user.county,
+      region: user.region,
+      // Add postal code to appropriate field
+      ...(postalCode && { [getPostalCodeFieldName(countryData[user.country!]) || 'postalCode']: postalCode })
+    };
+
+    // Remove undefined/empty values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key as keyof typeof updateData] === undefined || updateData[key as keyof typeof updateData] === '') {
+        delete updateData[key as keyof typeof updateData];
+      }
+    });
+
+    const response = await api.put('auth/me', updateData);
+    
+    if (response.data) {
+      const finalUser = { ...response.data, profile: updatedProfileUrl, updated_at: new Date().toISOString() };
+      setUser(finalUser);
+      setOriginalUser(finalUser);
+      
+      // Dispatch profile image update event to notify TopBar and Sidebar
+      if (updatedProfileUrl && updatedProfileUrl !== originalUser?.profile) {
+        const profileUpdateEvent = new CustomEvent('profileImageUpdated', {
+          detail: { profile: updatedProfileUrl }
+        });
+        window.dispatchEvent(profileUpdateEvent);
+      }
+      
+      setIsEditing(false);
+      setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setTimeout(() => setSaveMessage(null), 3000);
+    }
+  } catch (error: any) {
+    console.error('Profile update failed:', error);
+    setSaveMessage({ 
+      type: 'error', 
+      text: error.response?.data?.message || 'Failed to update profile' 
+    });
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleCountryChange = (newCountryCode: string) => {
     if (!user) return;
@@ -762,24 +909,33 @@ export default function UserProfileSettingsPage() {
       <div className="">
         
         {/* Alert Messages */}
-        {saveMessage && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            saveMessage.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            <div className="flex items-center">
-              <svg className={`w-5 h-5 mr-2 ${saveMessage.type === 'success' ? 'text-green-500' : 'text-red-500'}`} fill="currentColor" viewBox="0 0 20 20">
-                {saveMessage.type === 'success' ? (
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                ) : (
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                )}
-              </svg>
-              {saveMessage.text}
-            </div>
-          </div>
+{saveMessage && (
+  <div className={`mb-6 p-4 rounded-lg border ${
+    saveMessage.type === 'success' 
+      ? 'bg-green-50 border-green-200 text-green-800' 
+      : saveMessage.type === 'error'
+      ? 'bg-red-50 border-red-200 text-red-800'
+      : 'bg-blue-50 border-blue-200 text-blue-800' // Info type
+  }`}>
+    <div className="flex items-center">
+      <svg className={`w-5 h-5 mr-2 ${
+        saveMessage.type === 'success' ? 'text-green-500' 
+        : saveMessage.type === 'error' ? 'text-red-500'
+        : 'text-blue-500' // Info type
+      }`} fill="currentColor" viewBox="0 0 20 20">
+        {saveMessage.type === 'success' ? (
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        ) : saveMessage.type === 'error' ? (
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        ) : (
+          // Info icon
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
         )}
+      </svg>
+      {saveMessage.text}
+    </div>
+  </div>
+)}
 
         <div className="grid lg:grid-cols-3 gap-6">
           
@@ -912,7 +1068,7 @@ export default function UserProfileSettingsPage() {
                   {!isEditing ? (
                     <button 
                       onClick={() => setIsEditing(true)} 
-                      className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all"
+                      className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -924,14 +1080,14 @@ export default function UserProfileSettingsPage() {
                       <button 
                         onClick={handleCancelEdit}
                         disabled={isSaving}
-                        className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50"
+                        className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg cursor-pointer font-medium transition-all disabled:opacity-50 "
                       >
                         Cancel
                       </button>
                       <button 
                         onClick={handleSaveChanges}
                         disabled={isSaving}
-                        className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all disabled:cursor-not-allowed"
+                        className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white px-4 py-2 rounded-lg font-medium cursor-pointer flex items-center gap-2 transition-all disabled:cursor-not-allowed"
                       >
                         {isSaving ? (
                           <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
