@@ -1,105 +1,272 @@
 'use client';
 
-import { ro } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import  api  from '@/app/api/apiService'; // Adjust path as needed
 
 const AgentDashboard = () => {
     const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [dashboardData, setDashboardData] = useState<any>(null);
+    const [propertiesData, setPropertiesData] = useState<any>(null);
+    const [earningsData, setEarningsData] = useState<any>(null);
+    const [userName, setUserName] = useState('Agent');
 
-    // Sample data for field agent charts
-    const earningsData = [
-        { month: 'Jan', commission: 3200, bonus: 500 },
-        { month: 'Feb', commission: 4100, bonus: 800 },
-        { month: 'Mar', commission: 3800, bonus: 600 },
-        { month: 'Apr', commission: 5200, bonus: 1200 },
-        { month: 'May', commission: 4800, bonus: 900 },
-        { month: 'Jun', commission: 6100, bonus: 1500 },
-    ];
+    // Get time-based greeting
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 17) return 'Good afternoon';
+        if (hour < 21) return 'Good evening';
+        return 'Good night';
+    };
 
-    const clientAcquisitionData = [
-        { week: 'Week 1', clients: 3 },
-        { week: 'Week 2', clients: 5 },
-        { week: 'Week 3', clients: 2 },
-        { week: 'Week 4', clients: 7 },
-    ];
+    // Load all dashboard data
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
 
-    const propertyCategories = [
-        { name: 'Luxury Villas', value: 8, color: '#F20C8F' },
-        { name: 'City Apartments', value: 15, color: '#083A85' },
-        { name: 'Beach Houses', value: 6, color: '#10B981' },
-        { name: 'Mountain Cabins', value: 4, color: '#F59E0B' },
-    ];
+                // Load user name from localStorage or context
+                const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+                if (user.name) {
+                    setUserName(user.name);
+                }
 
-    const summaryCards = [
-        {
-            title: 'Active Clients',
-            value: '47',
-            change: '+8 this month',
-            icon: 'people',
-            bgColor: 'bg-pink-500',
-            iconBg: '#F20C8F',
+                // Fetch all required data concurrently
+                const [dashboardResponse, propertiesResponse, earningsResponse]: any = await Promise.all([
+                    api.get('/properties/agent/dashboard'),
+                    api.get('/properties/agent/properties'),
+                    api.get('/properties/agent/earnings')
+                ]);
+
+                if (dashboardResponse.success) {
+                    setDashboardData(dashboardResponse.data);
+                }
+
+                if (propertiesResponse.success) {
+                    setPropertiesData(propertiesResponse.data);
+                }
+
+                if (earningsResponse.success) {
+                    setEarningsData(earningsResponse.data);
+                }
+
+            } catch (err: Error | any) {
+                console.error('Error loading dashboard data:', err);
+                setError(err.message || 'Failed to load dashboard data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadDashboardData();
+    }, []);
+
+    // Transform monthly commissions data for chart
+    const getMonthlyEarningsData = () => {
+        if (!dashboardData?.monthlyCommissions) return [];
+        
+        return dashboardData.monthlyCommissions.map((item: any) => ({
+            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
+            commission: item.commission || 0,
+            bonus: item.bonus || 0
+        }));
+    };
+
+    // Transform recent bookings for client acquisition chart
+    const getClientAcquisitionData = () => {
+        if (!dashboardData?.recentBookings) return [];
+        
+        // Group bookings by week
+        const weeklyData: { [key: string]: number } = {};
+        dashboardData.recentBookings.forEach((booking: any, index: number) => {
+            const weekKey = `Week ${Math.floor(index / 7) + 1}`;
+            weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
+        });
+
+        return Object.entries(weeklyData).map(([week, clients]) => ({
+            week,
+            clients
+        }));
+    };
+
+    // Get summary cards data
+    const getSummaryCards = () => {
+        if (!dashboardData) return [];
+
+        return [
+            {
+                title: 'Active Clients',
+                value: dashboardData.activeClients?.toString() || '0',
+                change: `${dashboardData.totalClients || 0} total clients`,
+                icon: 'people',
+                iconBg: '#F20C8F',
+            },
+            {
+                title: 'Total Earnings',
+                value: `$${dashboardData.totalCommissions?.toLocaleString() || '0'}`,
+                change: `$${dashboardData.pendingCommissions?.toLocaleString() || '0'} pending`,
+                icon: 'currency-dollar',
+                iconBg: '#083A85',
+            },
+            {
+                title: 'Properties Managed',
+                value: propertiesData?.total?.toString() || '0',
+                change: `${propertiesData?.properties?.length || 0} active listings`,
+                icon: 'house-door',
+                iconBg: '#10B981',
+            },
+            {
+                title: 'Avg Commission',
+                value: `$${dashboardData.avgCommissionPerBooking?.toFixed(0) || '0'}`,
+                change: 'per booking',
+                icon: 'graph-up-arrow',
+                iconBg: '#F59E0B',
+            },
+        ];
+    };
+
+    // Get recent activities from bookings
+    const getRecentActivities = () => {
+        if (!dashboardData?.recentBookings) return [];
+        
+        return dashboardData.recentBookings.slice(0, 4).map((booking: any, index: number) => ({
+            icon: index % 4 === 0 ? 'person-plus' : index % 4 === 1 ? 'house-add' : index % 4 === 2 ? 'calendar-check' : 'cash-coin',
+            text: `${booking.guestName ? 'New booking from ' + booking.guestName : 'New booking received'}${booking.propertyName ? ' for ' + booking.propertyName : ''}`,
+            time: new Date(booking.createdAt || booking.checkIn).toLocaleDateString(),
+            color: index % 4 === 0 ? 'text-green-500' : index % 4 === 1 ? 'text-blue-600' : index % 4 === 2 ? 'text-pink-500' : 'text-green-600'
+        }));
+    };
+
+    // Get upcoming appointments from recent bookings
+    const getUpcomingAppointments = () => {
+        if (!dashboardData?.recentBookings) return [];
+        
+        return dashboardData.recentBookings.slice(0, 3).map((booking: any, index: number) => ({
+            client: booking.guestName || `Client ${index + 1}`,
+            property: booking.propertyName || 'Property Viewing',
+            time: new Date(booking.checkIn).toLocaleDateString(),
+            type: index % 3 === 0 ? 'Property Viewing' : index % 3 === 1 ? 'Contract Signing' : 'Initial Consultation',
+            priority: index < 2 ? 'high' : 'medium'
+        }));
+    };
+
+    // Get top properties
+    const getTopProperties = () => {
+        if (!propertiesData?.properties) return [];
+
+        return propertiesData.properties.slice(0, 3).map((property: any, index: number) => ({
+            name: property.name || `Property ${index + 1}`,
+            bookings: property.totalBookings || 0,
+            revenue: `$${property.totalRevenue?.toLocaleString() || '0'}`,
+            rating: property.averageRating?.toFixed(1) || '4.5',
+            location: property.location || property.city || 'Location'
+        }));
+    };
+
+    // Property categories for pie chart
+    const getPropertyCategories = () => {
+        if (!propertiesData?.properties) return [];
+
+        const categories: { [key: string]: number } = {};
+        propertiesData.properties.forEach((property: any) => {
+            const type = property.propertyType || 'Other';
+            categories[type] = (categories[type] || 0) + 1;
+        });
+
+        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#8B5CF6'];
+        return Object.entries(categories).map(([name, value], index) => ({
+            name,
+            value,
+            color: colors[index % colors.length]
+        }));
+    };
+
+    // Quick stats
+    const getQuickStats = () => [
+        { 
+            label: 'Conversion Rate', 
+            value: earningsData?.totalBookings > 0 ? `${((earningsData.totalBookings / (dashboardData?.totalClients || 1)) * 100).toFixed(0)}%` : '0%', 
+            icon: 'arrow-up-circle' 
         },
-        {
-            title: 'Total Earnings',
-            value: '$27,500',
-            change: '+15.2% vs last month',
-            icon: 'currency-dollar',
-            bgColor: 'bg-blue-800',
-            iconBg: '#083A85',
+        { 
+            label: 'Avg. Deal Size', 
+            value: `$${(earningsData?.totalEarnings / Math.max(earningsData?.totalBookings || 1, 1))?.toFixed(0) || '0'}`, 
+            icon: 'currency-dollar' 
         },
-        {
-            title: 'Properties Managed',
-            value: '33',
-            change: '+2 new listings',
-            icon: 'house-door',
-            bgColor: 'bg-green-500',
-            iconBg: '#10B981',
+        { 
+            label: 'Total Bookings', 
+            value: earningsData?.totalBookings?.toString() || '0', 
+            icon: 'calendar-check' 
         },
-        {
-            title: 'Performance Score',
-            value: '94%',
-            change: 'Top 5% this month',
-            icon: 'graph-up-arrow',
-            bgColor: 'bg-amber-500',
-            iconBg: '#F59E0B',
+        { 
+            label: 'Client Satisfaction', 
+            value: '4.8/5', 
+            icon: 'star-fill' 
         },
     ];
 
-    const recentActivities = [
-        { icon: 'person-plus', text: 'New client onboarded: Maria Santos', time: '30 min ago', color: 'text-green-500' },
-        { icon: 'house-add', text: 'Listed new property: Ocean View Villa', time: '2 hours ago', color: 'text-blue-600' },
-        { icon: 'calendar-check', text: 'Site visit scheduled with John Smith', time: '4 hours ago', color: 'text-pink-500' },
-        { icon: 'cash-coin', text: 'Commission payment received: $1,200', time: '1 day ago', color: 'text-green-600' },
-    ];
+    if (loading) {
+        return (
+            <div className="mt-18">
+                <div className="max-w-7xl mx-auto">
+                    <div className="flex items-center justify-center h-64">
+                        <div className="flex flex-col items-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-    const upcomingAppointments = [
-        { client: 'Sarah Johnson', property: 'Downtown Penthouse', time: '2:00 PM', type: 'Property Viewing', priority: 'high' },
-        { client: 'Michael Chen', property: 'Riverside Apartment', time: '4:30 PM', type: 'Contract Signing', priority: 'high' },
-        { client: 'Emma Wilson', property: 'Garden Villa', time: '10:00 AM Tomorrow', type: 'Initial Consultation', priority: 'medium' },
-    ];
+    if (error) {
+        return (
+            <div className="mt-18">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                        <div className="flex items-center">
+                            <i className="bi bi-exclamation-triangle text-red-500 text-xl mr-3"></i>
+                            <div>
+                                <h3 className="text-red-800 font-semibold">Error Loading Dashboard</h3>
+                                <p className="text-red-600 mt-1">{error}</p>
+                                <button 
+                                    onClick={() => window.location.reload()} 
+                                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
-    const topProperties = [
-        { name: 'Sunset Villa', bookings: 28, revenue: '$8,400', rating: '4.9', location: 'Malibu' },
-        { name: 'City Loft', bookings: 24, revenue: '$6,720', rating: '4.8', location: 'Downtown' },
-        { name: 'Beach House', bookings: 19, revenue: '$9,500', rating: '4.7', location: 'Santa Monica' },
-    ];
-
-    const quickStats = [
-        { label: 'Conversion Rate', value: '68%', icon: 'arrow-up-circle' },
-        { label: 'Avg. Deal Size', value: '$2,850', icon: 'currency-dollar' },
-        { label: 'Response Time', value: '< 15m', icon: 'clock' },
-        { label: 'Client Satisfaction', value: '4.8/5', icon: 'star-fill' },
-    ];
+    const monthlyEarningsData = getMonthlyEarningsData();
+    const clientAcquisitionData = getClientAcquisitionData();
+    const summaryCards = getSummaryCards();
+    const recentActivities = getRecentActivities();
+    const upcomingAppointments = getUpcomingAppointments();
+    const topProperties = getTopProperties();
+    const propertyCategories = getPropertyCategories();
+    const quickStats = getQuickStats();
 
     return (
         <div className="mt-18">
             <div className="max-w-7xl mx-auto">
-                 {/* Header */}
+                {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">Welcome back, Sarah!</h1>
-                    <p className="text-gray-600 text-md">Here's what's happening with your travels</p>
+                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+                        {getTimeBasedGreeting()}, {userName}!
+                    </h1>
+                    <p className="text-gray-600 text-md">Here's what's happening with your property business</p>
                 </div>
                 
                 {/* Summary Cards */}
@@ -141,37 +308,46 @@ const AgentDashboard = () => {
                             </div>
                         </div>
                         <div className="h-48 sm:h-56 lg:h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={earningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: 'white', 
-                                            border: '1px solid #e5e7eb', 
-                                            borderRadius: '8px',
-                                            fontSize: '12px'
-                                        }} 
-                                    />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="commission" 
-                                        stroke="#F20C8F" 
-                                        strokeWidth={3} 
-                                        dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} 
-                                        name="Commission"
-                                    />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="bonus" 
-                                        stroke="#083A85" 
-                                        strokeWidth={2} 
-                                        dot={{ fill: '#083A85', strokeWidth: 2, r: 3 }} 
-                                        name="Bonus"
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            {monthlyEarningsData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={monthlyEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: 'white', 
+                                                border: '1px solid #e5e7eb', 
+                                                borderRadius: '8px',
+                                                fontSize: '12px'
+                                            }} 
+                                        />
+                                        <Line 
+                                            type="monotone" 
+                                            dataKey="commission" 
+                                            stroke="#F20C8F" 
+                                            strokeWidth={3} 
+                                            dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} 
+                                            name="Commission"
+                                        />
+                                        <Line 
+                                            type="monotone" 
+                                            dataKey="bonus" 
+                                            stroke="#083A85" 
+                                            strokeWidth={2} 
+                                            dot={{ fill: '#083A85', strokeWidth: 2, r: 3 }} 
+                                            name="Bonus"
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-500">
+                                    <div className="text-center">
+                                        <i className="bi bi-graph-up text-3xl mb-2"></i>
+                                        <p>No earnings data available</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -180,29 +356,38 @@ const AgentDashboard = () => {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-bar-chart mr-2 text-blue-800" />
-                                Weekly Client Acquisition
+                                Weekly Client Activity
                             </h3>
                             <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
                         <div className="h-48 sm:h-56 lg:h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={clientAcquisitionData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="week" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: 'white', 
-                                            border: '1px solid #e5e7eb', 
-                                            borderRadius: '8px',
-                                            fontSize: '12px'
-                                        }} 
-                                    />
-                                    <Bar dataKey="clients" fill="#083A85" radius={[6, 6, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {clientAcquisitionData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={clientAcquisitionData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                        <XAxis dataKey="week" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: 'white', 
+                                                border: '1px solid #e5e7eb', 
+                                                borderRadius: '8px',
+                                                fontSize: '12px'
+                                            }} 
+                                        />
+                                        <Bar dataKey="clients" fill="#083A85" radius={[6, 6, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-500">
+                                    <div className="text-center">
+                                        <i className="bi bi-bar-chart text-3xl mb-2"></i>
+                                        <p>No client activity data</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -214,14 +399,14 @@ const AgentDashboard = () => {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-calendar-event mr-2 text-blue-600" />
-                                Today's Appointments
+                                Recent Bookings
                             </h3>
                             <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
                                 View Calendar
                             </button>
                         </div>
                         <div className="space-y-3">
-                            {upcomingAppointments.map((appointment, index) => (
+                            {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
@@ -239,7 +424,12 @@ const AgentDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <i className="bi bi-calendar-x text-3xl mb-2"></i>
+                                    <p>No recent bookings</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -255,7 +445,7 @@ const AgentDashboard = () => {
                             </button>
                         </div>
                         <div className="space-y-3">
-                            {topProperties.map((property, index) => (
+                            {topProperties.length > 0 ? topProperties.map((property: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
@@ -272,7 +462,12 @@ const AgentDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <i className="bi bi-house-x text-3xl mb-2"></i>
+                                    <p>No properties available</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -288,35 +483,46 @@ const AgentDashboard = () => {
                             </h3>
                         </div>
                         <div className="h-48 sm:h-56">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={propertyCategories}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={30}
-                                        outerRadius={70}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {propertyCategories.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                            {propertyCategories.length > 0 ? (
+                                <>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={propertyCategories}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={30}
+                                                outerRadius={70}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {propertyCategories.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div className="flex flex-wrap justify-center gap-3 mt-3">
+                                        {propertyCategories.map((type, index) => (
+                                            <div key={index} className="flex items-center text-md font-medium">
+                                                <div 
+                                                    className="w-3 h-3 mr-2 rounded-sm"
+                                                    style={{ backgroundColor: type.color }}
+                                                ></div>
+                                                {type.name} ({type.value})
+                                            </div>
                                         ))}
-                                    </Pie>
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="flex flex-wrap justify-center gap-3 mt-3">
-                            {propertyCategories.map((type, index) => (
-                                <div key={index} className="flex items-center text-md font-medium">
-                                    <div 
-                                        className="w-3 h-3 mr-2 rounded-sm"
-                                        style={{ backgroundColor: type.color }}
-                                    ></div>
-                                    {type.name} ({type.value})
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-500">
+                                    <div className="text-center">
+                                        <i className="bi bi-pie-chart text-3xl mb-2"></i>
+                                        <p>No property data</p>
+                                    </div>
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
 
@@ -332,7 +538,7 @@ const AgentDashboard = () => {
                             </button>
                         </div>
                         <div className="space-y-3">
-                            {recentActivities.map((activity, index) => (
+                            {recentActivities.length > 0 ? recentActivities.map((activity: any, index: number) => (
                                 <div key={index} className="flex items-center p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                     <div className={`mr-3 ${activity.color}`}>
                                         <i className={`bi bi-${activity.icon} text-lg`} />
@@ -340,7 +546,12 @@ const AgentDashboard = () => {
                                     <span className="flex-1 text-md font-medium text-gray-700">{activity.text}</span>
                                     <span className="text-gray-400 text-md font-medium">{activity.time}</span>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <i className="bi bi-clock-history text-3xl mb-2"></i>
+                                    <p>No recent activity</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

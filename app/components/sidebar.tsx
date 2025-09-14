@@ -74,11 +74,18 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         return urlParams.get('token');
     };
 
+    // Function to get URL refresh token
+    const getUrlRefreshToken = (): string | null => {
+        if (typeof window === 'undefined' || !urlParams) return null;
+        return urlParams.get('refresh_token');
+    };
+
     // Function to clean URL after token extraction
     const cleanUrlParams = () => {
         if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             url.searchParams.delete('token');
+            url.searchParams.delete('refresh_token');
             window.history.replaceState({}, '', url.toString());
         }
     };
@@ -98,7 +105,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 
                 // Store token in localStorage immediately
                 localStorage.setItem('authToken', urlToken);
-                
+                localStorage.setItem('refreshToken', getUrlRefreshToken() || '');
                 // Clean URL after storing token
                 cleanUrlParams();
                 
