@@ -743,8 +743,10 @@ const hasChanges = () => {
     }
     
     // Prepare data for profile update API
-    const updateData = {
-      name: user.name,
+    const updateData: any = {
+      // Split name into firstName and lastName for backend compatibility
+      firstName: user.name.split(' ')[0] || '',
+      lastName: user.name.split(' ').slice(1).join(' ') || '',
       phone: user.phone,
       phoneCountryCode: user.phoneCountryCode,
       country: user.country,
@@ -754,31 +756,64 @@ const hasChanges = () => {
       province: user.province,
       district: user.district,
       county: user.county,
-      region: user.region,
-      // Add postal code to appropriate field
-      ...(postalCode && { [getPostalCodeFieldName(countryData[user.country!]) || 'postalCode']: postalCode })
+      region: user.region
     };
+
+    // Handle dynamic postal code field
+    const currentCountry = countryData[user.country!];
+    const postalField = getPostalCodeFieldName(currentCountry);
+    if (postalField && postalCode) {
+      updateData[postalField] = postalCode;
+    }
 
     // Remove undefined/empty values
     Object.keys(updateData).forEach(key => {
-      if (updateData[key as keyof typeof updateData] === undefined || updateData[key as keyof typeof updateData] === '') {
-        delete updateData[key as keyof typeof updateData];
+      if (updateData[key] === undefined || updateData[key] === '') {
+        delete updateData[key];
       }
     });
+
+    console.log('Sending update data:', updateData);
 
     const response = await api.put('auth/me', updateData);
     
     if (response.data) {
-      const finalUser = { ...response.data, profile: updatedProfileUrl, updated_at: new Date().toISOString() };
+      const finalUser = { 
+        ...response.data, 
+        profile: updatedProfileUrl, 
+        updated_at: new Date().toISOString(),
+        // Reconstruct the name field for frontend components
+        name: `${response.data.firstName || ''} ${response.data.lastName || ''}`.trim()
+      };
+      
       setUser(finalUser);
       setOriginalUser(finalUser);
       
-      // Dispatch profile image update event to notify TopBar and Sidebar
+      // ✨ ENHANCED: Dispatch comprehensive profile update event
+      const profileUpdateEvent = new CustomEvent('profileUpdated', {
+        detail: {
+          user: finalUser,
+          // Send specific fields that components care about
+          profile: updatedProfileUrl,
+          name: finalUser.name,
+          firstName: finalUser.firstName,
+          lastName: finalUser.lastName,
+          email: finalUser.email,
+          phone: finalUser.phone,
+          country: finalUser.country,
+          city: finalUser.city,
+          userType: finalUser.userType,
+          // Include any other fields that sidebar/topbar might need
+        }
+      });
+      window.dispatchEvent(profileUpdateEvent);
+      
+      // Keep the old event for backward compatibility
       if (updatedProfileUrl && updatedProfileUrl !== originalUser?.profile) {
-        const profileUpdateEvent = new CustomEvent('profileImageUpdated', {
+        const legacyEvent = new CustomEvent('profileImageUpdated', {
           detail: { profile: updatedProfileUrl }
         });
-        window.dispatchEvent(profileUpdateEvent);
+        window.dispatchEvent(legacyEvent);
       }
       
       setIsEditing(false);

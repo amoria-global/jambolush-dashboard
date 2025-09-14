@@ -1,3 +1,4 @@
+// app/components/topbar.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -38,12 +39,17 @@ interface UserSession {
 }
 
 interface Notification {
-  id: number;
-  icon: string;
-  text: string;
-  time: string;
-  read: boolean;
-  type?: 'info' | 'success' | 'warning' | 'error';
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  category: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  timestamp: Date | string;
+  isRead: boolean;
+  actionUrl?: string;
+  fromUser?: string;
+  relatedEntity?: string;
 }
 
 interface TopBarProps {
@@ -56,6 +62,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [lastNotificationCheck, setLastNotificationCheck] = useState<Date>(new Date());
 
   // UI state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -104,23 +112,15 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     try {
       setIsLoading(true);
       
-      // Always prioritize token from URL parameters
       const urlToken = getUrlToken();
       let authToken: string | null = null;
 
       if (urlToken) {
-        // Use token from URL parameters
         authToken = urlToken;
-        
-        // Store token in localStorage immediately
         localStorage.setItem('authToken', urlToken);
-        
-        // Clean URL after storing token
         cleanUrlParams();
-        
         console.log('Token retrieved from URL and stored in localStorage');
       } else {
-        // Fallback to localStorage only if no URL token
         authToken = localStorage.getItem('authToken');
       }
 
@@ -130,14 +130,12 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         return;
       }
 
-      // Set authorization header
       api.setAuth(authToken);
       const response = await api.get('auth/me');
 
       if (response.data) {
         const userData: UserProfile = response.data;
         
-        // Validate if user has appropriate role for dashboard access
         const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
         if (!validRoles.includes(userData.userType)) {
           console.error('Invalid user role:', userData.userType);
@@ -145,7 +143,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           return;
         }
 
-        // Create user session
         const session: UserSession = {
           user: userData,
           token: authToken,
@@ -155,10 +152,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setUserSession(session);
         setUser(userData);
         setIsAuthenticated(true);
-
-        // Fetch additional user data
         await fetchUserData(authToken);
-
         console.log('User session established successfully');
 
       } else {
@@ -176,22 +170,12 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   // Function to fetch additional user data (notifications, balance, etc.)
   const fetchUserData = async (authToken: string) => {
     try {
-      // Fetch notifications
-      const notificationsResponse = await api.get('user/notifications');
-      if (notificationsResponse.data) {
-        setNotifications(notificationsResponse.data);
-      }
+      await fetchNotifications();
     } catch (error) {
       console.error('Failed to fetch user data:', error);
-      // Set default notifications if API fails
-      setNotifications([
-        { id: 1, icon: "bi-person-plus-fill", text: "Welcome to your dashboard!", time: "Just now", read: false, type: 'info' },
-        { id: 2, icon: "bi-bell-fill", text: "Please complete your profile", time: "5 min ago", read: false, type: 'warning' }
-      ]);
     }
 
     try {
-      // Fetch balance if user is host or agent
       if (userSession?.role === 'host' || userSession?.role === 'agent') {
         const balanceResponse = await api.get('user/balance');
         if (balanceResponse.data && balanceResponse.data.balance !== undefined) {
@@ -204,7 +188,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
 
     try {
-      // Fetch unread messages count
       const messagesResponse = await api.get('user/messages/unread-count');
       if (messagesResponse.data && messagesResponse.data.count !== undefined) {
         setMessagesCount(messagesResponse.data.count);
@@ -215,10 +198,125 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   };
 
-  // Function to handle logout
+  const fetchNotifications = async () => {
+    try {
+      setNotificationsLoading(true);
+      
+      // Assuming api.getNotifications exists and is typed. If not, you might need to adjust.
+      const response = await api.get('/notifications', { params: {
+        limit: 10,
+        sortField: 'timestamp',
+        sortOrder: 'desc'
+      }});
+
+      if (response.data && response.data.data) {
+        const transformedNotifications = response.data.data.map((notification: any) => ({
+          ...notification,
+          timestamp: new Date(notification.timestamp)
+        }));
+        setNotifications(transformedNotifications);
+        setLastNotificationCheck(new Date());
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      // Assuming api.markNotificationAsRead exists. If not, use api.patch or similar.
+      await api.patch(`/notifications/${notificationId}/read`);
+      
+      setNotifications(notifications.map(n => 
+        n.id === notificationId ? { ...n, isRead: true } : n
+      ));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const pollInterval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+
+    return () => clearInterval(pollInterval);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handleNotificationUpdate = () => {
+      console.log('TopBar: Notification updated, refreshing notifications');
+      fetchNotifications();
+    };
+
+    const handleNotificationRead = (event: CustomEvent) => {
+      const { notificationId } = event.detail;
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+      );
+    };
+
+    const handleNotificationDeleted = (event: CustomEvent) => {
+      const { notificationId } = event.detail;
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    };
+
+    window.addEventListener('notificationUpdated', handleNotificationUpdate as EventListener);
+    window.addEventListener('notificationRead', handleNotificationRead as EventListener);
+    window.addEventListener('notificationDeleted', handleNotificationDeleted as EventListener);
+    window.addEventListener('allNotificationsRead', handleNotificationUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('notificationUpdated', handleNotificationUpdate as EventListener);
+      window.removeEventListener('notificationRead', handleNotificationRead as EventListener);
+      window.removeEventListener('notificationDeleted', handleNotificationDeleted as EventListener);
+      window.removeEventListener('allNotificationsRead', handleNotificationUpdate as EventListener);
+    };
+  }, []);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'success': return 'bi-check-circle-fill';
+      case 'warning': return 'bi-exclamation-triangle-fill';
+      case 'error': return 'bi-x-circle-fill';
+      case 'info': return 'bi-info-circle-fill';
+      default: return 'bi-bell-fill';
+    }
+  };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case 'success': return 'text-green-600';
+      case 'warning': return 'text-yellow-600';
+      case 'error': return 'text-red-600';
+      case 'info': return 'text-blue-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const timeAgo = (date: Date | string) => {
+    const now = new Date();
+    const notificationDate = new Date(date);
+    const diffInSeconds = Math.floor((now.getTime() - notificationDate.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[notificationDate.getMonth()]} ${notificationDate.getDate()}`;
+  };
+
   const handleLogout = async () => {
     try {
-      // Call logout API if authenticated
       if (isAuthenticated) {
         await api.post('auth/logout');
       }
@@ -226,9 +324,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       console.error('Logout API call failed:', error);
     }
 
-    // Clear local data
     localStorage.removeItem('authToken');
-    localStorage.removeItem('userSession');
     setUser(null);
     setUserSession(null);
     setIsAuthenticated(false);
@@ -236,19 +332,17 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     setBalance(0);
     setMessagesCount(0);
     
-    // Redirect to login
     console.log('Logging out and redirecting to login');
-    //window.location.href = 'https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href);
+    // Example redirect, adjust as needed
+    // router.push('/all/login');
   };
 
-  // Initialize authentication on component mount and when URL params change
   useEffect(() => {
     if (urlParams !== null) {
       fetchUserSession();
     }
   }, [urlParams]);
 
-  // Monitor localStorage changes (for when token is removed externally)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'authToken' && !e.newValue && isAuthenticated) {
@@ -263,21 +357,49 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   }, [isAuthenticated]);
 
-useEffect(() => {
-  const handleProfileImageUpdate = (event: CustomEvent) => {
-    if (user && event.detail.profile) {
-      setUser({ ...user, profile: event.detail.profile });
-    }
-  };
+  useEffect(() => {
+    const handleProfileUpdate = (event: CustomEvent) => {
+      if (user && event.detail.user) {
+        console.log('TopBar: Profile updated, refreshing user data');
+        
+        const updatedUser = {
+          ...user,
+          ...event.detail.user,
+          name: event.detail.user.name || `${event.detail.user.firstName || ''} ${event.detail.user.lastName || ''}`.trim(),
+          profile: event.detail.user.profile
+        };
+        
+        setUser(updatedUser);
+        
+        if (userSession) {
+          setUserSession({ ...userSession, user: updatedUser });
+        }
+        
+        if (updatedUser.userType !== user.userType) {
+          const authToken = localStorage.getItem('authToken');
+          if (authToken) {
+            fetchUserData(authToken);
+          }
+        }
+      }
+    };
 
-  window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
-  
-  return () => {
-    window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
-  };
-}, [user]);
+    const handleProfileImageUpdate = (event: CustomEvent) => {
+      if (user && event.detail.profile) {
+        console.log('TopBar: Profile image updated');
+        setUser({ ...user, profile: event.detail.profile });
+      }
+    };
 
-  // Handle outside clicks for dropdowns
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+      window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+    };
+  }, [user, userSession]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
@@ -294,16 +416,15 @@ useEffect(() => {
     };
   }, []);
 
-  // Helper functions
   const getUserDisplayName = () => {
     if (!user) return 'User';
     if (user.name) return user.name;
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`.trim();
+    if (user.firstName || user.lastName) {
+      return `${user.firstName || ''} ${user.lastName || ''}`.trim();
     }
     return user.email;
   };
-
+  
   const getUserAvatar = () => {
     if (user?.profile) return user.profile;
     if (user?.firstName && user?.lastName) {
@@ -328,21 +449,6 @@ useEffect(() => {
     return roleNames[role] || 'Guest';
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  // Mark notification as read
-  const markNotificationAsRead = async (notificationId: number) => {
-    try {
-      await api.patch(`user/notifications/${notificationId}/read`);
-      setNotifications(notifications.map(n => 
-        n.id === notificationId ? { ...n, read: true } : n
-      ));
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-    }
-  };
-
-  // Loading state
   if (isLoading) {
     return (
       <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
@@ -363,14 +469,12 @@ useEffect(() => {
     );
   }
 
-  // Not authenticated
   if (!isAuthenticated || !user || !userSession) {
     return null;
   }
 
   return (
     <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
-      {/* Left side content */}
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
@@ -383,11 +487,9 @@ useEffect(() => {
         </h1>
       </div>
 
-      {/* Right side Icons and Profile */}
       <div className="flex items-center gap-x-4 sm:gap-x-6">
-        {/* Messages Icon */}
         <div className="relative cursor-pointer hidden sm:block">
-          <i className="bi bi-chat-left-text text-2xl text-black-200 hover:text-[#083A85]"></i>
+          <i className="bi bi-chat-left-text text-2xl text-gray-600 hover:text-[#083A85]"></i>
           {messagesCount > 0 && (
             <span className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full bg-red-500">
               {messagesCount > 99 ? '99+' : messagesCount}
@@ -395,7 +497,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Notifications Dropdown */}
         <div className="relative" ref={notificationsRef}>
           <div 
             className="relative cursor-pointer" 
@@ -404,7 +505,7 @@ useEffect(() => {
               setIsProfileOpen(false);
             }}
           >
-            <i className="bi bi-bell text-2xl text-black-600 hover:text-[#083A85]"></i>
+            <i className="bi bi-bell text-2xl text-gray-600 hover:text-[#083A85]"></i>
             {unreadCount > 0 && (
               <span
                 className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
@@ -416,11 +517,14 @@ useEffect(() => {
           </div>
 
           {isNotificationsOpen && (
-            <div className="absolute -left-41 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
-              <div className="p-3 bg-gray-50 border-b">
+            <div className="absolute right-0 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
+              <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
                 <h6 className="font-semibold text-gray-800">Notifications</h6>
+                {notificationsLoading && (
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                )}
               </div>
-              <div className="divide-y divide-gray-300 max-h-80 overflow-y-auto">
+              <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     <i className="bi bi-bell-slash text-2xl mb-2"></i>
@@ -430,19 +534,36 @@ useEffect(() => {
                   notifications.map(notification => (
                     <div 
                       key={notification.id} 
-                      className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.read ? 'bg-blue-50/50' : ''}`}
-                      onClick={() => markNotificationAsRead(notification.id)}
+                      className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''}`}
+                      onClick={() => {
+                        markNotificationAsRead(notification.id);
+                        if (notification.actionUrl) {
+                          router.push(notification.actionUrl);
+                        }
+                      }}
                     >
                       <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-                        !notification.read ? 'bg-blue-500/20 text-blue-600' : 'bg-gray-200 text-gray-600'
+                        !notification.isRead ? 'bg-blue-500/20' : 'bg-gray-200'
                       }`}>
-                        <i className={`bi ${notification.icon} text-lg`}></i>
+                        <i className={`bi ${getNotificationIcon(notification.type)} text-lg ${
+                          !notification.isRead ? getNotificationColor(notification.type) : 'text-gray-600'
+                        }`}></i>
                       </div>
                       <div className="flex-grow">
-                        <p className="text-base text-black-700">{notification.text}</p>
-                        <p className="text-sm text-gray-700 mt-1">{notification.time}</p>
+                        <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                          {notification.title}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-gray-500">{timeAgo(notification.timestamp)}</p>
+                          {notification.priority === 'urgent' && (
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                              Urgent
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {!notification.read && (
+                      {!notification.isRead && (
                         <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>
                       )}
                     </div>
@@ -452,7 +573,12 @@ useEffect(() => {
               {notifications.length > 0 && (
                 <a 
                   href="/all/notifications" 
-                  className="block text-center p-2 text-base font-medium text-blue-600 hover:bg-gray-100 transition-colors"
+                  className="block text-center p-2 text-sm font-medium text-blue-600 hover:bg-gray-100 transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push('/all/notifications');
+                    setIsNotificationsOpen(false);
+                  }}
                 >
                   View All Notifications
                 </a>
@@ -461,7 +587,6 @@ useEffect(() => {
           )}
         </div>
 
-        {/* Profile Dropdown */}
         <div className="relative" ref={profileRef}>
           <div 
             className="flex items-center gap-3 cursor-pointer" 
@@ -499,9 +624,8 @@ useEffect(() => {
             }`}></i>
           </div>
 
-          {/* Dropdown Card */}
           {isProfileOpen && (
-            <div className="absolute -right-3 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-3 border-b">
                 <p className="font-bold text-gray-800">{getUserDisplayName()}</p>
                 <p className="text-sm text-gray-700">{getRoleDisplayName(userSession.role)} Account</p>
@@ -511,7 +635,7 @@ useEffect(() => {
                 <a 
                   href="/all/profile" 
                   className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                  onClick={() => setIsProfileOpen(false)}
+                  onClick={(e) => { e.preventDefault(); router.push('/all/profile'); setIsProfileOpen(false); }}
                 >
                   <i className="bi bi-person-circle w-5 text-black"></i>
                   <span>Profile</span>
@@ -520,7 +644,7 @@ useEffect(() => {
                   <a 
                     href="/all/earnings" 
                     className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                    onClick={() => setIsProfileOpen(false)}
+                    onClick={(e) => { e.preventDefault(); router.push('/all/earnings'); setIsProfileOpen(false); }}
                   >
                     <i className="bi bi-wallet2 w-5 text-black"></i>
                     <span>Balance & Payments</span>
@@ -529,7 +653,7 @@ useEffect(() => {
                 <a 
                   href="/all/settings" 
                   className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                  onClick={() => setIsProfileOpen(false)}
+                  onClick={(e) => { e.preventDefault(); router.push('/all/settings'); setIsProfileOpen(false); }}
                 >
                   <i className="bi bi-gear w-5 text-black"></i>
                   <span>Settings</span>

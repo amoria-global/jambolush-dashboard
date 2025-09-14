@@ -224,6 +224,138 @@ export interface User {
   profileImage?: string;
 }
 
+export interface Notification {
+  id: string;
+  userId: number;
+  title: string;
+  message: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  category: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  timestamp: Date | string;
+  isRead: boolean;
+  actionUrl?: string;
+  fromUser?: string;
+  relatedEntity?: string;
+  metadata?: any;
+  expiresAt?: Date | string;
+}
+
+export interface NotificationFilters {
+  search?: string;
+  type?: 'info' | 'warning' | 'error' | 'success' | 'all';
+  category?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent' | 'all';
+  status?: 'read' | 'unread' | 'all';
+  sortField?: 'timestamp' | 'priority' | 'category' | 'type';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: {
+    unreadCount: number;
+    urgentCount: number;
+    categories: string[];
+  };
+}
+
+export interface NotificationStats {
+  total: number;
+  unread: number;
+  urgent: number;
+  byType: {
+    info: number;
+    success: number;
+    warning: number;
+    error: number;
+  };
+  byCategory: Record<string, number>;
+  categories: string[];
+}
+
+// ============ HELP & SUPPORT INTERFACES ============
+
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+  tags: string[];
+  helpful: number;
+  lastUpdated: Date | string;
+  priority: 'high' | 'medium' | 'low';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Article {
+  id: string;
+  title: string;
+  content: string;
+  excerpt?: string;
+  category: string;
+  readTime: number;
+  views: number;
+  lastUpdated: Date | string;
+  isPublished: boolean;
+  author?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  subject: string;
+  description: string;
+  category: string;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  status: 'open' | 'in-progress' | 'resolved' | 'closed';
+  userId: number;
+  assignedTo?: number;
+  responses?: TicketResponse[];
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface TicketResponse {
+  id: string;
+  ticketId: string;
+  message: string;
+  isFromSupport: boolean;
+  createdAt: Date | string;
+  createdBy: number;
+}
+
+export interface HelpFilters {
+  search?: string;
+  category?: string;
+  priority?: string;
+  status?: string;
+  sortBy?: 'relevance' | 'date' | 'popularity' | 'category';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface HelpResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  categories: string[];
+}
+
+
 class FrontendAPIService {
   private baseURL: string;
   private defaultHeaders: Record<string, string> = {
@@ -239,7 +371,7 @@ class FrontendAPIService {
   private onAuthError?: () => void;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'https://backend.jambolush.com/api';
+    this.baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'http://localhost:5000/api';
   }
 
   // ============ TOKEN MANAGEMENT ============
@@ -623,6 +755,270 @@ class FrontendAPIService {
   delete<T = any>(url: string, config?: Omit<APIConfig, 'method' | 'body'>): Promise<APIResponse<T>> {
     return this.request<T>(url, { ...config, method: 'DELETE' });
   }
+
+// ============ FAQ API METHODS ============
+
+/**
+ * Get FAQs with filters and pagination
+ */
+async getFAQs(filters?: HelpFilters): Promise<APIResponse<BackendResponse<HelpResponse<FAQ>>>> {
+  const params: Record<string, any> = {};
+  
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params[key] = value;
+      }
+    });
+  }
+
+  return this.get<BackendResponse<HelpResponse<FAQ>>>('/help/faqs', { params });
+}
+
+/**
+ * Get single FAQ by ID
+ */
+async getFAQ(faqId: string): Promise<APIResponse<BackendResponse<FAQ>>> {
+  return this.get<BackendResponse<FAQ>>(`/help/faqs/${faqId}`);
+}
+
+/**
+ * Mark FAQ as helpful
+ */
+async markFAQHelpful(faqId: string): Promise<APIResponse<BackendResponse<{ helpful: number }>>> {
+  return this.patch<BackendResponse<{ helpful: number }>>(`/help/faqs/${faqId}/helpful`);
+}
+
+/**
+ * Search FAQs
+ */
+async searchFAQs(query: string, filters?: Omit<HelpFilters, 'search'>): Promise<APIResponse<BackendResponse<HelpResponse<FAQ>>>> {
+  return this.getFAQs({ ...filters, search: query });
+}
+
+// ============ ARTICLE API METHODS ============
+
+/**
+ * Get articles with filters and pagination
+ */
+async getArticles(filters?: HelpFilters): Promise<APIResponse<BackendResponse<HelpResponse<Article>>>> {
+  const params: Record<string, any> = {};
+  
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params[key] = value;
+      }
+    });
+  }
+
+  return this.get<BackendResponse<HelpResponse<Article>>>('/help/articles', { params });
+}
+
+/**
+ * Get single article by ID
+ */
+async getArticle(articleId: string): Promise<APIResponse<BackendResponse<Article>>> {
+  return this.get<BackendResponse<Article>>(`/help/articles/${articleId}`);
+}
+
+/**
+ * Increment article view count
+ */
+async incrementArticleViews(articleId: string): Promise<APIResponse<BackendResponse<{ views: number }>>> {
+  return this.patch<BackendResponse<{ views: number }>>(`/help/articles/${articleId}/views`);
+}
+
+/**
+ * Search articles
+ */
+async searchArticles(query: string, filters?: Omit<HelpFilters, 'search'>): Promise<APIResponse<BackendResponse<HelpResponse<Article>>>> {
+  return this.getArticles({ ...filters, search: query });
+}
+
+// ============ SUPPORT TICKET API METHODS ============
+
+/**
+ * Get user's support tickets with filters and pagination
+ */
+async getSupportTickets(filters?: HelpFilters): Promise<APIResponse<BackendResponse<HelpResponse<SupportTicket>>>> {
+  const params: Record<string, any> = {};
+  
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params[key] = value;
+      }
+    });
+  }
+
+  return this.get<BackendResponse<HelpResponse<SupportTicket>>>('/help/tickets', { params });
+}
+
+/**
+ * Get single support ticket by ID
+ */
+async getSupportTicket(ticketId: string): Promise<APIResponse<BackendResponse<SupportTicket>>> {
+  return this.get<BackendResponse<SupportTicket>>(`/help/tickets/${ticketId}`);
+}
+
+/**
+ * Create new support ticket
+ */
+async createSupportTicket(ticketData: {
+  subject: string;
+  description: string;
+  category: string;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+}): Promise<APIResponse<BackendResponse<SupportTicket>>> {
+  return this.post<BackendResponse<SupportTicket>>('/help/tickets', ticketData);
+}
+
+/**
+ * Update support ticket
+ */
+async updateSupportTicket(ticketId: string, updateData: {
+  subject?: string;
+  description?: string;
+  category?: string;
+  priority?: 'urgent' | 'high' | 'medium' | 'low';
+  status?: 'open' | 'in-progress' | 'resolved' | 'closed';
+}): Promise<APIResponse<BackendResponse<SupportTicket>>> {
+  return this.put<BackendResponse<SupportTicket>>(`/help/tickets/${ticketId}`, updateData);
+}
+
+/**
+ * Add response to support ticket
+ */
+async addTicketResponse(ticketId: string, message: string): Promise<APIResponse<BackendResponse<TicketResponse>>> {
+  return this.post<BackendResponse<TicketResponse>>(`/help/tickets/${ticketId}/responses`, { message });
+}
+
+/**
+ * Close support ticket
+ */
+async closeSupportTicket(ticketId: string): Promise<APIResponse<BackendResponse<SupportTicket>>> {
+  return this.patch<BackendResponse<SupportTicket>>(`/help/tickets/${ticketId}/close`);
+}
+
+// ============ HELP GENERAL METHODS ============
+
+/**
+ * Get help categories
+ */
+async getHelpCategories(): Promise<APIResponse<BackendResponse<string[]>>> {
+  return this.get<BackendResponse<string[]>>('/help/categories');
+}
+
+/**
+ * Send contact form message
+ */
+async sendContactMessage(contactData: {
+  subject: string;
+  category: string;
+  message: string;
+  email?: string;
+  name?: string;
+}): Promise<APIResponse<BackendResponse<any>>> {
+  return this.post<BackendResponse<any>>('/help/contact', contactData);
+}
+
+/**
+ * Get help statistics
+ */
+async getHelpStats(): Promise<APIResponse<BackendResponse<{
+  totalFAQs: number;
+  totalArticles: number;
+  totalTickets: number;
+  categoryCounts: Record<string, number>;
+}>>> {
+  return this.get<BackendResponse<{
+    totalFAQs: number;
+    totalArticles: number;
+    totalTickets: number;
+    categoryCounts: Record<string, number>;
+  }>>('/help/stats');
+}
+
+  // ============ NOTIFICATION API METHODS ============
+
+/**
+ * Get notifications with filters and pagination
+ */
+async getNotifications(filters?: NotificationFilters): Promise<APIResponse<BackendResponse<NotificationsResponse>>> {
+  const params: Record<string, any> = {};
+  
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+        params[key] = value;
+      }
+    });
+  }
+
+  return this.get<BackendResponse<NotificationsResponse>>('/notifications', { params });
+}
+
+/**
+ * Get single notification by ID
+ */
+async getNotification(notificationId: string): Promise<APIResponse<BackendResponse<Notification>>> {
+  return this.get<BackendResponse<Notification>>(`/notifications/${notificationId}`);
+}
+
+/**
+ * Mark notification as read
+ */
+async markNotificationAsRead(notificationId: string): Promise<APIResponse<BackendResponse<Notification>>> {
+  return this.patch<BackendResponse<Notification>>(`/notifications/${notificationId}/read`);
+}
+
+/**
+ * Mark notification as unread
+ */
+async markNotificationAsUnread(notificationId: string): Promise<APIResponse<BackendResponse<Notification>>> {
+  return this.patch<BackendResponse<Notification>>(`/notifications/${notificationId}/unread`);
+}
+
+/**
+ * Mark all notifications as read
+ */
+async markAllNotificationsAsRead(): Promise<APIResponse<BackendResponse<{ updatedCount: number }>>> {
+  return this.patch<BackendResponse<{ updatedCount: number }>>('/notifications/mark-all-read');
+}
+
+/**
+ * Delete notification
+ */
+async deleteNotification(notificationId: string): Promise<APIResponse<BackendResponse<any>>> {
+  return this.delete<BackendResponse<any>>(`/notifications/${notificationId}`);
+}
+
+/**
+ * Create new notification (admin/system use)
+ */
+async createNotification(notificationData: {
+  userId: number;
+  title: string;
+  message: string;
+  type?: 'info' | 'warning' | 'error' | 'success';
+  category?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  actionUrl?: string;
+  fromUser?: string;
+  relatedEntity?: string;
+  metadata?: any;
+  expiresAt?: string;
+}): Promise<APIResponse<BackendResponse<Notification>>> {
+  return this.post<BackendResponse<Notification>>('/notifications', notificationData);
+}
+
+/**
+ * Get notification statistics
+ */
+async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationStats>>> {
+  return this.get<BackendResponse<NotificationStats>>('/notifications/stats');
+}
 
   // ============ AUTHENTICATION METHODS ============
 

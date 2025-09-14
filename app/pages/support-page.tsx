@@ -1,44 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '../api/apiService'; // Adjust the import path as needed
 
-// Types
-interface FAQ {
-  id: string;
-  question: string;
-  answer: string;
-  category: string;
-  tags: string[];
-  helpful: number;
-  lastUpdated: Date;
-  priority: 'high' | 'medium' | 'low';
-}
-
-interface SupportTicket {
-  id: string;
-  subject: string;
-  description: string;
-  category: string;
-  priority: 'urgent' | 'high' | 'medium' | 'low';
-  status: 'open' | 'in-progress' | 'resolved' | 'closed';
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Article {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  readTime: number;
-  views: number;
-  lastUpdated: Date;
-}
+// Import types from apiService
+import type { FAQ, Article, SupportTicket, HelpFilters, HelpResponse } from '../api/apiService';
 
 type ViewMode = 'FAQS' | 'articles' | 'contact' | 'tickets';
 type SortField = 'relevance' | 'date' | 'popularity' | 'category';
 
 const HelpSupportCenter: React.FC = () => {
   // Date formatting helper
-  const format = (date: Date, formatStr: string = 'MMM dd, yyyy') => {
+  const format = (date: Date | string, formatStr: string = 'MMM dd, yyyy') => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const d = new Date(date);
     const year = d.getFullYear();
@@ -61,6 +32,7 @@ const HelpSupportCenter: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [sortField, setSortField] = useState<SortField>('relevance');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openFAQ, setOpenFAQ] = useState<string | null>(null);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +42,9 @@ const HelpSupportCenter: React.FC = () => {
   const [FAQS, setFAQS] = useState<FAQ[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   // New ticket form
   const [newTicket, setNewTicket] = useState({
@@ -79,221 +54,199 @@ const HelpSupportCenter: React.FC = () => {
     priority: 'medium' as 'urgent' | 'high' | 'medium' | 'low'
   });
 
-  // BACK-END PLACEHOLDER: Mock data generation remains unchanged
-  useEffect(() => {
-    const generateMockData = () => {
-      const categories = ['Getting Started', 'Booking Management', 'Payment & Billing', 'Account & Profile', 'Troubleshooting', 'Property Management'];
-      const priorities = ['high', 'medium', 'low'] as const;
-      
-      // Generate FAQS
-      const mockFAQS: FAQ[] = [
-        {
-          id: 'faq-1',
-          question: 'How do I create an account or log in?',
-          answer: 'To create a new account, click the "Sign Up" button on the homepage and follow the prompts. If you already have an account, click "Log In" and enter your credentials. You can also sign in using your Google or Facebook account for faster access.',
-          category: 'Getting Started',
-          tags: ['account', 'login', 'signup', 'authentication'],
-          helpful: 245,
-          lastUpdated: new Date(2025, 0, 15),
-          priority: 'high'
-        },
-        {
-          id: 'faq-2',
-          question: 'How to view booking status and history?',
-          answer: 'Your booking history is available in the "My Bookings" section of your profile. Here you can see past and upcoming bookings, track their current status, view receipts, and manage cancellations or modifications.',
-          category: 'Booking Management',
-          tags: ['bookings', 'history', 'status', 'tracking'],
-          helpful: 189,
-          lastUpdated: new Date(2025, 0, 12),
-          priority: 'high'
-        },
-        {
-          id: 'faq-3',
-          question: 'What payment methods are accepted?',
-          answer: 'We accept all major credit cards (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay, and bank transfers. You can add or update your payment information in your Account Settings under the Payment & Billing section.',
-          category: 'Payment & Billing',
-          tags: ['payment', 'credit card', 'paypal', 'billing'],
-          helpful: 156,
-          lastUpdated: new Date(2025, 0, 10),
-          priority: 'high'
-        },
-        {
-          id: 'faq-4',
-          question: 'How to modify or cancel bookings?',
-          answer: 'Modifying or canceling a booking can be done from the "My Bookings" page. Select the booking you wish to change and follow the on-screen instructions. Note that cancellation policies may apply and vary by property.',
-          category: 'Booking Management',
-          tags: ['cancel', 'modify', 'change', 'refund'],
-          helpful: 134,
-          lastUpdated: new Date(2025, 0, 8),
-          priority: 'medium'
-        },
-        {
-          id: 'faq-5',
-          question: 'How to reset my password?',
-          answer: 'If you forget your password, click "Forgot Password" on the login screen. We will send a password reset link to your registered email address. Follow the instructions in the email to create a new password.',
-          category: 'Account & Profile',
-          tags: ['password', 'reset', 'forgot', 'security'],
-          helpful: 98,
-          lastUpdated: new Date(2025, 0, 5),
-          priority: 'medium'
-        },
-        {
-          id: 'faq-6',
-          question: 'My booking is not showing up, what should I do?',
-          answer: 'There might be a slight delay in data synchronization. Please try refreshing the page and clearing your browser cache. If the issue persists, contact our support team with your booking confirmation number.',
-          category: 'Troubleshooting',
-          tags: ['booking', 'missing', 'sync', 'technical'],
-          helpful: 76,
-          lastUpdated: new Date(2025, 0, 3),
-          priority: 'medium'
-        }
-      ];
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    subject: '',
+    category: 'General Inquiry',
+    message: '',
+    loading: false
+  });
 
-      // Generate Articles
-      const mockArticles: Article[] = [
-        {
-          id: 'art-1',
-          title: 'Complete Guide to Making Your First Booking',
-          content: 'Step-by-step guide to help you navigate our platform and make your first successful booking...',
-          category: 'Getting Started',
-          readTime: 5,
-          views: 1245,
-          lastUpdated: new Date(2025, 0, 18)
-        },
-        {
-          id: 'art-2',
-          title: 'Understanding Our Cancellation Policies',
-          content: 'Detailed explanation of different cancellation policies and how they affect your bookings...',
-          category: 'Booking Management',
-          readTime: 8,
-          views: 892,
-          lastUpdated: new Date(2025, 0, 16)
-        },
-        {
-          id: 'art-3',
-          title: 'Payment Security and Best Practices',
-          content: 'Learn about our security measures and how to keep your payment information safe...',
-          category: 'Payment & Billing',
-          readTime: 6,
-          views: 567,
-          lastUpdated: new Date(2025, 0, 14)
-        }
-      ];
+  // Fetch data based on current view and filters
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const filters: HelpFilters = {
+        search: searchTerm || undefined,
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+        sortBy: sortField,
+        page: currentPage,
+        limit: itemsPerPage
+      };
 
-      // Generate Sample Tickets
-      const mockTickets: SupportTicket[] = [
-        {
-          id: 'TKT-001',
-          subject: 'Payment failed for booking',
-          description: 'My payment was declined but I\'m not sure why...',
-          category: 'Payment & Billing',
-          priority: 'high',
-          status: 'in-progress',
-          createdAt: new Date(2025, 0, 20),
-          updatedAt: new Date(2025, 0, 20)
+      switch (activeView) {
+        case 'FAQS': {
+          const response = await api.getFAQs(filters);
+          if (response.data.success) {
+            setFAQS(response.data.data.items);
+            setTotalResults(response.data.data.total);
+            setTotalPages(response.data.data.totalPages);
+            if (response.data.data.categories) {
+              setCategories(response.data.data.categories);
+            }
+          }
+          break;
         }
-      ];
-
-      setFAQS(mockFAQS);
-      setArticles(mockArticles);
-      setTickets(mockTickets);
+        case 'articles': {
+          const response = await api.getArticles(filters);
+          if (response.data.success) {
+            setArticles(response.data.data.items);
+            setTotalResults(response.data.data.total);
+            setTotalPages(response.data.data.totalPages);
+            if (response.data.data.categories) {
+              setCategories(response.data.data.categories);
+            }
+          }
+          break;
+        }
+        case 'tickets': {
+          const response = await api.getSupportTickets(filters);
+          if (response.data.success) {
+            setTickets(response.data.data.items);
+            setTotalResults(response.data.data.total);
+            setTotalPages(response.data.data.totalPages);
+            if (response.data.data.categories) {
+              setCategories(response.data.data.categories);
+            }
+          }
+          break;
+        }
+        default:
+          break;
+      }
+    } catch (err: any) {
+      console.error('Error fetching data:', err);
+      setError(err.message || 'Failed to fetch data. Please try again.');
+    } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.getHelpCategories();
+        if (response.data.success) {
+          setCategories(response.data.data);
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
     };
 
-    setTimeout(generateMockData, 800);
+    fetchCategories();
   }, []);
 
-  // Filter and sort logic
-  const filteredContent = useMemo(() => {
-    let content: any[] = [];
-    
+  // Fetch data when dependencies change
+  useEffect(() => {
+    if (activeView !== 'contact') {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [activeView, searchTerm, categoryFilter, sortField, currentPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  }, [searchTerm, categoryFilter, sortField, activeView]);
+
+  // Get current content for display
+  const currentContent = useMemo(() => {
     switch (activeView) {
       case 'FAQS':
-        content = FAQS;
-        break;
+        return FAQS;
       case 'articles':
-        content = articles;
-        break;
+        return articles;
       case 'tickets':
-        content = tickets;
-        break;
+        return tickets;
       default:
-        content = FAQS;
+        return [];
     }
-
-    // Apply search filter
-    if (searchTerm) {
-      content = content.filter((item: any) => {
-        const searchFields = activeView === 'FAQS' 
-          ? [item.question, item.answer, ...item.tags]
-          : activeView === 'articles'
-          ? [item.title, item.content]
-          : [item.subject, item.description];
-        
-        return searchFields.some((field: string) => 
-          field.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      });
-    }
-
-    // Apply category filter
-    if (categoryFilter !== 'all') {
-      content = content.filter((item: any) => item.category === categoryFilter);
-    }
-
-    // Apply sorting
-    content.sort((a: any, b: any) => {
-      switch (sortField) {
-        case 'date':
-          const dateA = a.lastUpdated || a.updatedAt || a.createdAt;
-          const dateB = b.lastUpdated || b.updatedAt || b.createdAt;
-          return dateB.getTime() - dateA.getTime();
-        case 'popularity':
-          return (b.helpful || b.views || 0) - (a.helpful || a.views || 0);
-        case 'category':
-          return a.category.localeCompare(b.category);
-        default:
-          return 0;
-      }
-    });
-
-    return content;
-  }, [activeView, FAQS, articles, tickets, searchTerm, categoryFilter, sortField]);
-
-  // Pagination
-  const paginatedContent = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredContent.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredContent, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredContent.length / itemsPerPage);
-
-  // Get unique categories
-  const categories = useMemo(() => {
-    const allCategories = [...FAQS, ...articles, ...tickets].map(item => item.category);
-    return [...new Set(allCategories)];
-  }, [FAQS, articles, tickets]);
+  }, [activeView, FAQS, articles, tickets]);
 
   // Handlers
-  const handleFAQClick = (faqId: string) => {
+  const handleFAQClick = async (faqId: string) => {
     setOpenFAQ(openFAQ === faqId ? null : faqId);
   };
 
-  const handleTicketSubmit = () => {
+  const handleFAQHelpful = async (faqId: string) => {
+    try {
+      const response = await api.markFAQHelpful(faqId);
+      if (response.data.success) {
+        // Update the FAQ in the list
+        setFAQS(prev => prev.map(faq => 
+          faq.id === faqId 
+            ? { ...faq, helpful: response.data.data.helpful }
+            : faq
+        ));
+      }
+    } catch (err) {
+      console.error('Error marking FAQ as helpful:', err);
+    }
+  };
+
+  const handleTicketSubmit = async () => {
     if (!newTicket.subject || !newTicket.description) return;
 
-    const ticket: SupportTicket = {
-      id: `TKT-${String(tickets.length + 1).padStart(3, '0')}`,
-      ...newTicket,
-      status: 'open',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    try {
+      const response = await api.createSupportTicket(newTicket);
+      if (response.data.success) {
+        // Add new ticket to the list if we're viewing tickets
+        if (activeView === 'tickets') {
+          setTickets(prev => [response.data.data, ...prev]);
+        }
+        setNewTicket({ subject: '', description: '', category: 'general', priority: 'medium' });
+        setShowTicketModal(false);
+        alert('Support ticket submitted successfully!');
+      }
+    } catch (err: any) {
+      console.error('Error creating ticket:', err);
+      alert('Failed to create ticket. Please try again.');
+    }
+  };
 
-    setTickets(prev => [ticket, ...prev]);
-    setNewTicket({ subject: '', description: '', category: 'general', priority: 'medium' });
-    setShowTicketModal(false);
-    alert('Support ticket submitted successfully!');
+  const handleContactSubmit = async () => {
+    if (!contactForm.subject || !contactForm.message) return;
+
+    setContactForm(prev => ({ ...prev, loading: true }));
+
+    try {
+      const response = await api.sendContactMessage({
+        subject: contactForm.subject,
+        category: contactForm.category,
+        message: contactForm.message
+      });
+
+      if (response.data.success) {
+        setContactForm({ subject: '', category: 'General Inquiry', message: '', loading: false });
+        alert('Message sent successfully! We\'ll get back to you soon.');
+      }
+    } catch (err: any) {
+      console.error('Error sending contact message:', err);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setContactForm(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleArticleClick = async (articleId: string) => {
+    try {
+      await api.incrementArticleViews(articleId);
+      // Update view count in the list
+      setArticles(prev => prev.map(article => 
+        article.id === articleId 
+          ? { ...article, views: article.views + 1 }
+          : article
+      ));
+    } catch (err) {
+      console.error('Error incrementing article views:', err);
+    }
   };
 
   const highlightText = (text: string, term: string): React.ReactNode => {
@@ -335,6 +288,22 @@ const HelpSupportCenter: React.FC = () => {
           <p className="text-gray-600 mt-2">Find answers to your questions or get in touch with our support team.</p>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <i className="bi bi-exclamation-triangle text-red-500 mr-2"></i>
+              <span className="text-red-700">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-500 hover:text-red-700"
+              >
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Tabs */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex flex-wrap gap-2 mb-6">
@@ -350,6 +319,7 @@ const HelpSupportCenter: React.FC = () => {
                   setActiveView(tab.key as ViewMode);
                   setCurrentPage(1);
                   setSearchTerm('');
+                  setError(null);
                 }}
                 className={`flex items-center cursor-pointer gap-2 px-4 py-2 rounded-lg transition-colors font-medium text-sm sm:text-base ${
                   activeView === tab.key 
@@ -373,7 +343,6 @@ const HelpSupportCenter: React.FC = () => {
                     placeholder={`Search ${activeView}...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    // MODIFICATION: Added responsive font size
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
                   />
                   <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -383,7 +352,6 @@ const HelpSupportCenter: React.FC = () => {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  // MODIFICATION: Added responsive font size
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer text-sm sm:text-base"
                 >
                   <option value="all">All Categories</option>
@@ -394,7 +362,6 @@ const HelpSupportCenter: React.FC = () => {
                 <select
                   value={sortField}
                   onChange={(e) => setSortField(e.target.value as SortField)}
-                  // MODIFICATION: Added responsive font size
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer text-sm sm:text-base"
                 >
                   <option value="relevance">Relevance</option>
@@ -408,10 +375,9 @@ const HelpSupportCenter: React.FC = () => {
 
           {/* Results count */}
           {activeView !== 'contact' && !loading && (
-            // MODIFICATION: Layout now stacks on mobile (flex-col) and becomes a row on larger screens (sm:flex-row)
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-4 gap-3">
               <p className="text-sm text-gray-600">
-                Showing {paginatedContent.length} of {filteredContent.length} results
+                Showing {currentContent.length} of {totalResults} results
               </p>
               {activeView === 'tickets' && (
                 <button
@@ -439,14 +405,14 @@ const HelpSupportCenter: React.FC = () => {
             {/* FAQS View */}
             {activeView === 'FAQS' && (
               <div className="space-y-4">
-                {paginatedContent.length === 0 ? (
+                {currentContent.length === 0 ? (
                   <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                     <i className="bi bi-question-circle text-6xl text-gray-300"></i>
                     <h3 className="text-xl font-medium text-gray-900 mt-4">No FAQS found</h3>
                     <p className="text-gray-600 mt-2">Try adjusting your search or filters</p>
                   </div>
                 ) : (
-                  paginatedContent.map((faq: FAQ) => (
+                  (currentContent as FAQ[]).map((faq: FAQ) => (
                     <div key={faq.id} className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                       <button
                         onClick={() => handleFAQClick(faq.id)}
@@ -457,7 +423,6 @@ const HelpSupportCenter: React.FC = () => {
                             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                               {highlightText(faq.question, searchTerm)}
                             </h3>
-                            {/* MODIFICATION: Made metadata text smaller for better mobile layout */}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-500">
                               <span className={`px-2 py-0.5 rounded-full font-medium ${getPriorityColor(faq.priority)}`}>
                                 {faq.priority}
@@ -474,14 +439,12 @@ const HelpSupportCenter: React.FC = () => {
                       </button>
                       
                       {openFAQ === faq.id && (
-                        // MODIFICATION: Adjusted padding for mobile
                         <div className="px-4 sm:px-6 pb-6 border-t border-gray-200">
                           <div className="pt-4">
                             <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
                               {highlightText(faq.answer, searchTerm)}
                             </p>
                             <div className="flex flex-wrap gap-2 mb-4">
-                              {/* MODIFICATION: Adjusted tag text size */}
                               {faq.tags.map(tag => (
                                 <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs sm:text-sm rounded-full">
                                   {tag}
@@ -490,7 +453,10 @@ const HelpSupportCenter: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-4 text-sm sm:text-base">
                               <span className="text-gray-600">Was this helpful?</span>
-                              <button className="flex items-center gap-1 text-green-600 hover:text-green-700">
+                              <button 
+                                onClick={() => handleFAQHelpful(faq.id)}
+                                className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                              >
                                 <i className="bi bi-hand-thumbs-up"></i>
                                 Yes
                               </button>
@@ -511,21 +477,21 @@ const HelpSupportCenter: React.FC = () => {
             {/* Articles View */}
             {activeView === 'articles' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {paginatedContent.length === 0 ? (
+                {currentContent.length === 0 ? (
                   <div className="col-span-full bg-white rounded-lg shadow-sm p-12 text-center">
                     <i className="bi bi-file-text text-6xl text-gray-300"></i>
                     <h3 className="text-xl font-medium text-gray-900 mt-4">No articles found</h3>
                     <p className="text-gray-600 mt-2">Try adjusting your search or filters</p>
                   </div>
                 ) : (
-                  paginatedContent.map((article: Article) => (
+                  (currentContent as Article[]).map((article: Article) => (
                     <div key={article.id} className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
                       <div className="p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
                           {highlightText(article.title, searchTerm)}
                         </h3>
                         <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                          {highlightText(article.content, searchTerm)}
+                          {highlightText(article.excerpt || article.content.substring(0, 150) + '...', searchTerm)}
                         </p>
                         <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-4">
                           <span>{article.category}</span>
@@ -534,7 +500,10 @@ const HelpSupportCenter: React.FC = () => {
                             <span><i className="bi bi-eye mr-1"></i>{article.views} views</span>
                           </div>
                         </div>
-                        <button className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium">
+                        <button 
+                          onClick={() => handleArticleClick(article.id)}
+                          className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium"
+                        >
                           Read Article
                         </button>
                       </div>
@@ -584,13 +553,19 @@ const HelpSupportCenter: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
                       <input
                         type="text"
+                        value={contactForm.subject}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
                         placeholder="How can we help you?"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                      <select className="w-full px-3 py-2 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base">
+                      <select 
+                        value={contactForm.category}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, category: e.target.value }))}
+                        className="w-full px-3 py-2 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
+                      >
                         <option>General Inquiry</option>
                         <option>Booking Issue</option>
                         <option>Payment Problem</option>
@@ -602,14 +577,25 @@ const HelpSupportCenter: React.FC = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
                       <textarea
                         rows={4}
+                        value={contactForm.message}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
                         placeholder="Please describe your issue or question..."
                       ></textarea>
                     </div>
                     <button
-                      className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium text-sm sm:text-base"
+                      onClick={handleContactSubmit}
+                      disabled={!contactForm.subject || !contactForm.message || contactForm.loading}
+                      className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Send Message
+                      {contactForm.loading ? (
+                        <>
+                          <i className="bi bi-arrow-clockwise animate-spin mr-2"></i>
+                          Sending...
+                        </>
+                      ) : (
+                        'Send Message'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -619,7 +605,7 @@ const HelpSupportCenter: React.FC = () => {
             {/* Tickets View */}
             {activeView === 'tickets' && (
               <div className="space-y-4">
-                {paginatedContent.length === 0 ? (
+                {currentContent.length === 0 ? (
                   <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                     <i className="bi bi-ticket text-6xl text-gray-300"></i>
                     <h3 className="text-xl font-medium text-gray-900 mt-4">No support tickets</h3>
@@ -632,7 +618,7 @@ const HelpSupportCenter: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  paginatedContent.map((ticket: SupportTicket) => (
+                  (currentContent as SupportTicket[]).map((ticket: SupportTicket) => (
                     <div key={ticket.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                         <div className="flex-1">
@@ -740,7 +726,6 @@ const HelpSupportCenter: React.FC = () => {
                   />
                 </div>
                 
-                {/* MODIFICATION: Grid now stacks on mobile (grid-cols-1) and goes side-by-side on larger screens (sm:grid-cols-2) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
