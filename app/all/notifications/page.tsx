@@ -1,8 +1,10 @@
+//all/notifications/page.tsx
 "use client";
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import api from '../../api/apiService'; 
 
-// Types
+// Types (keep existing interfaces)
 interface Notification {
   id: string;
   title: string;
@@ -20,7 +22,7 @@ interface Notification {
 type SortField = 'timestamp' | 'priority' | 'category' | 'type';
 type SortOrder = 'asc' | 'desc';
 
-// Loading component for Suspense fallback
+// Loading component for Suspense fallback (keep existing)
 function NotificationsLoading() {
   return (
     <div className="pt-14 bg-gray-50 min-h-screen">
@@ -76,7 +78,7 @@ function NotificationsContent() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Date formatting helper function
+  // Date formatting helper function (keep existing)
   const format = (date: Date, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -104,7 +106,7 @@ function NotificationsContent() {
     }
   };
 
-  // Time ago helper function
+  // Time ago helper function (keep existing)
   const timeAgo = (date: Date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -118,15 +120,22 @@ function NotificationsContent() {
 
   // States
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
   
-  // Filter states initialized with default values
+  // API response states
+  const [totalNotifications, setTotalNotifications] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [urgentCount, setUrgentCount] = useState(0);
+  const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
+  
+  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -137,11 +146,10 @@ function NotificationsContent() {
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // Update URL when filters change
+  // Update URL when filters change (keep existing)
   const updateURL = (updates: Record<string, string>) => {
     const searchParams = new URLSearchParams();
     
-    // Get current values
     const currentParams = {
       search: searchTerm,
       type: typeFilter,
@@ -163,159 +171,97 @@ function NotificationsContent() {
     router.push(`${pathname}${queryString ? `?${queryString}` : ''}`, { scroll: false });
   };
 
-  // Generate mock data
-  useEffect(() => {
-    const generateMockNotifications = (): Notification[] => {
-      const types: ('info' | 'warning' | 'error' | 'success')[] = ['info', 'warning', 'error', 'success'];
-      const priorities: ('low' | 'medium' | 'high' | 'urgent')[] = ['low', 'medium', 'high', 'urgent'];
-      const categories = ['Booking', 'Payment', 'System', 'Security', 'Property', 'Guest Communication'];
-      const users = ['Alice Johnson', 'Bob Smith', 'Carol Williams', 'David Brown', 'Emma Davis'];
+  // Fetch notifications from API
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      const notificationTemplates = [
-        { title: 'New booking received', message: 'You have received a new booking for Ocean View Villa', type: 'success', category: 'Booking' },
-        { title: 'Payment reminder', message: 'Payment is due for booking #BK00123', type: 'warning', category: 'Payment' },
-        { title: 'System maintenance', message: 'Scheduled maintenance will occur tonight from 2-4 AM', type: 'info', category: 'System' },
-        { title: 'Security alert', message: 'Multiple failed login attempts detected', type: 'error', category: 'Security' },
-        { title: 'Property update required', message: 'Please update your property availability calendar', type: 'info', category: 'Property' },
-        { title: 'Guest message', message: 'You have a new message from your guest', type: 'info', category: 'Guest Communication' },
-        { title: 'Booking cancelled', message: 'A booking has been cancelled by the guest', type: 'warning', category: 'Booking' },
-        { title: 'Payment received', message: 'Payment successfully processed for booking #BK00156', type: 'success', category: 'Payment' },
-        { title: 'Review received', message: 'You have received a new 5-star review!', type: 'success', category: 'Property' },
-        { title: 'Account verification', message: 'Please verify your account to continue using our services', type: 'warning', category: 'Security' }
-      ];
-      
-      return Array.from({ length: 42 }, (_, i) => {
-        const template = notificationTemplates[i % notificationTemplates.length];
-        const hoursAgo = Math.floor(Math.random() * 720); // Up to 30 days ago
-        const timestamp = new Date();
-        timestamp.setHours(timestamp.getHours() - hoursAgo);
-        
-        return {
-          id: `NOT${String(i + 1).padStart(5, '0')}`,
-          title: template.title,
-          message: template.message,
-          type: template.type as any,
-          category: template.category,
-          priority: priorities[Math.floor(Math.random() * priorities.length)],
-          timestamp,
-          isRead: Math.random() > 0.4, // 60% read, 40% unread
-          fromUser: Math.random() > 0.5 ? users[Math.floor(Math.random() * users.length)] : undefined,
-          relatedEntity: Math.random() > 0.5 ? `BK${String(Math.floor(Math.random() * 999) + 1).padStart(5, '0')}` : undefined,
-          actionUrl: Math.random() > 0.7 ? '/bookings' : undefined
-        };
+      const response = await api.getNotifications({
+        search: searchTerm || undefined,
+        type: typeFilter !== 'all' ? typeFilter as any : undefined,
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+        priority: priorityFilter !== 'all' ? priorityFilter as any : undefined,
+        status: readStatusFilter !== 'all' ? readStatusFilter as any : undefined,
+        sortField: sortField,
+        sortOrder: sortOrder,
+        page: currentPage,
+        limit: itemsPerPage
       });
-    };
 
-    setTimeout(() => {
-      setNotifications(generateMockNotifications());
+      if (response.data.success) {
+        const data = response.data.data;
+        
+        // Transform timestamps to Date objects
+        const transformedNotifications = data.notifications.map(notification => ({
+          ...notification,
+          timestamp: new Date(notification.timestamp)
+        }));
+        
+        setNotifications(transformedNotifications);
+        setTotalNotifications(data.total);
+        setTotalPages(data.totalPages);
+        setUnreadCount(data.stats.unreadCount);
+        setUrgentCount(data.stats.urgentCount);
+        setUniqueCategories(data.stats.categories);
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch notifications');
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch notifications');
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
 
-  // Update goToPageInput when currentPage changes
+  // Initial load and refetch when filters/page changes
+  useEffect(() => {
+    fetchNotifications();
+  }, [
+    currentPage,
+    searchTerm,
+    typeFilter,
+    categoryFilter,
+    priorityFilter,
+    readStatusFilter,
+    sortField,
+    sortOrder
+  ]);
+
+  // Update goToPageInput when currentPage changes (keep existing)
   useEffect(() => {
     setGoToPageInput(currentPage.toString());
   }, [currentPage]);
 
-  // Filter and sort logic
-  useEffect(() => {
-    let filtered = [...notifications];
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(notification =>
-        notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        notification.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        notification.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Type filter
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(notification => notification.type === typeFilter);
-    }
-
-    // Category filter
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(notification => notification.category === categoryFilter);
-    }
-
-    // Priority filter
-    if (priorityFilter !== 'all') {
-      filtered = filtered.filter(notification => notification.priority === priorityFilter);
-    }
-
-    // Read status filter
-    if (readStatusFilter !== 'all') {
-      const isRead = readStatusFilter === 'read';
-      filtered = filtered.filter(notification => notification.isRead === isRead);
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'timestamp':
-          comparison = a.timestamp.getTime() - b.timestamp.getTime();
-          break;
-        case 'priority':
-          const priorityOrder = { 'low': 1, 'medium': 2, 'high': 3, 'urgent': 4 };
-          comparison = priorityOrder[a.priority] - priorityOrder[b.priority];
-          break;
-        case 'category':
-          comparison = a.category.localeCompare(b.category);
-          break;
-        case 'type':
-          comparison = a.type.localeCompare(b.type);
-          break;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    setFilteredNotifications(filtered);
-    setCurrentPage(1);
-  }, [notifications, searchTerm, typeFilter, categoryFilter, priorityFilter, readStatusFilter, sortField, sortOrder]);
-
-  // Pagination
-  const paginatedNotifications = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredNotifications.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredNotifications, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredNotifications.length / itemsPerPage);
-
-  // Get unique categories for filter
-  const uniqueCategories = useMemo(() => {
-    return [...new Set(notifications.map(n => n.category))];
-  }, [notifications]);
-
-  // Stats
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-  const urgentCount = notifications.filter(n => n.priority === 'urgent').length;
-
   // Handlers with URL updates
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page
     updateURL({ search: value });
   };
 
   const handleTypeFilterChange = (value: string) => {
     setTypeFilter(value);
+    setCurrentPage(1);
     updateURL({ type: value });
   };
 
   const handleCategoryFilterChange = (value: string) => {
     setCategoryFilter(value);
+    setCurrentPage(1);
     updateURL({ category: value });
   };
 
   const handlePriorityFilterChange = (value: string) => {
     setPriorityFilter(value);
+    setCurrentPage(1);
     updateURL({ priority: value });
   };
 
   const handleReadStatusFilterChange = (value: string) => {
     setReadStatusFilter(value);
+    setCurrentPage(1);
     updateURL({ status: value });
   };
 
@@ -331,34 +277,174 @@ function NotificationsContent() {
     updateURL({ sortField: field, sortOrder: newOrder });
   };
 
-  const handleViewDetails = (notification: Notification) => {
+  const handleViewDetails = async (notification: Notification) => {
     setSelectedNotification(notification);
     setShowModal(true);
+    
     // Mark as read when opened
-    handleMarkAsRead(notification.id);
-  };
-
-  const handleMarkAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-    );
-  };
-
-  const handleMarkAsUnread = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, isRead: false } : n)
-    );
-  };
-
-  const handleDelete = (notificationId: string) => {
-    if (confirm('Are you sure you want to delete this notification?')) {
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    if (!notification.isRead) {
+      await handleMarkAsRead(notification.id);
     }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
+  const handleMarkAsRead = async (notificationId: string) => {
+  try {
+    await api.markNotificationAsRead(notificationId);
+    
+    // Update local state
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+    );
+    
+    // Update selected notification if it's the current one
+    if (selectedNotification?.id === notificationId) {
+      setSelectedNotification(prev => prev ? { ...prev, isRead: true } : null);
+    }
+    
+    // Update unread count
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    // 🆕 Dispatch event for topbar to listen
+    window.dispatchEvent(new CustomEvent('notificationRead', {
+      detail: { notificationId }
+    }));
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  }
+};
+
+  const handleMarkAsUnread = async (notificationId: string) => {
+  try {
+    await api.markNotificationAsUnread(notificationId);
+    
+    // Update local state
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, isRead: false } : n)
+    );
+    
+    // Update selected notification if it's the current one
+    if (selectedNotification?.id === notificationId) {
+      setSelectedNotification(prev => prev ? { ...prev, isRead: false } : null);
+    }
+    
+    // Update unread count
+    setUnreadCount(prev => prev + 1);
+
+    // 🆕 Dispatch event for topbar to listen
+    window.dispatchEvent(new CustomEvent('notificationUpdated', {
+      detail: { action: 'marked_unread', notificationId }
+    }));
+  } catch (error) {
+    console.error('Error marking notification as unread:', error);
+  }
+};
+
+  const handleDelete = async (notificationId: string) => {
+  if (confirm('Are you sure you want to delete this notification?')) {
+    try {
+      await api.deleteNotification(notificationId);
+      
+      // Check if the deleted notification was unread to update count
+      const deletedNotification = notifications.find(n => n.id === notificationId);
+      const wasUnread = deletedNotification && !deletedNotification.isRead;
+      
+      // Refresh notifications list
+      fetchNotifications();
+      
+      // Close modal if the deleted notification was selected
+      if (selectedNotification?.id === notificationId) {
+        setShowModal(false);
+        setSelectedNotification(null);
+      }
+
+      // 🆕 Dispatch event for topbar to listen
+      window.dispatchEvent(new CustomEvent('notificationDeleted', {
+        detail: { notificationId, wasUnread }
+      }));
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      alert('Failed to delete notification. Please try again.');
+    }
+  }
+};
+
+  const handleMarkAllAsRead = async () => {
+  try {
+    await api.markAllNotificationsAsRead();
+    
+    // Refresh notifications list
+    fetchNotifications();
+
+    // 🆕 Dispatch event for topbar to listen
+    window.dispatchEvent(new CustomEvent('allNotificationsRead', {
+      detail: { timestamp: new Date().toISOString() }
+    }));
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    alert('Failed to mark all notifications as read. Please try again.');
+  }
+};
+
+const checkForNewNotifications = async () => {
+  try {
+    const response = await api.getNotifications({
+      limit: 1,
+      sortField: 'timestamp',
+      sortOrder: 'desc'
+    });
+
+    if (response.data.success && response.data.data.notifications.length > 0) {
+      const latestNotification = response.data.data.notifications[0];
+      const latestTimestamp = new Date(latestNotification.timestamp);
+      
+      // Check if this is newer than our last check
+      const lastCheck = localStorage.getItem('lastNotificationCheck');
+      if (!lastCheck || latestTimestamp > new Date(lastCheck)) {
+        // Dispatch event for new notification
+        window.dispatchEvent(new CustomEvent('newNotificationReceived', {
+          detail: { 
+            notification: latestNotification,
+            timestamp: latestTimestamp.toISOString()
+          }
+        }));
+        
+        // Update last check timestamp
+        localStorage.setItem('lastNotificationCheck', latestTimestamp.toISOString());
+        
+        // Refresh the current page's notifications
+        fetchNotifications();
+      }
+    }
+  } catch (error) {
+    console.error('Error checking for new notifications:', error);
+  }
+};
+
+useEffect(() => {
+  // Check for new notifications every 30 seconds
+  const pollInterval = setInterval(checkForNewNotifications, 5000);
+  
+  return () => clearInterval(pollInterval);
+}, []);
+
+const handleNotificationClick = async (notification: Notification) => {
+  // Mark as read if not already read
+  if (!notification.isRead) {
+    await handleMarkAsRead(notification.id);
+  }
+  
+  // Open notification details
+  handleViewDetails(notification);
+  
+  // Dispatch event for analytics or other components
+  window.dispatchEvent(new CustomEvent('notificationClicked', {
+    detail: { 
+      notificationId: notification.id,
+      category: notification.category,
+      type: notification.type
+    }
+  }));
+};
 
   const handleGoToPage = (value: string) => {
     const page = parseInt(value);
@@ -370,6 +456,7 @@ function NotificationsContent() {
     }
   };
 
+  // Keep existing utility functions (getTypeColor, getTypeIcon, getPriorityColor)
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'success': return 'bg-green-100 text-green-800';
@@ -429,13 +516,30 @@ function NotificationsContent() {
               )}
               <button
                 onClick={handleMarkAllAsRead}
-                className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors text-base font-medium cursor-pointer"
+                disabled={loading || unreadCount === 0}
+                className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors text-base font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Mark All Read
               </button>
             </div>
           </div>
         </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <i className="bi bi-exclamation-circle text-red-500 mr-2"></i>
+              <p className="text-red-700">{error}</p>
+              <button
+                onClick={fetchNotifications}
+                className="ml-auto px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Filters Section */}
         <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6">
@@ -520,7 +624,7 @@ function NotificationsContent() {
           {/* Results Count */}
           <div className="flex justify-between items-center mt-6">
             <p className="text-base text-gray-600">
-              Showing {paginatedNotifications.length} of {filteredNotifications.length} notifications
+              Showing {notifications.length} of {totalNotifications} notifications
             </p>
           </div>
         </div>
@@ -533,7 +637,7 @@ function NotificationsContent() {
         )}
 
         {/* Empty State */}
-        {!loading && filteredNotifications.length === 0 && (
+        {!loading && notifications.length === 0 && !error && (
           <div className="bg-white rounded-lg shadow-sm p-8 sm:p-12 text-center">
             <i className="bi bi-bell-slash text-5xl sm:text-6xl text-gray-300"></i>
             <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">No notifications found</h3>
@@ -542,7 +646,7 @@ function NotificationsContent() {
         )}
 
         {/* List View */}
-        {!loading && filteredNotifications.length > 0 && (
+        {!loading && notifications.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -584,7 +688,7 @@ function NotificationsContent() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedNotifications.map((notification) => (
+                  {notifications.map((notification) => (
                     <tr 
                       key={notification.id} 
                       className={`hover:bg-gray-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50 hover:bg-blue-100' : ''}`}
@@ -735,7 +839,7 @@ function NotificationsContent() {
         )}
       </div>
 
-      {/* Detail Modal */}
+      {/* Detail Modal - Keep existing modal code but update the action handlers */}
       {showModal && selectedNotification && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
@@ -787,7 +891,10 @@ function NotificationsContent() {
                   {/* Action URL */}
                   {selectedNotification.actionUrl && (
                     <div>
-                      <button className="w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                      <button 
+                        onClick={() => router.push(selectedNotification.actionUrl!)}
+                        className="w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                      >
                         <i className="bi bi-arrow-right-circle mr-2"></i>
                         View Related Item
                       </button>
@@ -802,10 +909,8 @@ function NotificationsContent() {
                   onClick={() => {
                     if (selectedNotification.isRead) {
                       handleMarkAsUnread(selectedNotification.id);
-                      setSelectedNotification({...selectedNotification, isRead: false});
                     } else {
                       handleMarkAsRead(selectedNotification.id);
-                      setSelectedNotification({...selectedNotification, isRead: true});
                     }
                   }}
                   className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-base"
@@ -816,7 +921,6 @@ function NotificationsContent() {
                 <button
                   onClick={() => {
                     handleDelete(selectedNotification.id);
-                    setShowModal(false);
                   }}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-base"
                 >
