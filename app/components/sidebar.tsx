@@ -1,3 +1,4 @@
+// app/components/sidebar.tsx
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -207,6 +208,60 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         }
     }, [isAuthenticated]);
 
+    useEffect(() => {
+  // Handle comprehensive profile updates
+  const handleProfileUpdate = (event: CustomEvent) => {
+    if (user && event.detail.user) {
+      console.log('Sidebar: Profile updated, refreshing user data');
+      
+      // Update user state with all the new data
+      const updatedUser = {
+        ...user,
+        ...event.detail.user,
+        // Ensure we maintain the structure expected by the sidebar
+        name: event.detail.user.name || `${event.detail.user.firstName || ''} ${event.detail.user.lastName || ''}`.trim(),
+        profile: event.detail.user.profile
+      };
+      
+      setUser(updatedUser);
+      
+      // Also update userSession if needed
+      if (userSession) {
+        const updatedSession = {
+          ...userSession,
+          user: updatedUser
+        };
+        setUserSession(updatedSession);
+        
+        // Update localStorage session data
+        localStorage.setItem('userSession', JSON.stringify({
+          role: updatedUser.userType,
+          name: getUserDisplayName(updatedUser),
+          id: updatedUser.id,
+          email: updatedUser.email
+        }));
+      }
+    }
+  };
+
+  // Handle legacy profile image updates (for backward compatibility)
+  const handleProfileImageUpdate = (event: CustomEvent) => {
+    if (user && event.detail.profile) {
+      console.log('Sidebar: Profile image updated');
+      setUser({ ...user, profile: event.detail.profile });
+    }
+  };
+
+  // Add both event listeners
+  window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+  window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+  
+  return () => {
+    window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+  };
+}, [user, userSession]); // Added userSession to dependencies
+
     // Close sidebar on route change (mobile)
     useEffect(() => {
         if (isSidebarOpen) {
@@ -347,17 +402,17 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 md:translate-x-0`}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-gray-100">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F20C8F' }}>
-                            <span className="text-white font-bold text-lg">J</span>
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-black">Jambolush</h1>
-                            <p className="text-base text-gray-600">{getRoleDisplayName(userSession.role)} Dashboard</p>
-                        </div>
-                    </div>
-                </div>
+<div className="p-6 border-b border-gray-100">
+  <div className="flex items-center space-x-3">
+    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
+      <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
+    </div>
+    <div>
+      <h1 className="text-xl font-bold text-black">Jambolush</h1>
+      <p className="text-base text-gray-600">{getRoleDisplayName(userSession.role)} Dashboard</p>
+    </div>
+  </div>
+</div>
 
                 {/* Navigation Items */}
                 <div className="p-4">

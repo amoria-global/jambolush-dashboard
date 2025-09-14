@@ -7,6 +7,9 @@ export const metadata: Metadata = {
 }
 
 export default function Home() {
+    const userData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("userSession") || '{}') : null;
+    if (userData && userData.role)
+               window.location.href = `/all/${userData.role}`;
   return (
     <HomePage />
   );
