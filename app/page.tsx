@@ -1,5 +1,5 @@
-
 import { Metadata } from "next";
+import HomePage from "./pages/home";
 
 export const metadata: Metadata = {
   title: 'Dashboard - JamboLush',
@@ -11,8 +11,6 @@ export default function Home() {
     if (userData && userData.role)
                window.location.href = `/all/${userData.role}`;
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      Welcome to the JamboLush Dashboard!
-    </div>
+    <HomePage />
   );
 }

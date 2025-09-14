@@ -1,7 +1,52 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import api from "@/app/api/apiService"; // Import your API service
 
+// Interface for guest profile from API
+interface GuestProfile {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  profileImage?: string;
+  verificationStatus: 'verified' | 'unverified' | 'pending';
+  joinDate: string;
+  totalBookings: number;
+  totalSpent: number;
+  averageRating: number;
+  lastBooking?: string;
+  preferredCommunication: string;
+  notes?: string;
+}
+
+// Interface for booking history from API
+interface GuestBookingHistory {
+  guestId: number;
+  bookings: BookingInfo[];
+  totalBookings: number;
+  totalRevenue: number;
+  averageStayDuration: number;
+  favoriteProperty?: string;
+}
+
+interface BookingInfo {
+  id: string;
+  propertyName: string;
+  guestName: string;
+  guestEmail: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  totalPrice: number;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Client interface for the component (transformed from API data)
 interface Client {
   id: string;
   name: string;
@@ -15,152 +60,34 @@ interface Client {
   amountPerClient: number;
   propertyName: string;
   numberOfGuests: number;
+  verificationStatus: string;
+  totalBookings: number;
+  averageRating: number;
 }
 
-const MOCK_CLIENTS: Client[] = [
-  { 
-    id: '1', 
-    name: 'Mubeni pablo', 
-    email: 'pablo12@gmail.com', 
-    phone: '+1 (555) 123-4567',
-    status: 'Checked In', 
-    bookingDate: '2023-01-15', 
-    checkInDate: '2023-02-01',
-    checkOutDate: '2023-02-05',
-    housePayment: 1200, 
-    amountPerClient: 150,
-    propertyName: 'Ocean View Villa',
-    numberOfGuests: 4
-  },
-  { 
-    id: '2', 
-    name: 'Robert Willy', 
-    email: 'robert.w@email.com', 
-    phone: '+1 (555) 234-5678',
-    status: 'Checked Out', 
-    bookingDate: '2023-02-20', 
-    checkInDate: '2023-03-01',
-    checkOutDate: '2023-03-07',
-    housePayment: 1500, 
-    amountPerClient: 200,
-    propertyName: 'Mountain Lodge',
-    numberOfGuests: 6
-  },
-  { 
-    id: '3', 
-    name: 'Emily Chen', 
-    email: 'emily.c@email.com', 
-    phone: '+1 (555) 345-6789',
-    status: 'Checked In', 
-    bookingDate: '2023-03-10', 
-    checkInDate: '2023-03-15',
-    checkOutDate: '2023-03-20',
-    housePayment: 1100, 
-    amountPerClient: 175,
-    propertyName: 'City Center Apartment',
-    numberOfGuests: 2
-  },
-  { 
-    id: '4', 
-    name: 'David Brown', 
-    email: 'david.b@email.com', 
-    phone: '+1 (555) 456-7890',
-    status: 'Pending', 
-    bookingDate: '2023-04-05', 
-    checkInDate: '2023-04-15',
-    checkOutDate: '2023-04-22',
-    housePayment: 1300, 
-    amountPerClient: 180,
-    propertyName: 'Lakeside Cabin',
-    numberOfGuests: 5
-  },
-  { 
-    id: '5', 
-    name: 'Lisa Martin', 
-    email: 'lisa.m@email.com', 
-    phone: '+1 (555) 567-8901',
-    status: 'Checked In', 
-    bookingDate: '2023-05-18', 
-    checkInDate: '2023-05-25',
-    checkOutDate: '2023-05-30',
-    housePayment: 1400, 
-    amountPerClient: 160,
-    propertyName: 'Beach House',
-    numberOfGuests: 8
-  },
-  { 
-    id: '6', 
-    name: 'Kevin Davis', 
-    email: 'kevin.d@email.com', 
-    phone: '+1 (555) 678-9012',
-    status: 'Checked Out', 
-    bookingDate: '2023-06-22', 
-    checkInDate: '2023-07-01',
-    checkOutDate: '2023-07-08',
-    housePayment: 1250, 
-    amountPerClient: 190,
-    propertyName: 'Downtown Loft',
-    numberOfGuests: 3
-  },
-  { 
-    id: '7', 
-    name: 'Uwitonze paccy', 
-    email: 'paccy.uw@email.com', 
-    phone: '+1 (555) 789-0123',
-    status: 'Pending', 
-    bookingDate: '2023-07-30', 
-    checkInDate: '2023-08-10',
-    checkOutDate: '2023-08-17',
-    housePayment: 1350, 
-    amountPerClient: 170,
-    propertyName: 'Countryside Villa',
-    numberOfGuests: 7
-  },
-  { 
-    id: '8', 
-    name: 'Mugwiza jackson', 
-    email: 'jackson.M@email.com', 
-    phone: '+1 (555) 890-1234',
-    status: 'Checked Out', 
-    bookingDate: '2023-08-11', 
-    checkInDate: '2023-08-20',
-    checkOutDate: '2023-08-25',
-    housePayment: 1450, 
-    amountPerClient: 185,
-    propertyName: 'Penthouse Suite',
-    numberOfGuests: 4
-  },
-  { 
-    id: '9', 
-    name: 'Moses grant', 
-    email: 'mgrant@email.com', 
-    phone: '+1 (555) 901-2345',
-    status: 'Checked In', 
-    bookingDate: '2023-09-01', 
-    checkInDate: '2023-09-10',
-    checkOutDate: '2023-09-15',
-    housePayment: 1200, 
-    amountPerClient: 165,
-    propertyName: 'Garden Cottage',
-    numberOfGuests: 2
-  },
-  { 
-    id: '10', 
-    name: 'joe butman', 
-    email: 'jbutman@email.com', 
-    phone: '+1 (555) 012-3456',
-    status: 'Pending', 
-    bookingDate: '2023-10-14', 
-    checkInDate: '2023-10-25',
-    checkOutDate: '2023-11-01',
-    housePayment: 1300, 
-    amountPerClient: 155,
-    propertyName: 'Ski Chalet',
-    numberOfGuests: 6
-  },
-];
+// API response interface
+interface ApiResponse {
+  guests: GuestProfile[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// Guest search filters for API
+interface GuestSearchFilters {
+  search?: string;
+  verificationStatus?: 'verified' | 'unverified' | 'pending';
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  sortBy?: 'name' | 'joinDate' | 'totalBookings' | 'totalSpent';
+  sortOrder?: 'asc' | 'desc';
+}
 
 const AgentClientsPage: React.FC = () => {
+  // Original UI state
   const [activeTab, setActiveTab] = useState<'All' | Client['status']>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -172,6 +99,14 @@ const AgentClientsPage: React.FC = () => {
   const [goToPageInput, setGoToPageInput] = useState('');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
 
+  // API related state
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiTotal, setApiTotal] = useState(0);
+  const [apiTotalPages, setApiTotalPages] = useState(0);
+  const [uniqueProperties, setUniqueProperties] = useState<string[]>([]);
+
   const pageSize = 8;
 
   useEffect(() => setCurrentPage(1), [activeTab, searchTerm, startDate, endDate, propertyFilter]);
@@ -181,40 +116,175 @@ const AgentClientsPage: React.FC = () => {
     setGoToPageInput(currentPage.toString());
   }, [currentPage]);
 
-  const uniqueProperties = useMemo(() => {
-    return [...new Set(MOCK_CLIENTS.map(c => c.propertyName))];
-  }, []);
+  // Function to transform API guest data to client data
+  const transformGuestToClient = (guest: GuestProfile, latestBooking?: BookingInfo): Client => {
+    const status: Client['status'] = latestBooking 
+      ? latestBooking.status === 'confirmed' 
+        ? new Date(latestBooking.checkIn) <= new Date() && new Date(latestBooking.checkOut) > new Date()
+          ? 'Checked In'
+          : new Date(latestBooking.checkOut) <= new Date()
+          ? 'Checked Out'
+          : 'Pending'
+        : latestBooking.status === 'completed'
+        ? 'Checked Out'
+        : 'Pending'
+      : 'Pending';
 
+    return {
+      id: guest.id.toString(),
+      name: `${guest.firstName} ${guest.lastName}`.trim(),
+      email: guest.email,
+      phone: guest.phone || '',
+      status,
+      bookingDate: latestBooking?.createdAt || guest.joinDate,
+      checkInDate: latestBooking?.checkIn || guest.joinDate,
+      checkOutDate: latestBooking?.checkOut || guest.joinDate,
+      housePayment: latestBooking?.totalPrice || 0,
+      amountPerClient: latestBooking ? Math.round(latestBooking.totalPrice / latestBooking.guests) : 0,
+      propertyName: latestBooking?.propertyName || 'N/A',
+      numberOfGuests: latestBooking?.guests || 1,
+      verificationStatus: guest.verificationStatus,
+      totalBookings: guest.totalBookings,
+      averageRating: guest.averageRating
+    };
+  };
+
+  // Function to fetch guests from API
+  const fetchAgentGuests = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Get auth token
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        setError('Authentication required');
+        return;
+      }
+
+      // Set authorization header
+      api.setAuth(authToken);
+
+      // Prepare filters
+      const filters: GuestSearchFilters = {};
+      
+      if (searchTerm) {
+        filters.search = searchTerm;
+      }
+      
+      if (startDate && endDate) {
+        filters.dateRange = {
+          start: startDate,
+          end: endDate
+        };
+      }
+
+      // Map sortBy to API expected values
+      const apiSortBy = sortBy === 'name' ? 'name' : 
+                       sortBy === 'totalBookings' ? 'totalBookings' :
+                       sortBy === 'housePayment' ? 'totalSpent' : 'joinDate';
+      
+      filters.sortBy = apiSortBy as any;
+      filters.sortOrder = sortOrder;
+
+      // Prepare query parameters for GET request
+      const queryParams = new URLSearchParams();
+      
+      // Add pagination
+      queryParams.append('page', currentPage.toString());
+      queryParams.append('limit', pageSize.toString());
+      
+      // Add filters as query parameters
+      if (filters.search) {
+        queryParams.append('search', filters.search);
+      }
+      
+      if (filters.sortBy) {
+        queryParams.append('sortBy', filters.sortBy);
+      }
+      
+      if (filters.sortOrder) {
+        queryParams.append('sortOrder', filters.sortOrder);
+      }
+      
+      if (filters.dateRange) {
+        queryParams.append('dateStart', filters.dateRange.start);
+        queryParams.append('dateEnd', filters.dateRange.end);
+      }
+
+      // Make API call with query parameters
+      const response = await api.get(`/properties/agent/guests?${queryParams.toString()}`);
+
+      if (response.data && response.data.success) {
+        const guestsData: GuestProfile[] = response.data.data || [];
+        
+        // Fetch booking details for each guest to get latest booking info
+        const clientsPromises = guestsData.map(async (guest) => {
+          try {
+            // Get guest's booking history
+            const bookingResponse = await api.get(`/properties/agent/guests/${guest.id}/bookings`);
+            const bookings: BookingInfo[] = bookingResponse.data?.bookings || [];
+            const latestBooking = bookings.length > 0 ? bookings[0] : undefined;
+            
+            return transformGuestToClient(guest, latestBooking);
+          } catch (error) {
+            console.error(`Failed to fetch bookings for guest ${guest.id}:`, error);
+            return transformGuestToClient(guest);
+          }
+        });
+
+        const transformedClients = await Promise.all(clientsPromises);
+        setClients(transformedClients);
+
+        // Extract unique properties
+        const properties = [...new Set(transformedClients.map(c => c.propertyName).filter(p => p !== 'N/A'))];
+        setUniqueProperties(properties);
+
+        // Set pagination info
+        if (response.data.total !== undefined) {
+          setApiTotal(response.data.total);
+          setApiTotalPages(response.data.totalPages || Math.ceil(response.data.total / pageSize));
+        } else {
+          setApiTotal(transformedClients.length);
+          setApiTotalPages(1);
+        }
+
+      } else {
+        setClients([]);
+        setApiTotal(0);
+        setApiTotalPages(0);
+      }
+
+    } catch (error: any) {
+      console.error('Failed to fetch agent guests:', error);
+      setError(error.response?.data?.message || 'Failed to load clients data');
+      setClients([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data on component mount and when dependencies change
+  useEffect(() => {
+    fetchAgentGuests();
+  }, [currentPage, searchTerm, startDate, endDate, sortBy, sortOrder]);
+
+  // Filter clients locally (since API might not handle all filters)
   const filteredAndSortedClients = useMemo(() => {
-    let result = MOCK_CLIENTS.filter(client => {
+    let result = clients.filter(client => {
       const matchesTab = activeTab === 'All' || client.status === activeTab;
-      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            client.propertyName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesDateRange = (!startDate || client.bookingDate >= startDate) &&
-                               (!endDate || client.bookingDate <= endDate);
       const matchesProperty = propertyFilter === 'all' || client.propertyName === propertyFilter;
-      return matchesTab && matchesSearch && matchesDateRange && matchesProperty;
-    });
-
-    result.sort((a, b) => {
-      const aValue = a[sortBy];
-      const bValue = b[sortBy];
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+      return matchesTab && matchesProperty;
     });
 
     return result;
-  }, [activeTab, searchTerm, startDate, endDate, propertyFilter, sortBy, sortOrder]);
+  }, [clients, activeTab, propertyFilter]);
 
   const totalClients = filteredAndSortedClients.length;
-  const totalPages = Math.ceil(totalClients / pageSize);
-  const paginatedClients = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredAndSortedClients.slice(start, start + pageSize);
-  }, [filteredAndSortedClients, currentPage, pageSize]);
+  const totalPages = Math.max(apiTotalPages, Math.ceil(totalClients / pageSize));
+  const paginatedClients = filteredAndSortedClients;
 
+  // Helper functions remain the same
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
   
   const getAvatarColor = (id: string) => {
@@ -283,6 +353,10 @@ const AgentClientsPage: React.FC = () => {
             <span className="font-medium text-gray-900">{client.numberOfGuests} people</span>
           </div>
           <div className="flex justify-between">
+            <span>Total Bookings:</span>
+            <span className="font-medium text-gray-900">{client.totalBookings}</span>
+          </div>
+          <div className="flex justify-between">
             <span>Check-in:</span>
             <span className="font-medium text-gray-900">{new Date(client.checkInDate).toLocaleDateString()}</span>
           </div>
@@ -304,6 +378,54 @@ const AgentClientsPage: React.FC = () => {
     </div>
   );
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Management</h1>
+            <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <div className="animate-spin mx-auto h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+            <h3 className="text-xl font-medium text-gray-900">Loading clients...</h3>
+            <p className="text-gray-600 mt-2">Please wait while we fetch your client data</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="pt-14">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Management</h1>
+            <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+            <svg className="mx-auto h-16 w-16 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-xl font-medium text-gray-900 mt-4">Error Loading Data</h3>
+            <p className="text-gray-600 mt-2">{error}</p>
+            <button 
+              onClick={fetchAgentGuests}
+              className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-blue-800 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-14">
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -321,7 +443,7 @@ const AgentClientsPage: React.FC = () => {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Client name, email, or property..."
+                  placeholder="Client name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -379,7 +501,7 @@ const AgentClientsPage: React.FC = () => {
           
           <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-6 gap-4">
             <p className="text-base text-gray-600">
-              Showing {paginatedClients.length} of {totalClients} clients
+              Showing {paginatedClients.length} of {apiTotal} clients
             </p>
             <div className="flex gap-2">
               <button 
@@ -411,7 +533,7 @@ const AgentClientsPage: React.FC = () => {
         </div>
 
         {/* Content */}
-        {totalClients === 0 && (
+        {totalClients === 0 && !isLoading && (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -466,12 +588,12 @@ const AgentClientsPage: React.FC = () => {
                           <div className="font-bold text-green-600">${client.amountPerClient}</div>
                         </div>
                         <div>
-                          <span className="text-gray-500">Check-in:</span>
-                          <div className="font-medium text-gray-700">{new Date(client.checkInDate).toLocaleDateString()}</div>
+                          <span className="text-gray-500">Total Bookings:</span>
+                          <div className="font-medium text-gray-700">{client.totalBookings}</div>
                         </div>
                         <div>
-                          <span className="text-gray-500">Check-out:</span>
-                          <div className="font-medium text-gray-700">{new Date(client.checkOutDate).toLocaleDateString()}</div>
+                          <span className="text-gray-500">Verification:</span>
+                          <div className="font-medium text-gray-700 capitalize">{client.verificationStatus}</div>
                         </div>
                       </div>
                     </div>
@@ -508,11 +630,11 @@ const AgentClientsPage: React.FC = () => {
                       </th>
                       <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
                         <button 
-                          onClick={() => handleSort('checkInDate')} 
+                          onClick={() => handleSort('totalBookings')} 
                           className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
                         >
-                          <span>Check-in/Out Dates</span>
-                          {sortBy === 'checkInDate' && (
+                          <span>Bookings & Verification</span>
+                          {sortBy === 'totalBookings' && (
                             <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                           )}
                         </button>
@@ -562,8 +684,8 @@ const AgentClientsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-base sm:text-base text-gray-900">
-                            <div><strong>In:</strong> {new Date(client.checkInDate).toLocaleDateString()}</div>
-                            <div><strong>Out:</strong> {new Date(client.checkOutDate).toLocaleDateString()}</div>
+                            <div><strong>Total:</strong> {client.totalBookings} bookings</div>
+                            <div><strong>Status:</strong> <span className="capitalize">{client.verificationStatus}</span></div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

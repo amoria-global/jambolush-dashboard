@@ -98,6 +98,12 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     return urlParams.get('token');
   };
 
+  // Function to get URL token
+  const getUrlRefreshToken = (): string | null => {
+    if (typeof window === 'undefined' || !urlParams) return null;
+    return urlParams.get('refresh_token');
+  };
+
   // Function to clean URL after token extraction
   const cleanUrlParams = () => {
     if (typeof window !== 'undefined') {
@@ -112,15 +118,26 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     try {
       setIsLoading(true);
       
+      // Always prioritize token from URL parameters
       const urlToken = getUrlToken();
       let authToken: string | null = null;
 
       if (urlToken) {
+        // Use token from URL parameters
         authToken = urlToken;
+        
+        // Store token in localStorage immediately
         localStorage.setItem('authToken', urlToken);
+        const urlRefreshToken = getUrlRefreshToken();
+        if (urlRefreshToken) {
+          localStorage.setItem('refreshToken', urlRefreshToken);
+        }
+        
+        // Clean URL after storing token
         cleanUrlParams();
         console.log('Token retrieved from URL and stored in localStorage');
       } else {
+        // Fallback to localStorage only if no URL token
         authToken = localStorage.getItem('authToken');
       }
 
@@ -130,18 +147,21 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         return;
       }
 
+      // Set authorization header
       api.setAuth(authToken);
       const response = await api.get('auth/me');
 
       if (response.data) {
         const userData: UserProfile = response.data;
         
+        // Validate if user has appropriate role for dashboard access
         const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
         if (!validRoles.includes(userData.userType)) {
           console.error('Invalid user role:', userData.userType);
           handleLogout();
           return;
         }
+        // Create user session
 
         const session: UserSession = {
           user: userData,
@@ -152,7 +172,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setUserSession(session);
         setUser(userData);
         setIsAuthenticated(true);
+
+        // Fetch additional user data
         await fetchUserData(authToken);
+        console.log('User session established successfully');
+
         console.log('User session established successfully');
 
       } else {
@@ -170,6 +194,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   // Function to fetch additional user data (notifications, balance, etc.)
   const fetchUserData = async (authToken: string) => {
     try {
+      // Fetch balance if user is host or agent
       await fetchNotifications();
     } catch (error) {
       console.error('Failed to fetch user data:', error);
@@ -188,6 +213,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
 
     try {
+      // Fetch unread messages count
       const messagesResponse = await api.get('user/messages/unread-count');
       if (messagesResponse.data && messagesResponse.data.count !== undefined) {
         setMessagesCount(messagesResponse.data.count);
@@ -317,6 +343,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const handleLogout = async () => {
     try {
+      // Call logout API if authenticated
       if (isAuthenticated) {
         await api.post('auth/logout');
       }
@@ -324,6 +351,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       console.error('Logout API call failed:', error);
     }
 
+    // Clear local data
     localStorage.removeItem('authToken');
     setUser(null);
     setUserSession(null);
@@ -337,12 +365,14 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     // router.push('/all/login');
   };
 
+  // Initialize authentication on component mount and when URL params change
   useEffect(() => {
     if (urlParams !== null) {
       fetchUserSession();
     }
   }, [urlParams]);
 
+  // Monitor localStorage changes (for when token is removed externally)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'authToken' && !e.newValue && isAuthenticated) {
@@ -357,6 +387,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   }, [isAuthenticated]);
 
+  // Handle outside clicks for dropdowns
   useEffect(() => {
     const handleProfileUpdate = (event: CustomEvent) => {
       if (user && event.detail.user) {
@@ -416,6 +447,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     };
   }, []);
 
+  // Helper functions
   const getUserDisplayName = () => {
     if (!user) return 'User';
     if (user.name) return user.name;
@@ -449,6 +481,22 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     return roleNames[role] || 'Guest';
   };
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: number) => {
+    try {
+      await api.patch(`user/notifications/${notificationId}/read`);
+      setNotifications(notifications.map(n => 
+        n.id === notificationId ? { ...n, read: true } : n
+      ));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  // Loading state
+
   if (isLoading) {
     return (
       <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
@@ -469,12 +517,15 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     );
   }
 
+  // Not authenticated
   if (!isAuthenticated || !user || !userSession) {
     return null;
   }
 
   return (
-    <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
+    <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-400 shadow-lg z-30 transition-all duration-300 lg:left-72">
+      {/* Left side content */}
+
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
@@ -487,7 +538,9 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         </h1>
       </div>
 
+      {/* Right side Icons and Profile */}
       <div className="flex items-center gap-x-4 sm:gap-x-6">
+        {/* Messages Icon */}
         <div className="relative cursor-pointer hidden sm:block">
           <i className="bi bi-chat-left-text text-2xl text-gray-600 hover:text-[#083A85]"></i>
           {messagesCount > 0 && (
@@ -497,6 +550,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           )}
         </div>
 
+        {/* Notifications Dropdown */}
         <div className="relative" ref={notificationsRef}>
           <div 
             className="relative cursor-pointer" 
@@ -587,6 +641,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           )}
         </div>
 
+        {/* Profile Dropdown */}
         <div className="relative" ref={profileRef}>
           <div 
             className="flex items-center gap-3 cursor-pointer" 
@@ -624,6 +679,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
             }`}></i>
           </div>
 
+          {/* Dropdown Card */}
           {isProfileOpen && (
             <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-3 border-b">

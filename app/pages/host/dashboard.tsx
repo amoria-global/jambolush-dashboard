@@ -466,7 +466,7 @@ const Dashboard: React.FC = () => {
                 <p className="text-sm text-gray-600 font-medium">Total Earnings</p>
                 <p className="text-3xl font-bold text-gray-900">{formatCurrency(earningsData?.totalEarnings || dashboardData.totalRevenue || 0)}</p>
                 {earningsData?.revenueGrowth && (
-                  <p className="text-sm text-green-600 mt-1">+{earningsData.revenueGrowth.toFixed(1)}% growth</p>
+                  <p className="text-sm text-green-600 mt-1">+{earningsData.revenueGrowth}% growth</p>
                 )}
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -505,7 +505,7 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 font-medium">Average Rating</p>
-                <p className="text-3xl font-bold text-gray-900">{(dashboardData.averageRating || 0).toFixed(1)}</p>
+                <p className="text-3xl font-bold text-gray-900">{(dashboardData.averageRating || 0)}</p>
                 <div className="flex items-center mt-1">
                   <div className="flex text-yellow-400 mr-2">
                     {[...Array(5)].map((_, i) => (
@@ -612,7 +612,7 @@ const Dashboard: React.FC = () => {
                       <span>{formatCurrency(property.revenue)}</span>
                       <div className="flex items-center">
                         <i className="bi bi-star-fill text-yellow-400 mr-1"></i>
-                        {property.rating.toFixed(1)}
+                        {property.rating}
                       </div>
                     </div>
                   </div>
@@ -780,13 +780,13 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-1">Occupancy Rate</p>
-                <p className="text-2xl font-bold text-purple-600">{earningsData.occupancyRate.toFixed(1)}%</p>
+                <p className="text-2xl font-bold text-purple-600">{earningsData.occupancyRate}%</p>
                 <p className="text-xs text-gray-500">of available nights</p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-1">Revenue Growth</p>
                 <p className={`text-2xl font-bold ${earningsData.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {earningsData.revenueGrowth >= 0 ? '+' : ''}{earningsData.revenueGrowth.toFixed(1)}%
+                  {earningsData.revenueGrowth >= 0 ? '+' : ''}{earningsData.revenueGrowth}%
                 </p>
                 <p className="text-xs text-gray-500">this month</p>
               </div>

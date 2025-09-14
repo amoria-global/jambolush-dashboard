@@ -114,6 +114,9 @@ const HostPropertiesPage: React.FC = () => {
                 setLoading(true);
                 setError('');
 
+                const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+                api.setAuth(token || '');
+
                 // Fetch dashboard stats and properties
                 const [dashboardResponse, propertiesResponse] = await Promise.all([
                     api.get('/properties/host/dashboard'),
