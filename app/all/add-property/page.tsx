@@ -911,7 +911,7 @@ const AddPropertyPage: React.FC = () => {
       console.log('Submitting property data:', requestBody);
 
       // Make API call to create property
-      const response = await api.post('/properties', requestBody);
+      const response = await api.post('/properties//agent/own/properties', requestBody);
 
       if (response.ok) {
         const successMessage = response.data?.message || 'Property added successfully!';

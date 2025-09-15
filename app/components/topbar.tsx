@@ -30,6 +30,7 @@ interface UserProfile {
   status: string;
   userType: UserRole;
   provider?: string;
+  verification?: string; // Added verification property
 }
 
 interface UserSession {
@@ -98,6 +99,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     return urlParams.get('token');
   };
 
+    const getUrlRefreshToken = (): string | null => {
+    if (typeof window === 'undefined' || !urlParams) return null;
+    return urlParams.get('refresh_token');
+  };
+
   // Function to clean URL after token extraction
   const cleanUrlParams = () => {
     if (typeof window !== 'undefined') {
@@ -117,7 +123,13 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
       if (urlToken) {
         authToken = urlToken;
+        
+        // Store refreshtoken in localStorage immediately
         localStorage.setItem('authToken', urlToken);
+        const urlRefreshToken: any = getUrlRefreshToken();
+        localStorage.setItem('refreshToken', urlRefreshToken);
+        
+        // Clean URL after storing token
         cleanUrlParams();
         console.log('Token retrieved from URL and stored in localStorage');
       } else {
@@ -143,6 +155,14 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           return;
         }
 
+        // Check verification status - redirect to assessment if not verified
+        if (userData.verification !== 'verified' && userData.userType === "agent") {
+          console.log('User verification not completed, redirecting to assessment');
+          router.push('/all/assessment');
+          return;
+        }
+
+        // Create user session
         const session: UserSession = {
           user: userData,
           token: authToken,
@@ -203,14 +223,14 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       setNotificationsLoading(true);
       
       // Assuming api.getNotifications exists and is typed. If not, you might need to adjust.
-      const response = await api.get('/notifications', { params: {
+      const response: any = await api.get('/notifications', { params: {
         limit: 10,
         sortField: 'timestamp',
         sortOrder: 'desc'
       }});
 
       if (response.data && response.data.data) {
-        const transformedNotifications = response.data.data.map((notification: any) => ({
+        const transformedNotifications = response.data.data.notifications.map((notification: any) => ({
           ...notification,
           timestamp: new Date(notification.timestamp)
         }));
@@ -334,7 +354,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     
     console.log('Logging out and redirecting to login');
     // Example redirect, adjust as needed
-    // router.push('/all/login');
+    router.push('https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href));
   };
 
   useEffect(() => {
@@ -448,6 +468,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     };
     return roleNames[role] || 'Guest';
   };
+
+  // Loading state
 
   if (isLoading) {
     return (

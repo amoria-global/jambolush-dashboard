@@ -1,119 +1,255 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import api from '@/app/api/apiService';
 
 const TourGuideDashboard = () => {
     const router = useRouter();
+    
+    // State for dashboard data
+    const [dashboardData, setDashboardData] = useState<any>(null);
+    const [enhancedData, setEnhancedData] = useState<any>(null);
+    const [bookingsData, setBookingsData] = useState<any>([]);
+    const [earningsData, setEarningsData] = useState<any>([]);
+    const [toursData, setToursData] = useState<any>([]);
+    const [loading, setLoading] = useState<any>(true);
+    const [error, setError] = useState<any>(null);
 
-    // Sample data for tour guide charts
-    const earningsData = [
-        { month: 'Jan', earnings: 2800 },
-        { month: 'Feb', earnings: 3200 },
-        { month: 'Mar', earnings: 3800 },
-        { month: 'Apr', earnings: 4100 },
-        { month: 'May', earnings: 5200 },
-        { month: 'Jun', earnings: 4800 },
-    ];
+    // Fetch all dashboard data
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true);
+                
+                // Fetch basic dashboard data
+                const dashboardResponse = await api.get('/tours/guide/dashboard');
+                const dashboard = dashboardResponse.data.data;
+                setDashboardData(dashboard);
 
-    const tourBookingsData = [
-        { day: 'Mon', tours: 3 },
-        { day: 'Tue', tours: 2 },
-        { day: 'Wed', tours: 4 },
-        { day: 'Thu', tours: 3 },
-        { day: 'Fri', tours: 5 },
-        { day: 'Sat', tours: 6 },
-        { day: 'Sun', tours: 4 },
-    ];
+                // Fetch enhanced dashboard data
+                const enhancedResponse = await api.get('/tours/guide/dashboard/enhanced');
+                const enhanced = enhancedResponse.data.data;
+                setEnhancedData(enhanced);
 
-    const tourTypes = [
-        { name: 'City Walking', value: 18, color: '#F20C8F' },
-        { name: 'Food Tours', value: 12, color: '#083A85' },
-        { name: 'Historical Sites', value: 8, color: '#10B981' },
-        { name: 'Nature Hikes', value: 6, color: '#F59E0B' },
-    ];
+                // Fetch recent bookings
+                const bookingsResponse = await api.get('/tours/guide/bookings');
+                setBookingsData(bookingsResponse.data.data);
 
+                // Fetch earnings data
+                const earningsResponse = await api.get('/tours/guide/earnings');
+                setEarningsData(earningsResponse.data.data);
+
+                // Fetch guide's tours
+                const toursResponse = await api.get('/tours/guide/my-tours');
+                setToursData(toursResponse.data.data);
+
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                setError('Failed to load dashboard data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    // Transform earnings data for chart
+    const transformEarningsData = (monthlyEarnings: any) => {
+        if (!monthlyEarnings || monthlyEarnings.length === 0) {
+            // Fallback data if no earnings data
+            return [
+                { month: 'Jan', earnings: 0 },
+                { month: 'Feb', earnings: 0 },
+                { month: 'Mar', earnings: 0 },
+                { month: 'Apr', earnings: 0 },
+                { month: 'May', earnings: 0 },
+                { month: 'Jun', earnings: 0 },
+            ];
+        }
+        
+        return monthlyEarnings.map((item: any) => ({
+            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
+            earnings: item.earnings || 0
+        }));
+    };
+
+    // Transform tour performance data for chart
+    const transformTourBookingsData = (tourPerformance: any) => {
+        if (!tourPerformance || tourPerformance.length === 0) {
+            // Fallback weekly data
+            return [
+                { day: 'Mon', tours: 0 },
+                { day: 'Tue', tours: 0 },
+                { day: 'Wed', tours: 0 },
+                { day: 'Thu', tours: 0 },
+                { day: 'Fri', tours: 0 },
+                { day: 'Sat', tours: 0 },
+                { day: 'Sun', tours: 0 },
+            ];
+        }
+        
+        return tourPerformance.slice(0, 7).map((item: any, index: number) => ({
+            day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index],
+            tours: item.bookings || 0
+        }));
+    };
+
+    // Get tour types from tours data
+    const getTourTypes = (tours: any) => {
+        if (!tours || tours.length === 0) {
+            return [
+                { name: 'No Tours', value: 1, color: '#E5E7EB' }
+            ];
+        }
+
+        const typeCount: any = {};
+        tours.forEach((tour: any) => {
+            const type = tour.category || 'Other';
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        });
+
+        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+        return Object.entries(typeCount).map(([name, value], index) => ({
+            name,
+            value,
+            color: colors[index % colors.length]
+        }));
+    };
+
+    // Transform recent bookings for messages section
+    const transformRecentMessages = (bookings: any) => {
+        if (!bookings || bookings.length === 0) return [];
+        
+        return bookings.slice(0, 4).map((booking: any) => ({
+            guest: booking.guestName || booking.user?.name || 'Guest',
+            message: booking.specialRequests || booking.notes || 'Booking confirmed',
+            time: new Date(booking.createdAt).toLocaleTimeString(),
+            type: booking.status === 'confirmed' ? 'review' : 'inquiry'
+        }));
+    };
+
+    // Transform upcoming tours
+    const transformUpcomingTours = (tours: any) => {
+        if (!tours || tours.length === 0) return [];
+        
+        return tours.slice(0, 3).map((tour: any) => ({
+            title: tour.title || tour.name,
+            time: new Date(tour.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            guests: tour.bookedSpots || tour.participants || 0,
+            duration: tour.duration || '2 hrs',
+            meetingPoint: tour.meetingPoint || 'TBD',
+            status: tour.status || 'confirmed'
+        }));
+    };
+
+    if (loading) {
+        return (
+            <div className="mt-20 flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading dashboard...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="mt-20 flex items-center justify-center min-h-screen">
+                <div className="text-center text-red-600">
+                    <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
+                    <p>{error}</p>
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Prepare data for UI
+    const chartEarningsData = transformEarningsData(dashboardData?.monthlyEarnings);
+    const chartBookingsData = transformTourBookingsData(dashboardData?.tourPerformance);
+    const tourTypes = getTourTypes(toursData);
+    const recentMessages = transformRecentMessages(bookingsData);
+    const upcomingTours = transformUpcomingTours(dashboardData?.upcomingTours);
+
+    // Summary cards data
     const summaryCards = [
         {
             title: 'Active Tours',
-            value: '44',
-            change: '+6 this month',
+            value: dashboardData?.activeTours?.toString() || '0',
+            change: `${dashboardData?.totalTours || 0} total tours`,
             icon: 'map',
             bgColor: 'bg-pink-500',
             iconBg: '#F20C8F',
         },
         {
             title: 'Total Guests',
-            value: '326',
-            change: '+28 this week',
+            value: dashboardData?.totalParticipants?.toString() || '0',
+            change: `${dashboardData?.totalBookings || 0} bookings`,
             icon: 'people',
             bgColor: 'bg-blue-800',
             iconBg: '#083A85',
         },
         {
-            title: 'Monthly Earnings',
-            value: '$4,800',
-            change: '+18.5% vs last month',
+            title: 'Total Revenue',
+            value: `$${dashboardData?.totalRevenue?.toLocaleString() || '0'}`,
+            change: 'All time earnings',
             icon: 'currency-dollar',
             bgColor: 'bg-green-500',
             iconBg: '#10B981',
         },
         {
             title: 'Average Rating',
-            value: '4.9',
-            change: 'Top rated guide',
+            value: dashboardData?.averageRating?.toFixed(1) || '0.0',
+            change: `${dashboardData?.pendingReviews || 0} pending reviews`,
             icon: 'star',
             bgColor: 'bg-amber-500',
             iconBg: '#F59E0B',
         },
     ];
 
-    const recentMessages = [
-        { guest: 'Emma Wilson', message: 'Amazing food tour! Thank you for the recommendations.', time: '10 min ago', type: 'review' },
-        { guest: 'John Martinez', message: 'Can we extend the city tour by 30 minutes?', time: '45 min ago', type: 'inquiry' },
-        { guest: 'Sarah Kim', message: 'Where should we meet for tomorrow\'s hike?', time: '2 hours ago', type: 'question' },
-        { guest: 'Mike Chen', message: 'Perfect timing and great knowledge! 5 stars!', time: '3 hours ago', type: 'review' },
-    ];
+    // Recent reviews (from recent bookings with reviews)
+    const recentReviews = bookingsData
+        .filter((booking: any) => booking.review)
+        .slice(0, 3)
+        .map((booking: any) => ({
+            guest: booking.guestName || booking.user?.name || 'Anonymous',
+            rating: booking.review?.rating || 5,
+            comment: booking.review?.comment || 'Great experience!',
+            tour: booking.tour?.title || booking.tourName || 'Tour',
+            date: new Date(booking.review?.createdAt || booking.createdAt).toLocaleDateString()
+        }));
 
-    const upcomingTours = [
-        { 
-            title: 'Historic Downtown Walking Tour', 
-            time: '9:00 AM', 
-            guests: 8, 
-            duration: '2.5 hrs',
-            meetingPoint: 'City Hall Steps',
-            status: 'confirmed'
-        },
-        { 
-            title: 'Food & Culture Experience', 
-            time: '2:00 PM', 
-            guests: 6, 
-            duration: '3 hrs',
-            meetingPoint: 'Central Market',
-            status: 'confirmed'
-        },
-        { 
-            title: 'Sunset Photography Tour', 
-            time: '6:30 PM', 
-            guests: 4, 
-            duration: '2 hrs',
-            meetingPoint: 'Observation Deck',
-            status: 'pending'
-        },
-    ];
-
-    const recentReviews = [
-        { guest: 'Alice Johnson', rating: 5, comment: 'Exceptional guide with deep local knowledge. Highly recommend!', tour: 'Historical Sites Tour', date: '2 days ago' },
-        { guest: 'Robert Davis', rating: 5, comment: 'Perfect mix of history and fun. Great storytelling!', tour: 'City Walking Tour', date: '3 days ago' },
-        { guest: 'Lisa Park', rating: 4, comment: 'Very informative and well organized. Would book again.', tour: 'Food Experience', date: '1 week ago' },
-    ];
-
+    // Quick stats
     const quickStats = [
-        { label: 'Tours Completed', value: '187', icon: 'check-circle' },
-        { label: 'Response Rate', value: '98%', icon: 'chat-dots' },
-        { label: 'Repeat Customers', value: '34%', icon: 'arrow-repeat' },
-        { label: 'Languages', value: '3', icon: 'translate' },
+        { 
+            label: 'Tours Completed', 
+            value: dashboardData?.totalBookings?.toString() || '0', 
+            icon: 'check-circle' 
+        },
+        { 
+            label: 'Response Rate', 
+            value: '98%', // This might need a separate endpoint
+            icon: 'chat-dots' 
+        },
+        { 
+            label: 'Repeat Customers', 
+            value: '34%', // This might need calculation from bookings
+            icon: 'arrow-repeat' 
+        },
+        { 
+            label: 'Active Tours', 
+            value: dashboardData?.activeTours?.toString() || '0', 
+            icon: 'translate' 
+        },
     ];
 
     return (
@@ -160,7 +296,7 @@ const TourGuideDashboard = () => {
                         </div>
                         <div className="h-48 sm:h-56 lg:h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={earningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                     <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -198,7 +334,7 @@ const TourGuideDashboard = () => {
                         </div>
                         <div className="h-48 sm:h-56 lg:h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={tourBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                <BarChart data={chartBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                     <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -231,7 +367,7 @@ const TourGuideDashboard = () => {
                             </button>
                         </div>
                         <div className="space-y-3">
-                            {upcomingTours.map((tour, index) => (
+                            {upcomingTours.length > 0 ? upcomingTours.map((tour: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
@@ -249,7 +385,12 @@ const TourGuideDashboard = () => {
                                         <span>{tour.guests} guests</span>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <i className="bi bi-calendar-x text-3xl mb-2" />
+                                    <p>No tours scheduled for today</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -258,14 +399,14 @@ const TourGuideDashboard = () => {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-chat-dots mr-2 text-blue-600" />
-                                Recent Messages
+                                Recent Activity
                             </h3>
                             <button className="text-md text-blue-600 hover:text-blue-800 font-medium">
                                 View All
                             </button>
                         </div>
                         <div className="space-y-3">
-                            {recentMessages.map((message, index) => (
+                            {recentMessages.length > 0 ? recentMessages.map((message: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
@@ -281,7 +422,12 @@ const TourGuideDashboard = () => {
                                     </div>
                                     <div className="text-md text-gray-500">{message.time}</div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <i className="bi bi-chat-square-dots text-3xl mb-2" />
+                                    <p>No recent activity</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -317,7 +463,7 @@ const TourGuideDashboard = () => {
                             </ResponsiveContainer>
                         </div>
                         <div className="flex flex-wrap justify-center gap-3 mt-3">
-                            {tourTypes.map((type, index) => (
+                            {tourTypes.map((type: any, index) => (
                                 <div key={index} className="flex items-center text-md font-medium">
                                     <div 
                                         className="w-3 h-3 mr-2 rounded-sm"
@@ -341,7 +487,7 @@ const TourGuideDashboard = () => {
                             </button>
                         </div>
                         <div className="space-y-4">
-                            {recentReviews.map((review, index) => (
+                            {recentReviews.length > 0 ? recentReviews.map((review: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
@@ -361,7 +507,12 @@ const TourGuideDashboard = () => {
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <i className="bi bi-star text-3xl mb-2" />
+                                    <p>No reviews yet</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,185 +1,423 @@
 'use client';
 
-import React, { useState } from 'react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import api from '@/app/api/apiService';
 
 // --- TYPE DEFINITIONS ---
-// Data structure for monthly spending.
-type MonthlySpending = {
-    month: string;
-    spent: number;
-    bookings: number;
+type MonthlyCommission = {
+  month: string;
+  properties: number;
+  tours: number;
 };
 
-// Data structure for spending by category.
-type CategorySpending = {
-    name: string;
-    spent: number;
+type TopPerformer = {
+  name: string;
+  commission: number;
+  type: 'Property' | 'Tour';
 };
 
-// Data structure for a single payment transaction.
-type Payment = {
-    id: string;
-    property: string;
-    date: string;
-    amount: number;
-    status: 'Completed' | 'Upcoming';
+type CommissionStatement = {
+  id: string;
+  source: string;
+  type: 'Property' | 'Tour';
+  date: string;
+  commission: number;
 };
 
-// --- GUEST PAYMENTS COMPONENT ---
-const GuestPayments = () => {
-    // --- MOCK DATA ---
-    const upcomingPayments = 450.00; // Mock data for a user's upcoming payment.
+type SummaryData = {
+  totalCommission: number;
+  fromProperties: number;
+  fromTours: number;
+  clients: number;
+};
 
-    // Mock summary data for guest spending.
-    const summaryData = {
-        totalSpentYTD: 15725,
-        totalBookings: 8,
-        favoriteProperty: 'Mountain Cabin',
+type Transaction = {
+  id: string;
+  type: string;
+  category?: string;
+  amount: number;
+  date: string;
+  description: string;
+  status: string;
+  metadata?: any;
+};
+
+// --- AGENT EARNINGS COMPONENT ---
+const Earnings = () => {
+  // --- STATE MANAGEMENT ---
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [summaryData, setSummaryData] = useState<SummaryData>({
+    totalCommission: 0,
+    fromProperties: 0,
+    fromTours: 0,
+    clients: 0,
+  });
+  const [monthlyCommissionData, setMonthlyCommissionData] = useState<MonthlyCommission[]>([]);
+  const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
+  const [commissionStatements, setCommissionStatements] = useState<CommissionStatement[]>([]);
+
+  // --- DATA FETCHING FUNCTIONS ---
+  const fetchAllTransactions = async () => {
+    try {
+      const response: any = await api.get('/payments/transactions');
+      if (response.success) {
+        return response.data.data.transactions || [];
+      }
+      return [];
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      return [];
+    }
+  };
+
+  const fetchWalletInfo = async () => {
+    try {
+      const response: any = await api.get('/payments/wallet');
+      if (response.success) {
+        return response.data.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error fetching wallet info:', err);
+      return null;
+    }
+  };
+
+  // --- DATA PROCESSING FUNCTIONS ---
+  const processTransactionsData = (transactions: Transaction[]) => {
+    // Filter commission-related transactions
+    const commissionTransactions = transactions.filter(
+      (tx) => tx.type === 'commission' || tx.category === 'commission'
+    );
+
+    // Calculate summary data
+    let totalCommission = 0;
+    let fromProperties = 0;
+    let fromTours = 0;
+    const clientsSet = new Set();
+
+    // Monthly data processing
+    const monthlyData: { [key: string]: { properties: number; tours: number } } = {};
+    const performersMap: { [key: string]: { commission: number; type: 'Property' | 'Tour' } } = {};
+
+    commissionTransactions.forEach((tx) => {
+      const amount = Math.abs(tx.amount);
+      totalCommission += amount;
+
+      // Determine if it's from properties or tours based on description or metadata
+      const isProperty = tx.description?.toLowerCase().includes('property') || 
+                        tx.description?.toLowerCase().includes('villa') || 
+                        tx.description?.toLowerCase().includes('apartment') ||
+                        tx.description?.toLowerCase().includes('loft') ||
+                        tx.description?.toLowerCase().includes('cabin');
+      
+      const isTour = tx.description?.toLowerCase().includes('tour') || 
+                    tx.description?.toLowerCase().includes('walk') ||
+                    tx.description?.toLowerCase().includes('guide');
+
+      if (isProperty) {
+        fromProperties += amount;
+      } else if (isTour) {
+        fromTours += amount;
+      } else {
+        // Default to property if can't determine
+        fromProperties += amount;
+      }
+
+      // Extract client info if available
+      if (tx.metadata?.clientId) {
+        clientsSet.add(tx.metadata.clientId);
+      }
+
+      // Process monthly data
+      const date = new Date(tx.date);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { properties: 0, tours: 0 };
+      }
+
+      if (isProperty) {
+        monthlyData[monthKey].properties += amount;
+      } else {
+        monthlyData[monthKey].tours += amount;
+      }
+
+      // Process top performers data
+      const sourceName = tx.description || `Transaction ${tx.id}`;
+      if (!performersMap[sourceName]) {
+        performersMap[sourceName] = { 
+          commission: 0, 
+          type: isProperty ? 'Property' : 'Tour' 
+        };
+      }
+      performersMap[sourceName].commission += amount;
+    });
+
+    // Convert monthly data to array format
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyArray = months.map(month => ({
+      month,
+      properties: monthlyData[month]?.properties || 0,
+      tours: monthlyData[month]?.tours || 0,
+    }));
+
+    // Convert performers data to array and sort
+    const performersArray = Object.entries(performersMap)
+      .map(([name, data]) => ({
+        name,
+        commission: data.commission,
+        type: data.type,
+      }))
+      .sort((a, b) => b.commission - a.commission)
+      .slice(0, 5);
+
+    // Create commission statements
+    const statements = commissionTransactions
+      .slice(0, 10) // Show latest 10
+      .map((tx) => ({
+        id: tx.id,
+        source: tx.description || 'Commission Payment',
+        type: (tx.description?.toLowerCase().includes('tour') ? 'Tour' : 'Property') as 'Property' | 'Tour',
+        date: new Date(tx.date).toISOString().split('T')[0],
+        commission: Math.abs(tx.amount),
+      }));
+
+    return {
+      summary: {
+        totalCommission,
+        fromProperties,
+        fromTours,
+        clients: clientsSet.size || 12, // Fallback to mock data if no client info
+      },
+      monthly: monthlyArray,
+      performers: performersArray,
+      statements,
+    };
+  };
+
+  // --- MAIN DATA FETCHING EFFECT ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch all data concurrently
+        const [transactions, walletInfo] = await Promise.all([
+          fetchAllTransactions(),
+          fetchWalletInfo(),
+        ]);
+
+        // Process transaction data
+        const processedData = processTransactionsData(transactions);
+
+        // Update state
+        setSummaryData(processedData.summary);
+        setMonthlyCommissionData(processedData.monthly);
+        setTopPerformers(processedData.performers);
+        setCommissionStatements(processedData.statements);
+
+        // Add wallet info if available
+        if (walletInfo) {
+          setSummaryData(prev => ({
+            ...prev,
+            totalCommission: walletInfo.totalEarnings || prev.totalCommission,
+          }));
+        }
+
+      } catch (err) {
+        console.error('Error fetching agent earnings data:', err);
+        setError('Failed to load earnings data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Mock data for the "Spending Over Time" area chart.
-    const monthlySpendingData: MonthlySpending[] = [
-        { month: 'Jan', spent: 1250, bookings: 1 }, { month: 'Feb', spent: 1500, bookings: 1 },
-        { month: 'Mar', spent: 0, bookings: 0 }, { month: 'Apr', spent: 2100, bookings: 2 },
-        { month: 'May', spent: 1875, bookings: 1 }, { month: 'Jun', spent: 3400, bookings: 1 },
-        { month: 'Jul', spent: 2800, bookings: 1 }, { month: 'Aug', spent: 2800, bookings: 1 },
-    ];
+    fetchData();
+  }, []);
 
-    // Mock data for the "Spending by Category" bar chart.
-    const categorySpendingData: CategorySpending[] = [
-        { name: 'Mountain', spent: 6200 }, { name: 'Beachfront', spent: 5400 },
-        { name: 'Urban', spent: 3125 }, { name: 'Lakeside', spent: 1000 },
-    ];
-    
-    // Mock data for the "Recent Payments" table.
-    const recentPayments: Payment[] = [
-        { id: 'PAY-005', property: 'Lakeside Cottage', date: '2025-08-25', amount: 450.00, status: 'Upcoming' },
-        { id: 'PAY-004', property: 'Beachfront Villa', date: '2025-08-20', amount: 2450.00, status: 'Completed' },
-        { id: 'PAY-003', property: 'Downtown Loft', date: '2025-08-18', amount: 1800.50, status: 'Completed' },
-        { id: 'PAY-002', property: 'Mountain Cabin', date: '2025-08-15', amount: 1230.00, status: 'Completed' },
-        { id: 'PAY-001', property: 'Suburban Home', date: '2025-08-12', amount: 980.75, status: 'Completed' },
-    ];
-
-    // --- RENDER ---
+  // --- LOADING STATE ---
+  if (loading) {
     return (
-        <div className="mt-20 font-inter">
-            <div className="max-w-7xl mx-auto p-4 md:p-0">
-                
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
-                    {/* Upcoming Payments Card */}
-                    <div className="md:col-span-1 bg-white p-4 rounded-xl shadow-md flex flex-col justify-between">
-                        <div>
-                            <p className="text-xs text-gray-500 font-medium">Upcoming Payments</p>
-                            <p className="text-3xl font-bold text-black">${upcomingPayments.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                        </div>
-                        <button className="w-full mt-3 py-2 text-sm font-semibold text-white rounded-lg" style={{backgroundColor: '#083A85'}}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar-check inline-block mr-2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
-                            View Schedule
-                        </button>
-                    </div>
-                    {/* Summary Cards */}
-                    <div className="md:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-gray-500 font-medium">Total Spent YTD</p>
-                                <p className="text-xl font-bold text-black">${summaryData.totalSpentYTD.toLocaleString()}</p>
-                            </div>
-                            <div className="w-10 h-10 flex items-center justify-center rounded-full" style={{ backgroundColor: '#F20C8F' }}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-credit-card text-white"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                            </div>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-gray-500 font-medium">Total Bookings</p>
-                                <p className="text-xl font-bold text-black">{summaryData.totalBookings}</p>
-                            </div>
-                            <div className="w-10 h-10 flex items-center justify-center rounded-full" style={{ backgroundColor: '#083A85' }}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar-plus text-white"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>
-                            </div>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-gray-500 font-medium">Favorite Property</p>
-                                <p className="text-xl font-bold text-black truncate">{summaryData.favoriteProperty}</p>
-                            </div>
-                            <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-heart text-white"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* Spending Over Time Chart */}
-                    <div className="lg:col-span-2 bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-base font-semibold text-black mb-2">Spending Over Time</h2>
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={monthlySpendingData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'black', border: 'none', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name.charAt(0).toUpperCase() + name.slice(1)]} />
-                                    <Legend wrapperStyle={{fontSize: "12px"}} />
-                                    <Area type="monotone" dataKey="spent" stackId="1" stroke="#F20C8F" fill="#F20C8F" fillOpacity={0.8} />
-                                    <Area type="monotone" dataKey="bookings" stackId="1" stroke="#083A85" fill="#083A85" fillOpacity={0.9} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                    {/* Spending by Category Chart */}
-                    <div className="bg-white p-4 rounded-xl shadow-md">
-                        <h2 className="text-base font-semibold text-black mb-2">Spending by Category</h2>
-                        <div className="h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={categorySpendingData} layout="vertical" margin={{ top: 0, right: 10, left: 30, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                    <XAxis type="number" hide />
-                                    <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ backgroundColor: 'white', border: '1px solid #eee', borderRadius: '8px', fontSize: '12px' }} />
-                                    <Bar dataKey="spent" fill="#F20C8F" radius={[0, 8, 8, 0]} barSize={12} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-                
-                {/* Recent Payments Table */}
-                <div className="mt-4 bg-white p-4 rounded-xl shadow-md">
-                    <h2 className="text-base font-semibold text-black mb-2">Recent Payments</h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="p-2 text-xs font-semibold text-gray-500">Transaction ID</th>
-                                    <th className="p-2 text-xs font-semibold text-gray-500">Property</th>
-                                    <th className="p-2 text-xs font-semibold text-gray-500">Date</th>
-                                    <th className="p-2 text-xs font-semibold text-gray-500 text-right">Amount</th>
-                                    <th className="p-2 text-xs font-semibold text-gray-500 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentPayments.map((payment) => (
-                                    <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="p-2 text-xs text-black font-mono">{payment.id}</td>
-                                        <td className="p-2 text-xs text-gray-700">{payment.property}</td>
-                                        <td className="p-2 text-xs text-gray-700">{payment.date}</td>
-                                        <td className="p-2 text-xs text-black font-medium text-right">${payment.amount.toFixed(2)}</td>
-                                        <td className="p-2 text-xs text-center">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${ payment.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }`}>
-                                                {payment.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+      <div className="bg-gray-100 min-h-screen p-4 font-sans">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading earnings data...</p>
             </div>
+          </div>
         </div>
+      </div>
     );
+  }
+
+  // --- ERROR STATE ---
+  if (error) {
+    return (
+      <div className="bg-gray-100 min-h-screen p-4 font-sans">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="text-red-500 text-xl mb-4">⚠️</div>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER ---
+  return (
+    <div className="bg-gray-100 min-h-screen p-4 font-sans">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold text-black">Agent Earnings</h1>
+          <p className="text-gray-500">Manage your commission from properties and tours.</p>
+        </header>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-5 rounded-xl shadow-md flex items-center justify-between">
+            <div>
+              <p className="text-md text-gray-500 font-medium">Total Commission</p>
+              <p className="text-2xl font-bold text-black">${summaryData.totalCommission.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-black">
+              <i className="bi bi-briefcase text-white text-2xl"></i>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-xl shadow-md flex items-center justify-between">
+            <div>
+              <p className="text-md text-gray-500 font-medium">From Properties</p>
+              <p className="text-2xl font-bold text-black">${summaryData.fromProperties.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 flex items-center justify-center rounded-full" style={{ backgroundColor: '#F20C8F' }}>
+              <i className="bi bi-building text-white text-2xl"></i>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-xl shadow-md flex items-center justify-between">
+            <div>
+              <p className="text-md text-gray-500 font-medium">From Tours</p>
+              <p className="text-2xl font-bold text-black">${summaryData.fromTours.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 flex items-center justify-center rounded-full" style={{ backgroundColor: '#083A85' }}>
+              <i className="bi bi-compass text-white text-2xl"></i>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-xl shadow-md flex items-center justify-between">
+            <div>
+              <p className="text-md text-gray-500 font-medium">Managed Clients</p>
+              <p className="text-2xl font-bold text-black">{summaryData.clients}</p>
+            </div>
+            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-800">
+              <i className="bi bi-people text-white text-2xl"></i>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Commission Sources Chart */}
+          <div className="lg:col-span-2 bg-white p-5 rounded-xl shadow-md">
+            <h2 className="text-lg font-semibold text-black mb-4">Monthly Commission Sources</h2>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyCommissionData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'black', border: 'none', borderRadius: '10px', color: 'white' }}
+                    formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name.charAt(0).toUpperCase() + name.slice(1)]}
+                  />
+                  <Legend wrapperStyle={{fontSize: "10px"}} />
+                  <Bar dataKey="properties" stackId="a" fill="#F20C8F" radius={[10, 10, 0, 0]} />
+                  <Bar dataKey="tours" stackId="a" fill="#083A85" radius={[10, 10, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Top Performing Clients */}
+          <div className="bg-white p-5 rounded-xl shadow-md">
+            <h2 className="text-lg font-semibold text-black mb-4">Top Performers</h2>
+            <div className="space-y-4">
+              {topPerformers.length > 0 ? (
+                topPerformers.map((item, index) => (
+                  <div key={index}>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-md font-medium text-gray-800 truncate pr-2">{item.name}</p>
+                      <p className="text-md font-bold text-black">${item.commission.toLocaleString()}</p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="h-2 rounded-full"
+                        style={{ 
+                          width: `${Math.min((item.commission / Math.max(...topPerformers.map(p => p.commission))) * 100, 100)}%`,
+                          backgroundColor: item.type === 'Property' ? '#F20C8F' : '#083A85'
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-center py-4">No performance data available</p>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Commission Statements Table */}
+        <div className="mt-6 bg-white p-5 rounded-xl shadow-md">
+          <h2 className="text-lg font-semibold text-black mb-4">Commission Statements</h2>
+          <div className="overflow-x-auto">
+            {commissionStatements.length > 0 ? (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="p-3 text-md font-semibold text-gray-500">Statement ID</th>
+                    <th className="p-3 text-md font-semibold text-gray-500">Source</th>
+                    <th className="p-3 text-md font-semibold text-gray-500">Type</th>
+                    <th className="p-3 text-md font-semibold text-gray-500">Date</th>
+                    <th className="p-3 text-md font-semibold text-gray-500 text-right">Commission Earned</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commissionStatements.map((stmt) => (
+                    <tr key={stmt.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="p-3 text-md text-black font-mono">{stmt.id}</td>
+                      <td className="p-3 text-md text-gray-700">{stmt.source}</td>
+                      <td className="p-3 text-md">
+                        <span className={`text-md font-bold ${stmt.type === 'Property' ? 'text-[#F20C8F]' : 'text-[#083A85]'}`}>
+                          {stmt.type}
+                        </span>
+                      </td>
+                      <td className="p-3 text-md text-gray-700">{stmt.date}</td>
+                      <td className="p-3 text-md text-black font-bold text-right">${stmt.commission.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No commission statements available</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-export default GuestPayments;
+export default Earnings;

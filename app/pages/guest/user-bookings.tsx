@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/apiService'; 
+import AlertNotification from '@/app/components/notify';
+import { encodeId } from '@/app/utils/encoder';
 
 // Types
 interface Booking {
@@ -20,6 +22,7 @@ interface Booking {
   specialRequests?: string;
   propertyImage?: string;
   nights: number;
+  propertyId?: string;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -29,6 +32,12 @@ type SortOrder = 'asc' | 'desc';
 interface APIError {
   message: string;
   status?: number;
+}
+
+interface NotificationState {
+  show: boolean;
+  message: string;
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 const UserMyBookings: React.FC = () => {
@@ -87,7 +96,8 @@ const UserMyBookings: React.FC = () => {
       guests: backendBooking.guests || 1,
       specialRequests: backendBooking.specialRequests,
       propertyImage,
-      nights: backendBooking.nights || 1
+      nights: backendBooking.nights || 1,
+      propertyId: backendBooking.property?.id || backendBooking.propertyId
     };
   };
 
@@ -101,7 +111,15 @@ const UserMyBookings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
   const [goToPageInput, setGoToPageInput] = useState('');
+  const [notification, setNotification] = useState<NotificationState>({
+    show: false,
+    message: '',
+    type: 'info'
+  });
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -112,6 +130,11 @@ const UserMyBookings: React.FC = () => {
   // Sort states
   const [sortField, setSortField] = useState<SortField>('checkIn');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // Notification helper
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    setNotification({ show: true, message, type });
+  };
 
   // Fetch bookings from API
   const fetchBookings = async () => {
@@ -153,7 +176,6 @@ const UserMyBookings: React.FC = () => {
       
       // If it's an auth error, you might want to redirect to login
       if (err?.status === 401) {
-        // Handle unauthorized access
         console.log('Unauthorized access - user needs to login');
       }
     } finally {
@@ -236,26 +258,41 @@ const UserMyBookings: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (bookingId: string) => {
-    if (confirm('Are you sure you want to cancel this booking?')) {
-      try {
-        setLoading(true);
-        await api.cancelPropertyBooking(bookingId, 'Cancelled by guest');
-        
-        // Refresh bookings after successful cancellation
-        await fetchBookings();
-        
-        // Close modal if the deleted booking was selected
-        if (selectedBooking?.id === bookingId) {
-          setShowModal(false);
-          setSelectedBooking(null);
-        }
-      } catch (err: any) {
-        console.error('Error cancelling booking:', err);
-        alert(err?.data?.message || 'Failed to cancel booking. Please try again.');
-      } finally {
-        setLoading(false);
+  const handleCancelClick = (bookingId: string) => {
+    setBookingToCancel(bookingId);
+    setCancelReason('');
+    setShowCancelModal(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!bookingToCancel || !cancelReason.trim()) {
+      showNotification('Please provide a reason for cancellation', 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.cancelPropertyBooking(bookingToCancel, cancelReason);
+      
+      showNotification('Booking cancelled successfully', 'success');
+      
+      // Refresh bookings after successful cancellation
+      await fetchBookings();
+      
+      // Close modals
+      setShowCancelModal(false);
+      if (selectedBooking?.id === bookingToCancel) {
+        setShowModal(false);
+        setSelectedBooking(null);
       }
+      
+      setBookingToCancel(null);
+      setCancelReason('');
+    } catch (err: any) {
+      console.error('Error cancelling booking:', err);
+      showNotification(err?.data?.message || 'Failed to cancel booking. Please try again.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -293,6 +330,17 @@ const UserMyBookings: React.FC = () => {
 
   const handleRefresh = () => {
     fetchBookings();
+  };
+
+  const handlePayNow = (booking: Booking) => {
+    if (booking.propertyId) {
+      const encodedPropertyId = encodeId(booking.propertyId);
+      const encodedBookingId = encodeId(booking.id);
+      const paymentUrl = `https://app.jambolush.com/property/${encodedPropertyId}/confirm-and-pay/${encodedBookingId}`;
+      window.open(paymentUrl, '_blank');
+    } else {
+      showNotification('Property information not available for payment', 'error');
+    }
   };
 
   // Styling helpers
@@ -339,6 +387,15 @@ const UserMyBookings: React.FC = () => {
 
   return (
     <div className="pt-14 min-h-screen bg-gray-50">
+      {/* Notification */}
+      {notification.show && (
+        <AlertNotification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(prev => ({ ...prev, show: false }))}
+        />
+      )}
+
       <div className="mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-6 sm:mb-8 flex justify-between items-center">
@@ -511,7 +568,7 @@ const UserMyBookings: React.FC = () => {
                         </td>
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                           <div className="text-base font-medium text-gray-900">{booking.guestName}</div>
-                          <div className="text-base sm:text-base text-gray-500">{booking.id}</div>
+                          <div className="text-base sm:text-base text-gray-500 uppercase">{booking.id}</div>
                         </td>
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                           <div className="text-base sm:text-base text-gray-900">{format(booking.checkIn, 'MMM dd, yyyy')}</div>
@@ -542,9 +599,17 @@ const UserMyBookings: React.FC = () => {
                               title="Print">
                               <i className="bi bi-printer text-base sm:text-lg font-bold"></i>
                             </button>
+                            {booking.paymentStatus === 'pending' && (
+                              <button 
+                                onClick={() => handlePayNow(booking)} 
+                                className="text-green-600 hover:text-green-900 p-1 cursor-pointer"
+                                title="Pay Now">
+                                <i className="bi bi-credit-card text-base sm:text-lg font-bold"></i>
+                              </button>
+                            )}
                             {(booking.status === 'pending' || booking.status === 'confirmed') && (
                               <button 
-                                onClick={() => handleDelete(booking.id)} 
+                                onClick={() => handleCancelClick(booking.id)} 
                                 className="text-red-600 hover:text-red-900 p-1 cursor-pointer"
                                 title="Cancel">
                                 <i className="bi bi-x-circle text-base sm:text-lg font-bold"></i>
@@ -561,66 +626,120 @@ const UserMyBookings: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {paginatedBookings.map((booking) => (
-                <div key={booking.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
-                  <div className="relative">
-                    <img 
-                      src={booking.propertyImage} 
-                      alt={booking.propertyName} 
-                      className="w-full h-48 sm:h-56 object-cover" 
-                    />
-                    <span className={`absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(booking.status)}`}>
-                    {booking.status}
-                    </span>
+                <div 
+                  key={booking.id} 
+                  className="block rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden group cursor-pointer transform hover:-translate-y-2 border border-gray-100"
+                >
+                  {/* Compact Image Section */}
+                  <div 
+                    className="relative h-40 bg-cover bg-center bg-gray-200"
+                    style={{ backgroundImage: `url(${booking.propertyImage})` }}
+                  >
+                    {/* Gradient Overlay for better text visibility */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20"></div>
+                    
+                    {/* Status Badge - Professional Style */}
+                    <div className="absolute top-2 left-2">
+                      <span className={`px-2 py-1 rounded-md text-xs font-semibold shadow-lg ${getStatusColor(booking.status)}`}>
+                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                      </span>
+                    </div>
+                    
+
+                    {/* Amount Overlay */}
+                    <div className="absolute bottom-2 left-2">
+                      <span className="bg-white/95 backdrop-blur-sm text-gray-900 px-2 py-1 rounded-lg text-sm font-bold shadow-lg">
+                        ${booking.amount}
+                      </span>
+                    </div>
                   </div>
-                  <div className="p-3 sm:p-4 flex flex-col flex-grow">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate mb-1">
+
+                  {/* Compact Content Section */}
+                  <div className="bg-gradient-to-br from-[#083A85] to-[#0B4A9F] p-3 text-white h-full">
+                    {/* Title - Compact */}
+                    <h3 className="text-sm font-bold mb-1 text-white group-hover:text-blue-100 transition-colors leading-tight line-clamp-2">
                       {booking.propertyName}
                     </h3>
-                    <p className="text-base sm:text-base text-gray-500 mb-3 truncate">
-                      Guest: {booking.guestName}
-                    </p>
-                    <div className="text-base sm:text-base text-gray-600 border-t border-b py-2 sm:py-3 my-2 sm:my-3 space-y-1 sm:space-y-2">
-                      <div className="flex items-center gap-2">
-                        <i className="bi bi-calendar-check text-gray-400 text-base sm:text-base"></i>
-                        <span className="truncate">
-                          {format(booking.checkIn, 'MMM dd')} - {format(booking.checkOut, 'MMM dd, yyyy')}
-                        </span>
+                    
+                    {/* Location with Icon */}
+                    <div className="flex items-center mb-2 text-xs text-blue-100">
+                      <i className="bi bi-geo-alt-fill mr-1 text-xs"></i>
+                      <p className="truncate">{booking.propertyAddress}</p>
+                    </div>
+                    
+                    {/* Guest Details - Compact Grid */}
+                    <div className="grid grid-cols-2 gap-1 text-xs text-blue-100 mb-2">
+                      <div className="flex items-center justify-center bg-white/10 rounded px-1 py-0.5 backdrop-blur-sm">
+                        <i className="bi bi-person mr-1"></i>
+                        <span>{booking.guests} guests</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <i className="bi bi-people text-gray-400 text-base sm:text-base"></i>
-                        <span>{booking.guests} guests • {booking.nights} nights</span>
+                      <div className="flex items-center justify-center bg-white/10 rounded px-1 py-0.5 backdrop-blur-sm">
+                        <i className="bi bi-moon mr-1"></i>
+                        <span>{booking.nights} nights</span>
                       </div>
                     </div>
-                    <div className="mt-auto">
-                      <div className="flex justify-between items-center mb-3">
-                        <div>
-                          <p className="text-lg sm:text-xl font-bold text-gray-900">${booking.amount}</p>
-                          <p className={`text-base sm:text-base ${getPaymentStatusColor(booking.paymentStatus)}`}>
-                            {booking.paymentStatus}
-                          </p>
-                        </div>
+
+                    {/* Dates and Payment Info */}
+                    <div className="text-xs text-blue-100 mb-3 space-y-1">
+                      <div className="flex items-center">
+                        <i className="bi bi-calendar-check mr-1"></i>
+                        <span>{format(booking.checkIn, 'MMM dd')} - {format(booking.checkOut, 'MMM dd, yyyy')}</span>
                       </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleViewDetails(booking)} 
-                          className="flex-1 text-center px-2 sm:px-3 py-2 sm:py-2.5 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-base sm:text-base font-medium cursor-pointer">
-                          <i className="bi bi-eye mr-1"></i>View
-                        </button>
-                        <button 
-                          onClick={() => handlePrint(booking)} 
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                          title="Print">
-                          <i className="bi bi-printer text-base sm:text-lg"></i>
-                        </button>
-                        {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                          <button 
-                            onClick={() => handleDelete(booking.id)} 
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
-                            title="Cancel">
-                            <i className="bi bi-x-circle text-base sm:text-lg"></i>
-                          </button>
-                        )}
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">Guest: {booking.guestName}</span>
+                        <span className={`font-medium ${getPaymentStatusColor(booking.paymentStatus)}`}>
+                          {booking.paymentStatus}
+                        </span>
                       </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleViewDetails(booking);
+                        }} 
+                        className="flex-1 text-center px-2 sm:px-3 py-2 sm:py-2.5 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-base sm:text-base font-medium cursor-pointer">
+                        <i className="bi bi-eye mr-1"></i>View
+                      </button>
+                      
+                      {booking.paymentStatus === 'due' && (
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handlePayNow(booking);
+                          }} 
+                          className="flex-1 text-center px-2 sm:px-3 py-2 sm:py-2.5 bg-gradient-to-r from-[#F20C8F] to-[#F20C8F]/90 text-white rounded-lg hover:from-[#D10B7A] hover:to-[#D10B7A]/90 transition-colors text-base sm:text-base font-medium cursor-pointer">
+                          <i className="bi bi-credit-card mr-1"></i>Pay Now
+                        </button>
+                      )}
+                      
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handlePrint(booking);
+                        }} 
+                        className="p-2 text-blue-100 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                        title="Print">
+                        <i className="bi bi-printer text-base sm:text-lg"></i>
+                      </button>
+                      
+                      {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleCancelClick(booking.id);
+                          }} 
+                          className="p-2 text-red-300 hover:bg-red-100/10 rounded-lg transition-colors cursor-pointer"
+                          title="Cancel">
+                          <i className="bi bi-x-circle text-base sm:text-lg"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -811,9 +930,16 @@ const UserMyBookings: React.FC = () => {
                   className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-base sm:text-base">
                   <i className="bi bi-printer mr-1 sm:mr-2"></i>Print
                 </button>
+                {selectedBooking.paymentStatus === 'due' && (
+                  <button 
+                    onClick={() => handlePayNow(selectedBooking)} 
+                    className="px-3 sm:px-4 py-2 bg-gradient-to-r from-[#F20C8F] to-[#F20C8F]/90 text-white rounded-lg hover:from-[#D10B7A] hover:to-[#D10B7A]/90 transition-colors font-medium cursor-pointer text-base sm:text-base">
+                    <i className="bi bi-credit-card mr-1 sm:mr-2"></i>Pay Now
+                  </button>
+                )}
                 {(selectedBooking.status === 'pending' || selectedBooking.status === 'confirmed') && (
                   <button 
-                    onClick={() => { handleDelete(selectedBooking.id); }} 
+                    onClick={() => { handleCancelClick(selectedBooking.id); }} 
                     className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-base sm:text-base">
                     <i className="bi bi-x-circle mr-1 sm:mr-2"></i>Cancel Booking
                   </button>
@@ -823,6 +949,48 @@ const UserMyBookings: React.FC = () => {
                   className="px-3 sm:px-4 py-2 text-white rounded-lg transition-colors font-medium cursor-pointer text-base sm:text-base" 
                   style={{ backgroundColor: '#083A85' }}>
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Reason Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm"></div>
+          <div className="flex items-center justify-center min-h-screen p-3 sm:p-4">
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+              <div className="px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">Cancel Booking</h3>
+                <p className="text-sm text-gray-600 mt-1">Please provide a reason for cancelling this booking.</p>
+              </div>
+              <div className="px-6 py-4">
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Enter reason for cancellation..."
+                  className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <div className="px-6 py-4 border-t flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setBookingToCancel(null);
+                    setCancelReason('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelConfirm}
+                  disabled={!cancelReason.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i className="bi bi-x-circle mr-2"></i>Cancel Booking
                 </button>
               </div>
             </div>

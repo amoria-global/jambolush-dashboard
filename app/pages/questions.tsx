@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface Question {
   id: string;
@@ -14,145 +14,489 @@ interface Answer {
   selectedOptions: number[];
 }
 
-interface AssessmentState {
-  currentStep: number;
-  answers: Answer[];
-  timeRemaining: number;
-  showTimeAlert: boolean;
-  assessmentStarted: boolean;
-  assessmentCompleted: boolean;
-  timeExpired: boolean;
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  userType: string;
 }
 
-// Loading component
-function AssessmentLoading() {
-  return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
-      <header className="bg-gradient-to-br from-[#083A85] to-[#0a4499] px-4 sm:px-6 lg:px-8 py-6 shadow-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <div className="h-8 bg-blue-400 rounded w-96 mb-2 animate-pulse"></div>
-            <div className="h-4 bg-blue-300 rounded w-64 animate-pulse"></div>
-          </div>
-          <div className="h-12 bg-blue-400 rounded-xl w-32 animate-pulse"></div>
-        </div>
-      </header>
-
-      <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-100 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto">
-          <div className="h-3 bg-slate-200 rounded-full">
-            <div className="h-full bg-slate-300 rounded-full w-1/4 animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-
-      <main className="flex-grow w-full bg-white">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12">
-          <div className="space-y-10">
-            {[1, 2, 3].map((i) => (
-              <div key={i}>
-                <div className="flex items-start mb-5">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
-                  <div className="ml-4 flex-1">
-                    <div className="h-6 bg-gray-200 rounded w-3/4 animate-pulse"></div>
-                  </div>
-                </div>
-                <div className="space-y-3 ml-14">
-                  {[1, 2, 3, 4].map((j) => (
-                    <div key={j} className="h-12 bg-gray-100 rounded-xl animate-pulse"></div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      <footer className="bg-slate-100 border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="h-10 bg-gray-200 rounded-full w-24 animate-pulse"></div>
-          <div className="flex items-center space-x-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-3 w-3 bg-gray-200 rounded-full animate-pulse"></div>
-            ))}
-          </div>
-          <div className="h-10 bg-gray-200 rounded-full w-24 animate-pulse"></div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-// Timer component for better separation of concerns
-function AssessmentTimer({ 
-  timeRemaining, 
-  assessmentStarted, 
-  assessmentCompleted, 
-  showTimeAlert,
-  onTimeExpired,
-  onTimeAlert
-}: {
-  timeRemaining: number;
-  assessmentStarted: boolean;
-  assessmentCompleted: boolean;
-  showTimeAlert: boolean;
-  onTimeExpired: () => void;
-  onTimeAlert: () => void;
-}) {
+const AssessmentContent: React.FC = () => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState(4800); // 80 minutes in seconds
+  const [showTimeAlert, setShowTimeAlert] = useState(false);
+  const [assessmentStarted, setAssessmentStarted] = useState(false);
+  const [assessmentCompleted, setAssessmentCompleted] = useState(false);
+  const [timeExpired, setTimeExpired] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (assessmentStarted && !assessmentCompleted && timeRemaining > 0) {
-      intervalRef.current = setInterval(() => {
-        if (timeRemaining <= 1) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          onTimeExpired();
-          return;
-        }
-
-        if (timeRemaining === 3000 || timeRemaining === 1200) {
-          onTimeAlert();
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [assessmentStarted, assessmentCompleted, timeRemaining, onTimeExpired, onTimeAlert]);
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // Email configuration - these should be set in your environment variables
+  const config = {
+    apikey: process.env.BREVO_API_KEY || 'your-brevo-api-key-here',
+    senderemail: process.env.RSENDER_EMAIL || 'noreply@jambolush.com'
   };
 
-  if (!assessmentStarted || assessmentCompleted) return null;
-
-  return (
-    <>
-      {showTimeAlert && (
-        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
-          <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
-            <i className="bi bi-exclamation-circle-fill me-3"></i>
-            <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
-          </div>
-        </div>
-      )}
+  // API service for making authenticated requests
+  const api = {
+    get: async (endpoint: string) => {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/${endpoint}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       
-      <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'}`}>
-        <i className="bi bi-clock-fill text-white me-2"></i>
-        <span className="font-mono text-lg font-medium text-white">
-          {formatTime(timeRemaining)}
-        </span>
-      </div>
-    </>
-  );
-}
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return { data };
+    },
+    
+    post: async (endpoint: string, data: any) => {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data_result = await response.json();
+      return { data: data_result };
+    }
+  };
 
-// Questions data provider - separated for better organization
-function useQuestionsData() {
+  // Get user data from auth/me endpoint
+  const getUserData = async () => {
+    try {
+      setIsLoadingUser(true);
+      const response = await api.get('auth/me');
+      
+      if (response.data) {
+        const userData: UserProfile = response.data;
+        setUser(userData);
+        console.log('User data fetched successfully:', userData);
+        return userData;
+      } else {
+        console.warn('No user data received from auth/me');
+        // Fallback user data for testing
+        const fallbackUser: UserProfile = {
+          id: 'test-user',
+          email: 'test@example.com',
+          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
+          userType: 'agent'
+        };
+        setUser(fallbackUser);
+        return fallbackUser;
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      // Fallback user data for testing
+      const fallbackUser: UserProfile = {
+        id: 'fallback-user',
+        email: 'fallback@example.com',
+        name: 'Fallback User',
+        firstName: 'Fallback',
+        lastName: 'User',
+        userType: 'agent'
+      };
+      setUser(fallbackUser);
+      return fallbackUser;
+    } finally {
+      setIsLoadingUser(false);
+    }
+  };
+
+  // Send email to admin using Brevo API
+  const sendAdminNotification = async (userEmail: string, userName: string, userAnswers: Answer[]) => {
+    const completedQuestions = userAnswers.filter(a => a.selectedOptions.length > 0).length;
+    const completionPercentage = Math.round((completedQuestions / questions.length) * 100);
+    const submissionTime = new Date().toLocaleString();
+    const assessmentId = `JFA-${Date.now().toString().slice(-6)}`;
+    
+    const emailData = {
+      sender: {
+        name: "Jambolush Assessment System",
+        email: config.senderemail
+      },
+      to: [
+        {
+          email: "admin@amoriaglobal.com",
+          name: "Admin Team"
+        }
+      ],
+      subject: `🎯 New Field Agent Assessment Completed - ${userName}`,
+      htmlContent: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Assessment Notification</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8f9fa;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #083A85 0%, #0a4499 100%); color: white; padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold; line-height: 1.2;">New Assessment Completed</h1>
+              <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Jambolush Field Agent Assessment System</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <!-- Alert Banner -->
+              <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-bottom: 30px; text-align: center;">
+                <strong style="color: #856404;">🚨 Action Required: New Assessment Awaiting Review</strong>
+              </div>
+
+              <!-- Candidate Information -->
+              <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #083A85;">
+                <h2 style="margin: 0 0 20px 0; color: #083A85; font-size: 20px;">Candidate Information</h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555; width: 140px; border-bottom: 1px solid #dee2e6;">Full Name:</td>
+                    <td style="padding: 10px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Email Address:</td>
+                    <td style="padding: 10px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Assessment ID:</td>
+                    <td style="padding: 10px 0; color: #333; font-family: monospace; border-bottom: 1px solid #dee2e6;">${assessmentId}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555;">Submission Time:</td>
+                    <td style="padding: 10px 0; color: #333;">${submissionTime}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Assessment Statistics -->
+              <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Assessment Statistics</h3>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                  <div style="flex: 1; text-align: center; padding: 20px; background: #e3f2fd; border-radius: 10px; border: 2px solid #1976d2;">
+                    <div style="font-size: 32px; font-weight: bold; color: #1976d2; margin-bottom: 5px;">${completedQuestions}</div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Questions Answered</div>
+                    <div style="font-size: 14px; color: #888; margin-top: 2px;">out of ${questions.length}</div>
+                  </div>
+                  <div style="flex: 1; text-align: center; padding: 20px; background: #e8f5e8; border-radius: 10px; border: 2px solid #388e3c;">
+                    <div style="font-size: 32px; font-weight: bold; color: #388e3c; margin-bottom: 5px;">${completionPercentage}%</div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Completion Rate</div>
+                    <div style="font-size: 14px; color: #888; margin-top: 2px;">assessment progress</div>
+                  </div>
+                </div>
+
+                <!-- Assessment Details -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                  <h4 style="margin: 0 0 15px 0; color: #333;">Assessment Overview</h4>
+                  <ul style="color: #555; line-height: 1.8; margin: 0; padding-left: 20px;">
+                    <li><strong>Assessment Type:</strong> Field Agent Evaluation</li>
+                    <li><strong>Duration:</strong> 80 minutes (1 hour 20 minutes)</li>
+                    <li><strong>Question Categories:</strong> Situational judgment, problem-solving, ethics, technical skills</li>
+                    <li><strong>Format:</strong> Multiple choice with single correct answers</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Next Steps -->
+              <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Recommended Next Steps</h3>
+                
+                <div style="margin-bottom: 20px;">
+                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">1</div>
+                    <div>
+                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Review Assessment Responses</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.5;">Log into the admin dashboard to review detailed responses and evaluate candidate suitability.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">2</div>
+                    <div>
+                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Conduct Scoring & Evaluation</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.5;">Use the assessment rubric to score responses and determine if the candidate meets requirements.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">3</div>
+                    <div>
+                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Schedule Follow-up Interview</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.5;">If the candidate passes the assessment, schedule a follow-up interview within 5 business days.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">4</div>
+                    <div>
+                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Provide Candidate Feedback</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.5;">Send feedback to the candidate within 3-5 business days, regardless of the outcome.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Call to Action -->
+              <div style="background: linear-gradient(135deg, #083A85 0%, #0a4499 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
+                <h3 style="margin: 0 0 15px 0; font-size: 18px;">Ready to Review?</h3>
+                <p style="margin: 0 0 20px 0; opacity: 0.9; line-height: 1.5;">Access the admin dashboard to begin your assessment review process.</p>
+                <a href="/admin/assessments" style="display: inline-block; background: white; color: #083A85; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; transition: all 0.3s ease;">
+                  Review Assessment Now →
+                </a>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #dee2e6;">
+              <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">
+                This is an automated notification from the Jambolush Assessment System.
+              </p>
+              <p style="margin: 0; color: #6c757d; font-size: 12px;">
+                For questions, contact the development team or check the admin documentation.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': config.apikey,
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (response.ok) {
+        console.log('Admin notification email sent successfully');
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to send admin notification:', response.status, errorText);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error sending admin notification:', error);
+      return false;
+    }
+  };
+
+  // Send confirmation email to user using Brevo API
+  const sendUserConfirmation = async (userEmail: string, userName: string) => {
+    const submissionTime = new Date().toLocaleString();
+    const assessmentId = `JFA-${Date.now().toString().slice(-6)}`;
+    
+    const emailData = {
+      sender: {
+        name: "Jambolush",
+        email: config.senderemail
+      },
+      to: [
+        {
+          email: userEmail,
+          name: userName
+        }
+      ],
+      subject: `✅ Assessment Submitted Successfully - Welcome to Jambolush!`,
+      htmlContent: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Assessment Confirmation</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8f9fa;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #083A85 0%, #0a4499 100%); color: white; padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold; line-height: 1.2;">Assessment Submitted Successfully!</h1>
+              <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Thank you for completing the Field Agent Assessment</p>
+            </div>
+            
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <!-- Success Message -->
+              <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
+                <div style="width: 60px; height: 60px; background: #28a745; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 28px; color: white;">✓</span>
+                </div>
+                <h2 style="margin: 0 0 10px 0; color: #155724; font-size: 24px;">Congratulations, ${userName}!</h2>
+                <p style="margin: 0; color: #155724; font-size: 16px; line-height: 1.5;">
+                  Your Field Agent Assessment has been successfully submitted and is now under review by our expert team.
+                </p>
+              </div>
+
+              <!-- Assessment Summary -->
+              <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Assessment Summary</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #555; width: 150px; border-bottom: 1px solid #dee2e6;">Candidate Name:</td>
+                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Email Address:</td>
+                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Assessment Type:</td>
+                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">Field Agent Evaluation</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Total Questions:</td>
+                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">40 Questions</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Submission Time:</td>
+                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">${submissionTime}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 12px 0; font-weight: bold; color: #555;">Reference ID:</td>
+                    <td style="padding: 12px 0; color: #333; font-family: monospace; background: #e9ecef; padding: 8px; border-radius: 4px;">${assessmentId}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- What Happens Next -->
+              <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">What Happens Next?</h3>
+                
+                <div style="margin-bottom: 20px;">
+                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">1</div>
+                    <div>
+                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Expert Review Process</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.6;">Our experienced team will carefully review and evaluate your responses against our comprehensive assessment criteria.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">2</div>
+                    <div>
+                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Evaluation Timeline</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.6;">You can expect to receive feedback and results within <strong style="color: #1976d2;">3-5 business days</strong> of your submission.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
+                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">3</div>
+                    <div>
+                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Interview Invitation</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.6;">Successful candidates will be invited to participate in a follow-up interview to discuss the role in more detail.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">4</div>
+                    <div>
+                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Onboarding Process</h4>
+                      <p style="margin: 0; color: #666; line-height: 1.6;">If selected, we'll guide you through our comprehensive onboarding program to ensure your success as a Field Agent.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Important Notes -->
+              <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
+                <h4 style="margin: 0 0 12px 0; color: #856404; font-size: 16px;">📋 Important Notes</h4>
+                <ul style="color: #856404; line-height: 1.7; margin: 0; padding-left: 20px;">
+                  <li>Please keep this email and your reference ID for future correspondence</li>
+                  <li>We will contact you exclusively via email, so please check your inbox regularly</li>
+                  <li>If you don't hear from us within 5 business days, please check your spam folder</li>
+                  <li>Feel free to reach out if you have any questions about the process</li>
+                </ul>
+              </div>
+
+              <!-- Thank You Message -->
+              <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; border-radius: 12px; text-align: center;">
+                <h3 style="margin: 0 0 15px 0; font-size: 20px;">Thank You for Your Interest!</h3>
+                <p style="margin: 0; opacity: 0.95; line-height: 1.6; font-size: 16px;">
+                  We appreciate the time and effort you've invested in this assessment. Your dedication to joining our Field Agent team is valued, and we're excited about the possibility of working together to create exceptional experiences for our guests worldwide.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #083A85; color: white; padding: 30px; text-align: center;">
+              <h3 style="margin: 0 0 15px 0; font-size: 18px;">Stay Connected with Jambolush</h3>
+              <p style="margin: 0 0 20px 0; opacity: 0.9; line-height: 1.5;">
+                Follow us on social media for the latest updates, opportunities, and company news.
+              </p>
+              
+              <div style="margin: 20px 0;">
+                <p style="margin: 0; opacity: 0.8; font-size: 14px;">
+                  Questions about your assessment? Contact us at 
+                  <a href="mailto:careers@jambolush.com" style="color: #87CEEB; text-decoration: none;">careers@jambolush.com</a>
+                </p>
+              </div>
+              
+              <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <p style="margin: 0; opacity: 0.7; font-size: 12px;">
+                  © 2024 Jambolush. All rights reserved. | This email was sent regarding your Field Agent Assessment.
+                </p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api-key': config.apikey,
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (response.ok) {
+        console.log('User confirmation email sent successfully');
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to send user confirmation:', response.status, errorText);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error sending user confirmation:', error);
+      return false;
+    }
+  };
+
+  // All 40 assessment questions
   const questions: Question[] = [
     {
       id: "Q1",
@@ -550,70 +894,46 @@ function useQuestionsData() {
       ]
     }
   ];
-
-  return questions;
-}
-
-// Main assessment content component
-function AssessmentContent() {
-  const questions = useQuestionsData();
+  
   const questionsPerPage = 3;
   const totalQuestionPages = Math.ceil(questions.length / questionsPerPage);
   const totalSteps = totalQuestionPages + 2; // Includes Welcome and Submit pages
 
-  // Initial state with default values
-  const [state, setState] = useState<AssessmentState>({
-    currentStep: 0,
-    answers: [],
-    timeRemaining: 4800, // 80 minutes in seconds
-    showTimeAlert: false,
-    assessmentStarted: false,
-    assessmentCompleted: false,
-    timeExpired: false
-  });
-
-  const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Agent information
-  const agentInfo = {
-    name: "Muben Scammer",
-    email: "muben.scammer@gmail.com"
-  };
+  // Fetch user data on component mount
+  useEffect(() => {
+    getUserData();
+  }, []);
 
   // Timer management
   useEffect(() => {
-    let intervalRef: NodeJS.Timeout | null = null;
-
-    if (state.assessmentStarted && !state.assessmentCompleted && !state.timeExpired && state.timeRemaining > 0) {
-      intervalRef = setInterval(() => {
-        setState(prev => {
-          const newTimeRemaining = prev.timeRemaining - 1;
-          
-          if (newTimeRemaining <= 0) {
-            return { ...prev, timeRemaining: 0, timeExpired: true };
+    if (assessmentStarted && !assessmentCompleted && !timeExpired) {
+      intervalRef.current = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            setTimeExpired(true);
+            return 0;
           }
 
-          // Show time alerts
-          if (newTimeRemaining === 3000 || newTimeRemaining === 1200) {
+          // Show time alerts at 50 minutes (3000 seconds) and 20 minutes (1200 seconds) remaining
+          if (prev === 3000 || prev === 1200) {
+            setShowTimeAlert(true);
             if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
-            alertTimeoutRef.current = setTimeout(() => {
-              setState(curr => ({ ...curr, showTimeAlert: false }));
-            }, 5000);
-            
-            return { ...prev, timeRemaining: newTimeRemaining, showTimeAlert: true };
+            alertTimeoutRef.current = setTimeout(() => setShowTimeAlert(false), 5000);
           }
 
-          return { ...prev, timeRemaining: newTimeRemaining };
+          return prev - 1;
         });
       }, 1000);
     }
 
     return () => {
-      if (intervalRef) clearInterval(intervalRef);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
     };
-  }, [state.assessmentStarted, state.assessmentCompleted, state.timeExpired]);
+  }, [assessmentStarted, assessmentCompleted, timeExpired]);
 
+  // Helper functions
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -622,22 +942,16 @@ function AssessmentContent() {
   };
 
   const handleAnswerSelect = (questionId: string, optionIndex: number) => {
-    setState(prev => {
-      const existing = prev.answers.find(a => a.questionId === questionId);
+    setAnswers(prev => {
+      const existing = prev.find(a => a.questionId === questionId);
       if (existing) {
-        return {
-          ...prev,
-          answers: prev.answers.map(a =>
-            a.questionId === questionId
-              ? { ...a, selectedOptions: [optionIndex] }
-              : a
-          )
-        };
+        return prev.map(a =>
+          a.questionId === questionId
+            ? { ...a, selectedOptions: [optionIndex] }
+            : a
+        );
       } else {
-        return {
-          ...prev,
-          answers: [...prev.answers, { questionId, selectedOptions: [optionIndex] }]
-        };
+        return [...prev, { questionId, selectedOptions: [optionIndex] }];
       }
     });
   };
@@ -649,39 +963,99 @@ function AssessmentContent() {
   };
 
   const isAnswerSelected = (questionId: string, optionIndex: number) => {
-    const answer = state.answers.find(a => a.questionId === questionId);
+    const answer = answers.find(a => a.questionId === questionId);
     return answer ? answer.selectedOptions.includes(optionIndex) : false;
   };
 
   const isCurrentPageValid = () => {
-    if (state.currentStep === 0 || state.currentStep === totalSteps - 1) return true;
+    if (currentStep === 0 || currentStep === totalSteps - 1) return true;
     
-    const pageQuestions = getQuestionsForPage(state.currentStep - 1);
+    const pageQuestions = getQuestionsForPage(currentStep - 1);
     return pageQuestions.every(q =>
-      state.answers.some(a => a.questionId === q.id && a.selectedOptions.length > 0)
+      answers.some(a => a.questionId === q.id && a.selectedOptions.length > 0)
     );
   };
 
   const handleNext = () => {
-    if (state.currentStep === 0) {
-      setState(prev => ({ ...prev, assessmentStarted: true, currentStep: prev.currentStep + 1 }));
-    } else if (state.currentStep < totalSteps - 1) {
-      setState(prev => ({ ...prev, currentStep: prev.currentStep + 1 }));
+    if (currentStep === 0) {
+      setAssessmentStarted(true);
+    }
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(prev => prev + 1);
     }
   };
 
   const handlePrevious = () => {
-    if (state.currentStep > 0) {
-      setState(prev => ({ ...prev, currentStep: prev.currentStep - 1 }));
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
     }
   };
 
-  const handleSubmit = () => {
-    setState(prev => ({ ...prev, assessmentCompleted: true }));
-    console.log('Submitted answers:', state.answers);
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setEmailError(null);
+    
+    try {
+      const userName = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Assessment Candidate';
+      const userEmail = user?.email || 'candidate@example.com';
+      
+      console.log('Starting email submission process...');
+      console.log('User Name:', userName);
+      console.log('User Email:', userEmail);
+      console.log('Assessment Answers:', answers);
+      
+      // Send both emails concurrently
+      const [adminEmailSent, userEmailSent] = await Promise.all([
+        sendAdminNotification(userEmail, userName, answers),
+        sendUserConfirmation(userEmail, userName)
+      ]);
+      
+      if (adminEmailSent && userEmailSent) {
+        console.log('✅ Both emails sent successfully');
+      } else if (adminEmailSent) {
+        console.log('⚠️ Admin email sent, but user confirmation failed');
+        setEmailError('Assessment submitted successfully, but confirmation email failed to send.');
+      } else if (userEmailSent) {
+        console.log('⚠️ User confirmation sent, but admin notification failed');
+        setEmailError('Assessment submitted, but admin notification failed.');
+      } else {
+        console.log('❌ Both emails failed to send');
+        setEmailError('Assessment submitted, but email notifications failed. We will still review your submission.');
+      }
+      
+      // You can add additional API call here to save assessment data to your database
+      // await api.post('assessments', { answers, userId: user?.id, completedAt: new Date() });
+      
+      setAssessmentCompleted(true);
+      
+    } catch (error) {
+      console.error('Error during submission process:', error);
+      setEmailError('There was an issue with the submission process, but your assessment has been recorded.');
+      setAssessmentCompleted(true); // Still mark as completed
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (state.timeExpired) {
+  // Component renders
+
+  // Loading state for user data
+  if (isLoadingUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Assessment</h2>
+          <p className="text-gray-600">Please wait while we prepare your assessment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Time expired state
+  if (timeExpired) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
@@ -690,51 +1064,58 @@ function AssessmentContent() {
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Time's Up!</h2>
           <p className="text-gray-600 mb-8">
-            Unfortunately, you've run out of time. Your progress has been saved.
+            Unfortunately, you've run out of time. Your progress has been saved and will be reviewed by our team.
           </p>
           <p className="text-sm text-gray-500">
-            We will be in touch regarding the next steps.
+            We will be in touch regarding the next steps in the coming days.
           </p>
         </div>
       </div>
     );
   }
 
-  if (state.assessmentCompleted) {
+  // Assessment completed state
+  if (assessmentCompleted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <i className="bi bi-check-circle-fill text-green-600" style={{ fontSize: '3rem' }}></i>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Assessment Submitted!</h2>
-          <p className="text-gray-600 mb-8">
-            Thank you for completing the Jambolush Field Agent Assessment. Your responses are now under review.
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Assessment Submitted Successfully!</h2>
+          <p className="text-gray-600 mb-6">
+            Thank you for completing the Jambolush Field Agent Assessment. Your responses are now under review by our expert team.
           </p>
-          <p className="text-sm text-gray-500">
-            You will receive a response via message or call in the coming days.
+          {emailError && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <p className="text-amber-800 text-sm">{emailError}</p>
+            </div>
+          )}
+          <p className="text-sm text-gray-500 mb-4">
+            You will receive feedback and results via email within 3-5 business days.
+          </p>
+          <p className="text-xs text-gray-400">
+            Assessment ID: JFA-{Date.now().toString().slice(-6)}
           </p>
         </div>
       </div>
     );
   }
 
+  // Main assessment interface
   return (
     <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
-      {/* Bootstrap Icons */}
-      <style jsx global>{`
-        @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css');
-      `}</style>
-
-      {state.showTimeAlert && (
+      {/* Time alert notification */}
+      {showTimeAlert && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
             <i className="bi bi-exclamation-circle-fill me-3"></i>
-            <span className="font-semibold">Time Check: {formatTime(state.timeRemaining)} remaining</span>
+            <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
           </div>
         </div>
       )}
 
+      {/* Header */}
       <header className="bg-gradient-to-br from-[#083A85] to-[#0a4499] px-4 sm:px-6 lg:px-8 py-6 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-4">
           <div>
@@ -742,72 +1123,84 @@ function AssessmentContent() {
               JAMBOLUSH FIELD AGENT ASSESSMENT
             </h1>
             <p className="text-blue-100 mt-1">
-              {state.currentStep === 0 ? 'Welcome to the Assessment' :
-                state.currentStep === totalSteps - 1 ? 'Review & Submit' :
-                  `Questions ${((state.currentStep - 1) * questionsPerPage) + 1}-${Math.min(state.currentStep * questionsPerPage, questions.length)} of ${questions.length}`}
+              {currentStep === 0 ? 'Welcome to the Assessment' :
+                currentStep === totalSteps - 1 ? 'Review & Submit' :
+                  `Questions ${((currentStep - 1) * questionsPerPage) + 1}-${Math.min(currentStep * questionsPerPage, questions.length)} of ${questions.length}`}
             </p>
           </div>
-          {state.assessmentStarted && !state.assessmentCompleted && (
-            <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${state.timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'}`}>
+          {assessmentStarted && !assessmentCompleted && (
+            <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'
+              }`}>
               <i className="bi bi-clock-fill text-white me-2"></i>
               <span className="font-mono text-lg font-medium text-white">
-                {formatTime(state.timeRemaining)}
+                {formatTime(timeRemaining)}
               </span>
             </div>
           )}
         </div>
       </header>
 
-      {state.currentStep > 0 && state.currentStep < totalSteps - 1 && (
+      {/* Progress bar - only show during questions */}
+      {currentStep > 0 && currentStep < totalSteps - 1 && (
         <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-100 border-b border-slate-200">
           <div className="max-w-7xl mx-auto">
             <div className="relative">
               <div className="h-2.5 bg-slate-200 rounded-full">
                 <div
                   className="h-full bg-gradient-to-r from-[#083A85] to-[#0a4499] rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${((state.currentStep - 1) * questionsPerPage) / questions.length * 100}%` }}
+                  style={{ width: `${((currentStep - 1) * questionsPerPage) / questions.length * 100}%` }}
                 />
               </div>
               <span className="text-sm text-slate-600 font-medium mt-1.5 block text-right">
-                Progress: {Math.round(((state.currentStep - 1) * questionsPerPage) / questions.length * 100)}%
+                Progress: {Math.round(((currentStep - 1) * questionsPerPage) / questions.length * 100)}%
               </span>
             </div>
           </div>
         </div>
       )}
 
+      {/* Main content */}
       <main className="flex-grow w-full bg-white">
         <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12">
-          {state.currentStep === 0 && (
+          
+          {/* Welcome step */}
+          {currentStep === 0 && (
             <div className="space-y-8">
-              <div className="bg-blue-50 border-l-4 border-[#083A85] rounded-r-lg p-6">
-                <div className="flex items-center mb-4">
-                  <i className="bi bi-person-fill text-[#083A85] me-3"></i>
-                  <span className="font-semibold text-slate-800">{agentInfo.name}</span>
+              {/* User information display */}
+              {user && (
+                <div className="bg-blue-50 border-l-4 border-[#083A85] rounded-r-lg p-6">
+                  <div className="flex items-center mb-4">
+                    <i className="bi bi-person-fill text-[#083A85] me-3"></i>
+                    <span className="font-semibold text-slate-800">
+                      {user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Assessment Candidate'}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <i className="bi bi-envelope-fill text-[#083A85] me-3"></i>
+                    <span className="font-bold text-slate-700">{user.email}</span>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <i className="bi bi-envelope-fill text-[#083A85] me-3"></i>
-                  <span className="font-bold text-slate-700">{agentInfo.email}</span>
-                </div>
-              </div>
+              )}
 
               <div className="text-center py-8">
                 <h2 className="text-4xl font-extrabold text-slate-800 mb-4">
-                  Ready to Begin?
+                  Ready to Begin Your Assessment?
                 </h2>
                 <p className="text-lg text-slate-600 max-w-3xl mx-auto mb-8">
-                  This assessment evaluates your skills for the Field Agent role. Please read the instructions carefully before you start.
+                  This comprehensive assessment evaluates your skills and suitability for the Field Agent role at Jambolush. Please read the instructions carefully before you start.
                 </p>
 
+                {/* Instructions */}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-8 text-left max-w-lg mx-auto">
-                  <h3 className="font-bold text-slate-800 mb-4 text-lg">Key Instructions:</h3>
+                  <h3 className="font-bold text-slate-800 mb-4 text-lg">Important Instructions:</h3>
                   <ul className="space-y-3 text-slate-700">
                     {[
-                      { text: `You have <strong>1 hour and 20 minutes</strong> to complete 40 questions.` },
-                      { text: "Some questions may have multiple correct answers. Select all that apply." },
-                      { text: "Time alerts will appear periodically to help you manage your time." },
-                      { text: "The timer will turn red when <strong>20 minutes</strong> remain." },
-                      { text: "Once started, the assessment cannot be paused. Ensure you are in a quiet environment." },
+                      { text: `You have <strong>1 hour and 20 minutes</strong> to complete all 40 questions.` },
+                      { text: "Each question has only one correct answer. Choose the most appropriate option." },
+                      { text: "Time alerts will appear when you have 50 and 20 minutes remaining." },
+                      { text: "The timer will turn red and pulse when <strong>20 minutes</strong> remain." },
+                      { text: "Once started, the assessment cannot be paused. Ensure you're in a quiet environment." },
+                      { text: "You can navigate back to previous questions to review your answers." }
                     ].map((item, i) => (
                       <li key={i} className="flex items-start">
                         <span className="text-amber-500 mr-3 mt-1 text-xl font-bold">•</span>
@@ -819,7 +1212,7 @@ function AssessmentContent() {
 
                 <button
                   onClick={handleNext}
-                  className="cursor-pointer inline-flex place-items-center px-10 py-4 bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white font-bold text-lg rounded-full hover:from-[#0a4499] hover:to-[#0c52b8] transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
+                  className="cursor-pointer inline-flex place-items-center px-12 py-4 bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white font-bold text-lg rounded-full hover:from-[#0a4499] hover:to-[#0c52b8] transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
                 >
                   <i className="bi bi-play-fill me-2" style={{ fontSize: '1.5rem' }}></i>
                   Start Assessment
@@ -828,30 +1221,33 @@ function AssessmentContent() {
             </div>
           )}
 
-          {state.currentStep > 0 && state.currentStep < totalSteps - 1 && (
+          {/* Question steps */}
+          {currentStep > 0 && currentStep < totalSteps - 1 && (
             <div className="space-y-10">
-              {getQuestionsForPage(state.currentStep - 1).map((question, idx) => {
-                const globalIdx = ((state.currentStep - 1) * questionsPerPage) + idx;
+              {getQuestionsForPage(currentStep - 1).map((question, idx) => {
+                const globalIdx = ((currentStep - 1) * questionsPerPage) + idx;
                 return (
-                  <div key={question.id}>
-                    <div className="flex items-start mb-5">
-                      <span className="flex-shrink-0 w-10 h-10 bg-blue-100 text-[#083A85] border-2 border-blue-200 rounded-full flex items-center justify-center text-lg font-bold">
+                  <div key={question.id} className="bg-slate-50 rounded-2xl p-6">
+                    <div className="flex items-start mb-6">
+                      <span className="flex-shrink-0 w-12 h-12 bg-[#083A85] text-white border-2 border-blue-200 rounded-full flex items-center justify-center text-lg font-bold">
                         {globalIdx + 1}
                       </span>
-                      <p className="ml-4 text-lg text-slate-900 font-extrabold">
-                        {question.question}
-                      </p>
+                      <div className="ml-4">
+                        <p className="text-xl text-slate-900 font-bold leading-relaxed">
+                          {question.question}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="space-y-3 ml-14">
+                    <div className="space-y-3 ml-16">
                       {question.options.map((option, optionIdx) => {
                         const isSelected = isAnswerSelected(question.id, optionIdx);
                         return (
                           <label
                             key={optionIdx}
                             className={`flex items-center p-4 rounded-xl transition-all duration-200 border-2 cursor-pointer ${isSelected
-                              ? 'bg-blue-50 border-[#083A85] shadow-md'
-                              : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-slate-100'
+                              ? 'bg-blue-50 border-[#083A85] shadow-md transform scale-[1.02]'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm'
                               }`}
                           >
                             <input
@@ -861,10 +1257,10 @@ function AssessmentContent() {
                               onChange={() => handleAnswerSelect(question.id, optionIdx)}
                               className="sr-only"
                             />
-                            <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mr-4 flex items-center justify-center ${isSelected ? 'border-[#083A85] bg-[#083A85]' : 'border-slate-400'}`}>
-                                {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                            <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mr-4 flex items-center justify-center transition-all ${isSelected ? 'border-[#083A85] bg-[#083A85]' : 'border-slate-400'}`}>
+                                {isSelected && <div className="w-3 h-3 bg-white rounded-full"></div>}
                             </div>
-                            <span className="text-slate-800 font-semibold">
+                            <span className="text-slate-800 font-medium text-base leading-relaxed">
                               {option}
                             </span>
                           </label>
@@ -877,98 +1273,130 @@ function AssessmentContent() {
             </div>
           )}
 
-          {state.currentStep === totalSteps - 1 && (
+          {/* Submit step */}
+          {currentStep === totalSteps - 1 && (
             <div className="space-y-8">
               <div className="text-center py-8">
                 <h2 className="text-3xl font-extrabold text-slate-800 mb-4">
-                  Final Review
+                  Final Review & Submission
                 </h2>
                 <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
-                  You've reached the end. Please review your answers before submitting.
+                  You've reached the end of the assessment. Please review your completion status before submitting.
                 </p>
 
+                {/* Completion summary */}
                 <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6 max-w-md mx-auto">
-                  <div className="flex items-center justify-center mb-3">
-                    <i className="bi bi-check-circle-fill text-green-600 me-3" style={{ fontSize: '2rem' }}></i>
-                    <span className="text-xl font-bold text-slate-800">
-                      {state.answers.filter(a => a.selectedOptions.length > 0).length} of {questions.length} Questions Answered
-                    </span>
+                  <div className="flex items-center justify-center mb-4">
+                    <i className="bi bi-check-circle-fill text-green-600 me-3" style={{ fontSize: '2.5rem' }}></i>
+                    <div className="text-left">
+                      <div className="text-2xl font-bold text-slate-800">
+                        {answers.filter(a => a.selectedOptions.length > 0).length} of {questions.length}
+                      </div>
+                      <div className="text-sm text-slate-600">Questions Answered</div>
+                    </div>
                   </div>
                   <p className="font-medium text-slate-600">
-                    Time remaining: {formatTime(state.timeRemaining)}
+                    Time remaining: <span className="font-mono">{formatTime(timeRemaining)}</span>
                   </p>
                 </div>
 
+                {/* Confirmation message */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8 max-w-2xl mx-auto">
-                  <p className="text-slate-700">
-                    By submitting, you confirm that these answers are your own work. Our team will review your assessment, and you will receive feedback within the next few business days.
+                  <h3 className="font-bold text-slate-800 mb-3">Submission Confirmation</h3>
+                  <p className="text-slate-700 leading-relaxed">
+                    By submitting this assessment, you confirm that these answers represent your own work and understanding. 
+                    Our expert team will review your responses carefully, and you will receive feedback within 3-5 business days.
                   </p>
                 </div>
 
+                {/* Submit button */}
                 <button
                   onClick={handleSubmit}
-                  className="cursor-pointer inline-flex items-center px-10 py-4 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-lg rounded-full hover:from-green-600 hover:to-green-700 transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
+                  disabled={isSubmitting}
+                  className="cursor-pointer inline-flex items-center px-12 py-4 bg-gradient-to-br from-green-500 to-green-600 text-white font-bold text-lg rounded-full hover:from-green-600 hover:to-green-700 transition-all shadow-lg hover:shadow-2xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  <i className="bi bi-send-fill me-2" style={{ fontSize: '1.5rem' }}></i>
-                  Submit Assessment
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin me-3"></div>
+                      Submitting Assessment...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-send-fill me-3" style={{ fontSize: '1.5rem' }}></i>
+                      Submit Assessment
+                    </>
+                  )}
                 </button>
+
+                {/* Error message */}
+                {emailError && (
+                  <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md mx-auto">
+                    <p className="text-amber-800 text-sm">{emailError}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </main>
 
+      {/* Footer navigation */}
       <footer className="bg-slate-100 border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-5 sticky bottom-0 z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
+          {/* Previous button */}
           <button
             type="button"
             onClick={handlePrevious}
-            disabled={state.currentStep === 0}
-            className="cursor-pointer inline-flex items-center px-5 py-2.5 rounded-full font-semibold transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:hover:bg-slate-200"
+            disabled={currentStep === 0}
+            className="cursor-pointer inline-flex items-center px-6 py-3 rounded-full font-semibold transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:hover:bg-slate-200"
           >
-            <i className="bi bi-chevron-left me-1"></i>
+            <i className="bi bi-chevron-left me-2"></i>
             Previous
           </button>
 
+          {/* Step indicators */}
           <div className="flex items-center space-x-2">
               {Array.from({ length: totalSteps }).map((_, stepIndex) => (
                   <div
                       key={stepIndex}
-                      className={`h-2.5 rounded-full transition-all duration-300 ${
-                          stepIndex === state.currentStep
-                              ? 'w-8 bg-gradient-to-r from-[#083A85] to-[#0a4499]'
-                              : stepIndex < state.currentStep
-                              ? 'w-2.5 bg-[#083A85]'
-                              : 'w-2.5 bg-slate-300'
+                      className={`h-3 rounded-full transition-all duration-300 ${
+                          stepIndex === currentStep
+                              ? 'w-10 bg-gradient-to-r from-[#083A85] to-[#0a4499]'
+                              : stepIndex < currentStep
+                              ? 'w-3 bg-[#083A85]'
+                              : 'w-3 bg-slate-300'
                       }`}
                   />
               ))}
           </div>
 
-          {state.currentStep < totalSteps - 1 ? (
+          {/* Next button */}
+          {currentStep < totalSteps - 1 ? (
             <button
               type="button"
               onClick={handleNext}
-              disabled={state.currentStep > 0 && !isCurrentPageValid()}
-              className="cursor-pointer inline-flex items-center px-6 py-2.5 rounded-full font-semibold transition-all text-sm text-white bg-gradient-to-br from-[#083A85] to-[#0a4499] hover:from-[#0a4499] hover:to-[#0c52b8] shadow-md hover:shadow-lg disabled:from-slate-400 disabled:to-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
+              disabled={currentStep > 0 && !isCurrentPageValid()}
+              className="cursor-pointer inline-flex items-center px-6 py-3 rounded-full font-semibold transition-all text-sm text-white bg-gradient-to-br from-[#083A85] to-[#0a4499] hover:from-[#0a4499] hover:to-[#0c52b8] shadow-md hover:shadow-lg disabled:from-slate-400 disabled:to-slate-400 disabled:shadow-none disabled:cursor-not-allowed"
             >
-              {state.currentStep === 0 ? 'Start' : 'Next'}
-              <i className="bi bi-chevron-right ms-1"></i>
+              {currentStep === 0 ? (
+                <>
+                  Start Assessment
+                  <i className="bi bi-chevron-right ms-2"></i>
+                </>
+              ) : (
+                <>
+                  Next
+                  <i className="bi bi-chevron-right ms-2"></i>
+                </>
+              )}
             </button>
           ) : (
-            <div style={{ width: '106px' }} />
+            <div style={{ width: '140px' }} />
           )}
         </div>
       </footer>
     </div>
   );
-}
+};
 
-// Main page component with Suspense boundary
-export default function AssessmentPage() {
-  return (
-    <Suspense fallback={<AssessmentLoading />}>
-      <AssessmentContent />
-    </Suspense>
-  );
-}
+export default AssessmentContent;

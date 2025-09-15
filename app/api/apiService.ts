@@ -1,4 +1,5 @@
 // apiService.ts - Enhanced Frontend API service with automatic token refresh
+import authService from './authService';
 
 export interface APIConfig {
   method?: string;
@@ -361,209 +362,45 @@ class FrontendAPIService {
   private defaultHeaders: Record<string, string> = {
     'Accept': 'application/json'
   };
-  
-  // Token refresh state
-  private refreshPromise: Promise<AuthTokens> | null = null;
-  private isRefreshing = false;
-  
-  // Event callbacks
-  private onTokenRefresh?: (tokens: AuthTokens) => void;
-  private onAuthError?: () => void;
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'http://localhost:5000/api';
+    
+    // Set up auth service integration
+    this.setupAuthIntegration();
   }
 
-  // ============ TOKEN MANAGEMENT ============
+  private setupAuthIntegration() {
+    // Listen for auth events and update headers
+    authService.on('login', (session) => {
+      if (session?.tokens?.accessToken) {
+        this.setAuth(session.tokens.accessToken, session.tokens.refreshToken);
+      }
+    });
 
-  /**
-   * Set authentication tokens and callbacks
-   */
+    authService.on('logout', () => {
+      this.clearAuth();
+    });
+
+    authService.on('token_refreshed', (tokens) => {
+      if (tokens?.accessToken) {
+        this.setAuth(tokens.accessToken, tokens.refreshToken);
+      }
+    });
+
+    // Initialize with existing session if available
+    const session = authService.getSession();
+    if (session?.tokens?.accessToken) {
+      this.setAuth(session.tokens.accessToken, session.tokens.refreshToken);
+    }
+  }
+
   setAuth(accessToken: string, refreshToken?: string): void {
     this.defaultHeaders['Authorization'] = `Bearer ${accessToken}`;
-    
-    if (refreshToken) {
-      this.storeTokens({
-        accessToken,
-        refreshToken,
-        expiresAt: this.calculateTokenExpiry(accessToken)
-      });
-    }
   }
 
-  /**
-   * Clear authentication
-   */
   clearAuth(): void {
     delete this.defaultHeaders['Authorization'];
-    this.clearStoredTokens();
-    this.refreshPromise = null;
-    this.isRefreshing = false;
-  }
-
-  /**
-   * Set event callbacks for token refresh and auth errors
-   */
-  setAuthCallbacks(
-    onTokenRefresh?: (tokens: AuthTokens) => void,
-    onAuthError?: () => void
-  ): void {
-    this.onTokenRefresh = onTokenRefresh;
-    this.onAuthError = onAuthError;
-  }
-
-  /**
-   * Get stored tokens from localStorage
-   */
-  private getStoredTokens(): AuthTokens | null {
-    try {
-      const stored = localStorage.getItem('jambolush_auth_tokens');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Store tokens in localStorage
-   */
-  private storeTokens(tokens: AuthTokens): void {
-    try {
-      localStorage.setItem('jambolush_auth_tokens', JSON.stringify(tokens));
-    } catch (error) {
-      console.error('Failed to store tokens:', error);
-    }
-  }
-
-  /**
-   * Clear stored tokens
-   */
-  private clearStoredTokens(): void {
-    try {
-      localStorage.removeItem('jambolush_auth_tokens');
-      localStorage.removeItem('authToken'); // Legacy token storage
-    } catch (error) {
-      console.error('Failed to clear tokens:', error);
-    }
-  }
-
-  /**
-   * Calculate token expiry time from JWT
-   */
-  private calculateTokenExpiry(token: string): number {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp ? payload.exp * 1000 : Date.now() + (3600 * 1000); // Default 1 hour
-    } catch {
-      return Date.now() + (3600 * 1000); // Default 1 hour
-    }
-  }
-
-  /**
-   * Check if token is expired or will expire soon (within 5 minutes)
-   */
-  private isTokenExpired(expiresAt?: number): boolean {
-    if (!expiresAt) return false;
-    const fiveMinutesFromNow = Date.now() + (5 * 60 * 1000);
-    return expiresAt <= fiveMinutesFromNow;
-  }
-
-  /**
-   * Refresh access token using refresh token
-   */
-  private async refreshAccessToken(): Promise<AuthTokens> {
-    // Prevent multiple concurrent refresh attempts
-    if (this.refreshPromise) {
-      return this.refreshPromise;
-    }
-
-    const storedTokens = this.getStoredTokens();
-    if (!storedTokens?.refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    this.isRefreshing = true;
-    
-    this.refreshPromise = (async () => {
-      try {
-        console.log('Refreshing access token...');
-        
-        const response = await this.request<BackendResponse<TokenRefreshResponse>>(
-          '/auth/refresh-token', 
-          {
-            method: 'POST',
-            body: { refreshToken: storedTokens.refreshToken },
-            skipTokenRefresh: true // Prevent infinite loop
-          }
-        );
-
-        if (!response.data.success || !response.data.data) {
-          throw new Error('Invalid refresh response');
-        }
-
-        const { accessToken, refreshToken, expiresIn } = response.data.data;
-        
-        const newTokens: AuthTokens = {
-          accessToken,
-          refreshToken: refreshToken || storedTokens.refreshToken,
-          expiresAt: expiresIn ? 
-            Date.now() + (expiresIn * 1000) : 
-            this.calculateTokenExpiry(accessToken)
-        };
-
-        // Update authorization header
-        this.defaultHeaders['Authorization'] = `Bearer ${accessToken}`;
-        
-        // Store new tokens
-        this.storeTokens(newTokens);
-        
-        // Notify callback
-        if (this.onTokenRefresh) {
-          this.onTokenRefresh(newTokens);
-        }
-
-        console.log('Token refreshed successfully');
-        return newTokens;
-        
-      } catch (error) {
-        console.error('Token refresh failed:', error);
-        
-        // Clear auth and notify error callback
-        this.clearAuth();
-        if (this.onAuthError) {
-          this.onAuthError();
-        }
-        
-        throw error;
-      } finally {
-        this.isRefreshing = false;
-        this.refreshPromise = null;
-      }
-    })();
-
-    return this.refreshPromise;
-  }
-
-  /**
-   * Ensure valid access token before making requests
-   */
-  private async ensureValidToken(): Promise<void> {
-    const tokens = this.getStoredTokens();
-    
-    if (!tokens) {
-      return; // No tokens, continue without auth
-    }
-
-    // Check if token needs refresh
-    if (this.isTokenExpired(tokens.expiresAt)) {
-      await this.refreshAccessToken();
-    }
-  }
-
-  // ============ HTTP REQUEST METHODS ============
-
-  setHeaders(headers: Record<string, string>): void {
-    Object.assign(this.defaultHeaders, headers);
   }
 
   private buildURL(endpoint: string, params?: Record<string, any>): string {
@@ -581,22 +418,22 @@ class FrontendAPIService {
   }
 
   private prepareBody(body: any): any {
-  if (!body) return null;
-  
-  if (body instanceof FormData || body instanceof File || body instanceof Blob || 
-      body instanceof ArrayBuffer || body instanceof URLSearchParams || 
-      typeof body === 'string') {
-    return body;
-  }
+    if (!body) return null;
+    
+    if (body instanceof FormData || body instanceof File || body instanceof Blob || 
+        body instanceof ArrayBuffer || body instanceof URLSearchParams || 
+        typeof body === 'string') {
+      return body;
+    }
 
-  if (this.hasFiles(body)) {
-    const formData = new FormData();
-    this.buildFormData(formData, body);
-    return formData;
-  }
+    if (this.hasFiles(body)) {
+      const formData = new FormData();
+      this.buildFormData(formData, body);
+      return formData;
+    }
 
-  return JSON.stringify(body);
-}
+    return JSON.stringify(body);
+  }
 
   private hasFiles(obj: any): boolean {
     if (!obj || typeof obj !== 'object') return false;
@@ -637,11 +474,16 @@ class FrontendAPIService {
   }
 
   async request<T = any>(endpoint: string, config: APIConfig = {}): Promise<APIResponse<T>> {
-    const { method = 'GET', headers = {}, body, params, timeout = 50000, skipTokenRefresh = false } = config;
+    const { method = 'GET', headers = {}, body, params, timeout = 50000 } = config;
     
-    // Ensure valid token before request (unless skipping refresh)
-    if (!skipTokenRefresh && !endpoint.includes('/auth/')) {
-      await this.ensureValidToken();
+    // Check if we need to refresh token before making request
+    if (!endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
+      try {
+        await this.ensureValidToken();
+      } catch (error) {
+        console.error('Token validation failed:', error);
+        // Let the request proceed - it will get 401 and trigger logout
+      }
     }
     
     const url = this.buildURL(endpoint, params);
@@ -687,32 +529,21 @@ class FrontendAPIService {
         }
       }
 
-      // Handle 401 Unauthorized - attempt token refresh
-      if (response.status === 401 && !skipTokenRefresh && !endpoint.includes('/auth/')) {
-        console.log('Received 401, attempting token refresh...');
+      // Handle 401 Unauthorized - trigger logout through auth service
+      if (response.status === 401 && !endpoint.includes('/auth/')) {
+        console.log('Received 401, triggering logout...');
         
-        try {
-          await this.refreshAccessToken();
-          
-          // Retry the original request with new token
-          return this.request<T>(endpoint, { ...config, skipTokenRefresh: true });
-          
-        } catch (refreshError) {
-          console.error('Token refresh failed, clearing auth:', refreshError);
-          
-          // Clear auth and throw original error
-          this.clearAuth();
-          if (this.onAuthError) {
-            this.onAuthError();
-          }
-          
-          throw {
-            message: `HTTP ${response.status}: ${response.statusText}`,
-            status: response.status,
-            data,
-            response
-          };
-        }
+        // Use auth service to handle logout
+        setTimeout(() => {
+          authService.logout();
+        }, 100);
+        
+        throw {
+          message: `HTTP ${response.status}: Unauthorized`,
+          status: response.status,
+          data,
+          response
+        };
       }
 
       if (!response.ok) {
@@ -731,6 +562,25 @@ class FrontendAPIService {
       if (error.name === 'AbortError') {
         throw new Error(`Request timeout after ${timeout}ms`);
       }
+      throw error;
+    }
+  }
+
+  private async ensureValidToken(): Promise<void> {
+    const session = authService.getSession();
+    if (!session) return;
+
+    try {
+      // Check if token needs refresh
+      const tokenExpiryBuffer = 60 * 1000; // 1 minute buffer
+      const isExpiringSoon = session.tokens.expiresAt <= (Date.now() + tokenExpiryBuffer);
+      
+      if (isExpiringSoon) {
+        console.log('Token expiring soon, refreshing...');
+        await authService.refreshTokens();
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
       throw error;
     }
   }
@@ -1547,7 +1397,8 @@ async getPropertyBooking(bookingId: string): Promise<APIResponse<BackendResponse
  */
 async cancelPropertyBooking(bookingId: string, reason?: string): Promise<APIResponse<BackendResponse<any>>> {
   return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/cancel`, { 
-    reason: reason || 'Cancelled by user' 
+    reason: reason || 'Cancelled by user' ,
+    type: 'property'
   });
 }
 
