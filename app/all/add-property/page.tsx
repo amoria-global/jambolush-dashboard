@@ -43,6 +43,15 @@ interface VideoFile {
   uploadedUrl?: string;
 }
 
+interface DocumentFile {
+  file: File;
+  url: string;
+  name: string;
+  size: number;
+  uploaded?: boolean;
+  uploadedUrl?: string;
+}
+
 interface PropertyImages {
   livingRoom: ImageFile[];
   kitchen: ImageFile[];
@@ -57,10 +66,17 @@ interface PropertyImages {
   childrenPlayroom: ImageFile[];
 }
 
+interface LocationDetails {
+  type: 'upi' | 'address' | '';
+  upi: string;
+  upiDocument: DocumentFile | null;
+  address: string;
+}
+
 interface FormData {
   ownerDetails: OwnerDetails;
   name: string;
-  location: string;
+  location: LocationDetails;
   availabilityDates: AvailabilityDates;
   pricePerTwoNights: string;
   type: string;
@@ -80,6 +96,7 @@ const AddPropertyPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(true);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
+  const [documentUploadProgress, setDocumentUploadProgress] = useState<number>(0);
   const [imageUploadProgress, setImageUploadProgress] = useState<{ [key: string]: number }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
@@ -101,7 +118,12 @@ const AddPropertyPage: React.FC = () => {
       address: ''
     },
     name: '',
-    location: '',
+    location: {
+      type: '',
+      upi: '',
+      upiDocument: null,
+      address: ''
+    },
     availabilityDates: { start: '', end: '' },
     pricePerTwoNights: '',
     type: '',
@@ -152,6 +174,7 @@ const AddPropertyPage: React.FC = () => {
 
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const documentInputRef = useRef<HTMLInputElement | null>(null);
 
   // Helper function to get tomorrow's date in YYYY-MM-DD format
   const getTomorrowDate = (): string => {
@@ -174,6 +197,13 @@ const AddPropertyPage: React.FC = () => {
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  };
+
+  // UPI validation helper
+  const isValidUPI = (upi: string): boolean => {
+    // UPI should be a number with at least 6 digits
+    const upiRegex = /^[0-9]{6,}$/;
+    return upiRegex.test(upi);
   };
 
   // Enhanced error handling function
@@ -225,6 +255,10 @@ const AddPropertyPage: React.FC = () => {
         
         if (formData.video3D?.url && formData.video3D.url.startsWith('blob:')) {
           URL.revokeObjectURL(formData.video3D.url);
+        }
+
+        if (formData.location.upiDocument?.url && formData.location.upiDocument.url.startsWith('blob:')) {
+          URL.revokeObjectURL(formData.location.upiDocument.url);
         }
       } catch (error) {
         console.warn('Error cleaning up object URLs:', error);
@@ -515,6 +549,29 @@ const AddPropertyPage: React.FC = () => {
     }
   };
 
+  // Process and upload UPI document
+  const processUPIDocument = async (): Promise<string> => {
+    if (!formData.location.upiDocument) return '';
+    
+    try {
+      setDocumentUploadProgress(10);
+      
+      const uploadedUrl = await uploadSingleFileToSupabase(
+        formData.location.upiDocument.file,
+        'documents',
+        (progress) => {
+          setDocumentUploadProgress(progress);
+        }
+      );
+      
+      return uploadedUrl;
+    } catch (error) {
+      console.error('Failed to upload UPI document:', error);
+      setDocumentUploadProgress(-1); // -1 indicates error
+      throw error;
+    }
+  };
+
   const handleOwnerInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -530,6 +587,49 @@ const AddPropertyPage: React.FC = () => {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleLocationTypeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        type: value as 'upi' | 'address',
+        upi: '',
+        address: '',
+        upiDocument: null
+      }
+    }));
+    
+    // Clear validation errors
+    if (validationErrors.location) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.location;
+        return newErrors;
+      });
+    }
+  };
+
+  const handleLocationDetailsChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        [name]: value
+      }
+    }));
+    
+    // Clear validation error when user starts typing
+    if (validationErrors.location) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.location;
         return newErrors;
       });
     }
@@ -644,6 +744,39 @@ const AddPropertyPage: React.FC = () => {
     }));
   };
 
+  const handleDocumentUpload = (file: File | null) => {
+    if (!file) return;
+
+    const validDocumentTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!validDocumentTypes.includes(file.type)) {
+      alert('Please upload a valid document file (PDF, JPEG, PNG, JPG)');
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      alert('Document file size must be less than 10MB');
+      return;
+    }
+
+    setDocumentUploadProgress(0);
+    const newDocument: DocumentFile = {
+      file,
+      url: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size,
+      uploaded: false
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        upiDocument: newDocument
+      }
+    }));
+  };
+
   const removeVideo = () => {
     if (formData.video3D?.url) {
       URL.revokeObjectURL(formData.video3D.url);
@@ -653,6 +786,20 @@ const AddPropertyPage: React.FC = () => {
       video3D: null
     }));
     setVideoUploadProgress(0);
+  };
+
+  const removeDocument = () => {
+    if (formData.location.upiDocument?.url) {
+      URL.revokeObjectURL(formData.location.upiDocument.url);
+    }
+    setFormData(prev => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        upiDocument: null
+      }
+    }));
+    setDocumentUploadProgress(0);
   };
 
   const removeImage = (category: keyof PropertyImages, index: number) => {
@@ -709,14 +856,35 @@ const AddPropertyPage: React.FC = () => {
         video3DUrl = await processVideo();
       }
 
+      // Process and upload UPI document if provided
+      let upiDocumentUrl = '';
+      if (formData.location.type === 'upi' && formData.location.upiDocument) {
+        upiDocumentUrl = await processUPIDocument();
+      }
+
       // Process and upload images
       const processedImages = await processImages();
+
+      // Prepare location data based on type
+      const locationData = formData.location.type === 'upi' 
+        ? {
+            type: 'upi',
+            upi: formData.location.upi,
+            upiDocument: upiDocumentUrl,
+            address: ''
+          }
+        : {
+            type: 'address',
+            upi: '',
+            upiDocument: '',
+            address: formData.location.address
+          };
 
       // Prepare the request body to match backend expectations exactly
       const requestBody = {
         hostId: hostId,
         name: formData.name.trim(),
-        location: formData.location.trim(),
+        location: locationData,
         type: formData.type, // Already lowercase from handleInputChange
         category: formData.category,
         pricePerNight: parseFloat(formData.pricePerTwoNights) / 2, // Convert to per night
@@ -725,7 +893,7 @@ const AddPropertyPage: React.FC = () => {
         baths: baths,
         maxGuests: maxGuests,
         features: formData.features, // Ensure it's an array
-        description: `A stunning ${formData.type} in ${formData.location} with ${formData.features.length} amazing features.`,
+        description: `A stunning ${formData.type} with ${formData.features.length} amazing features.`,
         images: processedImages,
         video3D: video3DUrl,
         availabilityDates: {
@@ -803,6 +971,10 @@ const AddPropertyPage: React.FC = () => {
       URL.revokeObjectURL(formData.video3D.url);
     }
 
+    if (formData.location.upiDocument?.url) {
+      URL.revokeObjectURL(formData.location.upiDocument.url);
+    }
+
     setFormData({
       ownerDetails: {
         names: '',
@@ -811,7 +983,12 @@ const AddPropertyPage: React.FC = () => {
         address: ''
       },
       name: '',
-      location: '',
+      location: {
+        type: '',
+        upi: '',
+        upiDocument: null,
+        address: ''
+      },
       availabilityDates: { start: '', end: '' },
       pricePerTwoNights: '',
       type: '',
@@ -834,6 +1011,7 @@ const AddPropertyPage: React.FC = () => {
     });
     setCurrentStep(1);
     setVideoUploadProgress(0);
+    setDocumentUploadProgress(0);
     setImageUploadProgress({});
     setSubmitError('');
     setSubmitSuccess('');
@@ -856,9 +1034,24 @@ const AddPropertyPage: React.FC = () => {
       const validTypes = ['apartment', 'house', 'villa', 'condo', 'townhouse', 'studio', 'loft'];
       const isStartDateValid = isValidStartDate(formData.availabilityDates.start);
       
+      // Location validation based on type
+      let isLocationValid = false;
+      if (formData.location.type === 'upi') {
+        isLocationValid = !!(
+          formData.location.upi && 
+          isValidUPI(formData.location.upi) &&
+          formData.location.upiDocument
+        );
+      } else if (formData.location.type === 'address') {
+        isLocationValid = !!(
+          formData.location.address && 
+          formData.location.address.trim().length >= 5
+        );
+      }
+      
       return !!(
         formData.name && formData.name.trim().length >= 3 && formData.name.length <= 100 &&
-        formData.location && formData.location.trim().length >= 5 &&
+        formData.location.type && isLocationValid &&
         formData.availabilityDates.start && 
         formData.availabilityDates.end &&
         isStartDateValid &&
@@ -1094,7 +1287,7 @@ const AddPropertyPage: React.FC = () => {
                           name="phone"
                           value={formData.ownerDetails.phone}
                           onChange={handleOwnerInputChange}
-                          placeholder="+1 (555) 123-4567 (min 10 characters)"
+                          placeholder="+250 7812-345 (min 10 characters)"
                           className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
                             validationErrors.phone ? 'border-red-500' : 'border-gray-300'
                           }`}
@@ -1147,24 +1340,160 @@ const AddPropertyPage: React.FC = () => {
                         )}
                       </div>
 
+                      {/* Location Type Selection */}
                       <div>
-                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
-                          Location <span className="text-red-500">*</span>
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-3 cursor-pointer">
+                          Property Location Type <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="text"
-                          name="location"
-                          value={formData.location}
-                          onChange={handleInputChange}
-                          placeholder="City, State (min 5 characters)"
-                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
-                            validationErrors.location ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                        />
+                        <div className="space-y-3">
+                          <div className="flex items-center">
+                            <input
+                              type="radio"
+                              id="upi"
+                              name="locationType"
+                              value="upi"
+                              checked={formData.location.type === 'upi'}
+                              onChange={handleLocationTypeChange}
+                              className="h-4 w-4 text-[#083A85] focus:ring-[#083A85] border-gray-300"
+                            />
+                            <label htmlFor="upi" className="ml-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer">
+                              Property UPI (Unique Parcel Identifier)
+                            </label>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="radio"
+                              id="address"
+                              name="locationType"
+                              value="address"
+                              checked={formData.location.type === 'address'}
+                              onChange={handleLocationTypeChange}
+                              className="h-4 w-4 text-[#083A85] focus:ring-[#083A85] border-gray-300"
+                            />
+                            <label htmlFor="address" className="ml-2 text-sm sm:text-base font-medium text-gray-700 cursor-pointer">
+                              Property Address
+                            </label>
+                          </div>
+                        </div>
                         {validationErrors.location && (
                           <p className="mt-1 text-sm text-red-600">{validationErrors.location}</p>
                         )}
                       </div>
+
+                      {/* UPI Input */}
+                      {formData.location.type === 'upi' && (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                              Property UPI Number <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              name="upi"
+                              value={formData.location.upi}
+                              onChange={handleLocationDetailsChange}
+                              placeholder="Enter UPI number (numbers only, min 6 digits)"
+                              className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
+                                validationErrors.location ? 'border-red-500' : 'border-gray-300'
+                              }`}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">UPI should contain only numbers and be at least 6 digits long</p>
+                          </div>
+
+                          {/* UPI Document Upload */}
+                          <div>
+                            <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                              UPI Verification Document <span className="text-red-500">*</span>
+                            </label>
+                            {!formData.location.upiDocument ? (
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={() => documentInputRef.current?.click()}
+                                  className="w-full py-4 sm:py-6 border-2 border-dashed border-[#083A85] rounded-lg flex flex-col items-center justify-center hover:border-[#0a4499] hover:bg-blue-50 transition-all cursor-pointer"
+                                >
+                                  <svg className="w-6 h-6 sm:w-8 sm:h-8 text-[#083A85] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <span className="text-xs sm:text-sm font-medium text-gray-700">Click to upload UPI document</span>
+                                  <span className="text-xs sm:text-sm text-gray-500 mt-1">PDF, JPEG, PNG, JPG (Max 10MB)</span>
+                                </button>
+                                <input
+                                  ref={documentInputRef}
+                                  type="file"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => handleDocumentUpload(e.target.files?.[0] || null)}
+                                  className="hidden"
+                                />
+                              </div>
+                            ) : (
+                              <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                                    <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                                      <svg className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{formData.location.upiDocument.name}</p>
+                                      <p className="text-xs sm:text-sm text-gray-500">{formatFileSize(formData.location.upiDocument.size)}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={removeDocument}
+                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+                                  >
+                                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                
+                                {/* Upload progress for document */}
+                                {documentUploadProgress > 0 && documentUploadProgress < 100 && isSubmitting && (
+                                  <div className="mt-3">
+                                    <div className="bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className="bg-gradient-to-r from-[#083A85] to-[#0a4499] h-2 rounded-full transition-all"
+                                        style={{ width: `${documentUploadProgress}%` }}
+                                      />
+                                    </div>
+                                    <p className="text-xs sm:text-sm text-gray-500 mt-1">Uploading document to Supabase... {documentUploadProgress}%</p>
+                                  </div>
+                                )}
+                                
+                                {documentUploadProgress === -1 && (
+                                  <div className="mt-3 text-red-600 text-xs sm:text-sm">
+                                    Upload failed. Please try again.
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Address Input */}
+                      {formData.location.type === 'address' && (
+                        <div>
+                          <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
+                            Property Address <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="address"
+                            value={formData.location.address}
+                            onChange={handleLocationDetailsChange}
+                            placeholder="Street, House Number, City, District (min 5 characters)"
+                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
+                              validationErrors.location ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          <p className="mt-1 text-xs text-gray-500">Include full address details for easy location identification</p>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
