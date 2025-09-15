@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import api from '@/app/api/apiService' // Import your API service
+import api from '@/app/api/apiService' 
 import { useRouter } from 'next/navigation';
 
 // Types
@@ -501,7 +501,7 @@ const PropertiesPage: React.FC = () => {
             <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Properties</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">My Properties</h1>
                     <p className="text-sm sm:text-base text-gray-600 mt-2">Manage your active and completed property listings.</p>
                 </div>
 
