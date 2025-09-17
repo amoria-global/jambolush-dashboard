@@ -1095,6 +1095,10 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
     return this.put<BackendResponse<User>>('/auth/profile', profileData);
   }
 
+  async updateProfileImage(imageUrl: string): Promise<APIResponse<BackendResponse<{ profile: string; user: User }>>> {
+  return this.put<BackendResponse<{ profile: string; user: User }>>('/auth/me/image', { imageUrl });
+}
+
   // ============ BOOKING API METHODS ============
 
   /**
