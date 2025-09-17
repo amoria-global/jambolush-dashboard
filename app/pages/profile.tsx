@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import api from "@/app/api/apiService";
+import { uploadProfilePictureToSupabase } from '../api/storage'; 
 
 // --- INTERFACES ---
 
@@ -418,8 +419,8 @@ export default function UserProfileSettingsPage() {
       try {
         setIsLoading(true);
         setError(null);
-        const token: any = localStorage.getItem('authToken');
-        api.setAuth(token)
+        const token = localStorage.getItem('authToken') || '';
+        api.setAuth(token || '')
         const response = await api.get('auth/me');
         
         if (response.data) {
@@ -618,50 +619,23 @@ const hasChanges = () => {
     setIsSaving(true);
     console.log('Starting image upload...');
     
-    // Convert file to base64
-    const base64String = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        console.log('File converted to base64');
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(selectedFile);
-    });
+    const imageUrl = await uploadProfilePictureToSupabase(
+      selectedFile, 
+      user.phone || user.id.toString()
+    );
     
-    console.log('Base64 length:', base64String.length);
-    console.log('Base64 starts with:', base64String.substring(0, 30));
+    console.log('Image uploaded to Supabase, URL:', imageUrl);
     
-    // Use direct fetch instead of api service
+    // Now send the URL to backend via centralized API service
     const token = localStorage.getItem('authToken');
-    console.log('Token exists:', !!token);
+    api.setAuth(token || '');
     
-    const requestBody = { imageUrl: base64String };
-    console.log('Request body prepared:', { imageUrl: base64String.substring(0, 50) + '...' });
+    const response = await api.updateProfileImage(imageUrl);
     
-    const response = await fetch('https://backend.jambolush.com/api/auth/me/image', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-    
-    const responseData = await response.json();
-    console.log('Response data:', responseData);
-    
-    if (!response.ok) {
-      throw new Error(responseData.message || 'Upload failed');
-    }
-    
-    if (responseData) {
-      setUser({ ...user, profile: responseData.profile, updated_at: new Date().toISOString() });
+    if (response.data.success && response.data.data) {
+      setUser({ ...user, profile: imageUrl, updated_at: new Date().toISOString() });
       const profileUpdateEvent = new CustomEvent('profileImageUpdated', {
-        detail: { profile: responseData.profile }
+        detail: { profile: imageUrl }
       });
       window.dispatchEvent(profileUpdateEvent);
       setUploadSuccess('Profile image uploaded successfully!');
@@ -680,14 +654,14 @@ const hasChanges = () => {
   }
 };
 
-  const handleSaveChanges = async () => {
+// Update the combined save function
+const handleSaveChanges = async () => {
   if (!user) return;
   
   try {
     setIsSaving(true);
     setSaveMessage(null);
     
-    // Check if any changes were made (including selected image file)
     if (!hasChanges()) {
       setSaveMessage({ type: 'info', text: 'No changes made' });
       setIsEditing(false);
@@ -700,38 +674,21 @@ const hasChanges = () => {
     // Handle image upload first if there's a selected file
     if (selectedFile) {
       try {
-        // Convert file to base64
-        const base64String = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(selectedFile);
-        });
+        // Upload to Supabase
+        updatedProfileUrl = await uploadProfilePictureToSupabase(
+          selectedFile, 
+          user.phone || user.id.toString()
+        );
         
-        // Upload image using direct fetch
+        // Send URL to backend via API service
         const token = localStorage.getItem('authToken');
-        const imageResponse = await fetch('https://backend.jambolush.com/api/auth/me/image', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ imageUrl: base64String })
-        });
+        api.setAuth(token || '');
+        await api.updateProfileImage(updatedProfileUrl);
         
-        if (imageResponse.ok) {
-          const imageData = await imageResponse.json();
-          updatedProfileUrl = imageData.profile;
-          
-          // Update user state with new profile image
-          setUser({ ...user, profile: updatedProfileUrl });
-          
-          // Clear selected file and preview
-          setSelectedFile(null);
-          setPreviewUrl(null);
-        } else {
-          throw new Error('Failed to upload image');
-        }
+        // Update user state with new profile image
+        setUser({ ...user, profile: updatedProfileUrl });
+        setSelectedFile(null);
+        setPreviewUrl(null);
       } catch (imageError) {
         console.error('Image upload failed:', imageError);
         setSaveMessage({ 
@@ -744,7 +701,6 @@ const hasChanges = () => {
     
     // Prepare data for profile update API
     const updateData: any = {
-      // Split name into firstName and lastName for backend compatibility
       firstName: user.name.split(' ')[0] || '',
       lastName: user.name.split(' ').slice(1).join(' ') || '',
       phone: user.phone,
@@ -773,8 +729,7 @@ const hasChanges = () => {
       }
     });
 
-    console.log('Sending update data:', updateData);
-
+    // Use the existing updateProfile method from API service
     const response = await api.put('auth/me', updateData);
     
     if (response.data) {
@@ -782,18 +737,16 @@ const hasChanges = () => {
         ...response.data, 
         profile: updatedProfileUrl, 
         updated_at: new Date().toISOString(),
-        // Reconstruct the name field for frontend components
         name: `${response.data.firstName || ''} ${response.data.lastName || ''}`.trim()
       };
       
       setUser(finalUser);
       setOriginalUser(finalUser);
       
-      // ✨ ENHANCED: Dispatch comprehensive profile update event
+      // Dispatch profile update events
       const profileUpdateEvent = new CustomEvent('profileUpdated', {
         detail: {
           user: finalUser,
-          // Send specific fields that components care about
           profile: updatedProfileUrl,
           name: finalUser.name,
           firstName: finalUser.firstName,
@@ -803,12 +756,10 @@ const hasChanges = () => {
           country: finalUser.country,
           city: finalUser.city,
           userType: finalUser.userType,
-          // Include any other fields that sidebar/topbar might need
         }
       });
       window.dispatchEvent(profileUpdateEvent);
       
-      // Keep the old event for backward compatibility
       if (updatedProfileUrl && updatedProfileUrl !== originalUser?.profile) {
         const legacyEvent = new CustomEvent('profileImageUpdated', {
           detail: { profile: updatedProfileUrl }
@@ -824,7 +775,7 @@ const hasChanges = () => {
     console.error('Profile update failed:', error);
     setSaveMessage({ 
       type: 'error', 
-      text: error.response?.data?.message || 'Failed to update profile' 
+      text: error.response?.data?.message || error.message || 'Failed to update profile' 
     });
   } finally {
     setIsSaving(false);
