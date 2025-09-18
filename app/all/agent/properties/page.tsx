@@ -156,7 +156,7 @@ const PropertiesPage: React.FC = () => {
                 // Fetch dashboard stats and properties
                 const [dashboardResponse, propertiesResponse] = await Promise.all([
                     api.get('/properties/agent/dashboard'),
-                    api.get('/properties/agent/properties')
+                    api.get('/properties/agent/all-properties') // Now fetches both owned and managed
                 ]);
                 
                 console.log('Dashboard Response:', dashboardResponse);
@@ -183,13 +183,17 @@ const PropertiesPage: React.FC = () => {
                     };
                     setSummaryStats(stats);
 
-                    // Fixed properties data processing
+                    // --- CRITICAL FIX ---
+                    // The backend now returns a new structure: { ownProperties: [], managedProperties: [] }
+                    // We need to combine these arrays before processing.
                     const propertiesData = propertiesResponse.data.data || propertiesResponse.data;
-                    
-                    // Ensure we're working with an array
-                    const propertiesArray = Array.isArray(propertiesData) ? propertiesData : [];
-                    
-                    const processedProperties = propertiesArray.map((property: any) => ({
+                    const allPropertiesArray = [
+                        ...(propertiesData.ownProperties || []),
+                        ...(propertiesData.managedProperties || [])
+                    ];
+
+                    // Ensure we're working with a flattened array
+                    const processedProperties = allPropertiesArray.map((property: any) => ({
                         ...property,
                         // Map backend fields to frontend expectations
                         title: property.name, // For backward compatibility
@@ -203,9 +207,9 @@ const PropertiesPage: React.FC = () => {
                             ? property.images[0] 
                             : `https://picsum.photos/seed/${property.id}/600/400`,
                         features: Array.isArray(property.features) ? property.features : 
-                                typeof property.features === 'string' ? 
-                                (property.features.startsWith('[') ? JSON.parse(property.features) : [property.features]) : 
-                                []
+                            typeof property.features === 'string' ? 
+                            (property.features.startsWith('[') ? JSON.parse(property.features) : [property.features]) : 
+                            []
                     }));
 
                     setProperties(processedProperties);
@@ -493,8 +497,8 @@ const PropertiesPage: React.FC = () => {
         <div className="pt-14 font-sans">
             <style jsx>{`
                 @keyframes scale-in {
-                  from { transform: scale(0.95); opacity: 0; }
-                  to { transform: scale(1); opacity: 1; }
+                    from { transform: scale(0.95); opacity: 0; }
+                    to { transform: scale(1); opacity: 1; }
                 }
                 .animate-scale-in { animation: scale-in 0.2s ease-out; }
             `}</style>
@@ -550,7 +554,7 @@ const PropertiesPage: React.FC = () => {
                         <p className="text-sm sm:text-base text-gray-600">Checked In</p>
                         <p className="text-xl sm:text-2xl font-bold text-blue-600">{summaryStats.checkedIn}</p>
                     </div>
-                     <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+                    <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <p className="text-sm sm:text-base text-gray-600">Checked Out</p>
                         <p className="text-xl sm:text-2xl font-bold text-purple-600">{summaryStats.checkedOut}</p>
                     </div>

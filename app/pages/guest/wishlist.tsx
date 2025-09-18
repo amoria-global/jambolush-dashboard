@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '@/app/api/apiService'; // Import your API service
 
 // Types
 interface WishlistItem {
-  id: string;
+  id: string; // This will now be the actual wishlist item ID from the DB
+  propertyId: number; // Keep track of the actual property ID
   title: string;
   category: 'apartment' | 'house' | 'villa' | 'condo' | 'studio';
   price: number;
@@ -71,54 +73,56 @@ const WishlistPage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('addedDate');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // Mock data generation
+  // --- DATA FETCHING ---
   useEffect(() => {
-    const generateMockWishlist = (): WishlistItem[] => {
-      const statuses: ('available' | 'unavailable' | 'price-dropped' | 'booked')[] = 
-        ['available', 'unavailable', 'price-dropped', 'booked'];
-      const categories: ('apartment' | 'house' | 'villa' | 'condo' | 'studio')[] = 
-        ['apartment', 'house', 'villa', 'condo', 'studio'];
-      const titles = [
-        'Luxury Downtown Apartment', 'Cozy Beach House', 'Modern Villa with Pool',
-        'Urban Studio Loft', 'Mountain View Condo', 'Seaside Cottage',
-        'Penthouse Suite', 'Garden Villa', 'Historic Townhouse', 'Lake View Cabin'
-      ];
-      const locations = [
-        'Miami Beach, FL', 'San Francisco, CA', 'New York, NY', 
-        'Austin, TX', 'Seattle, WA', 'Portland, OR', 'Denver, CO'
-      ];
-      
-      return Array.from({ length: 42 }, (_, i) => {
-        const status = statuses[Math.floor(Math.random() * statuses.length)];
-        const basePrice = Math.floor(Math.random() * 3000) + 500;
-        const isPriceDropped = status === 'price-dropped';
+    const fetchWishlist = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) {
+          // Redirect or handle unauthenticated state
+          //error("Please log in to see your wishlist.");
+          setLoading(false);
+          return;
+        }
+        api.setAuth(token);
         
-        return {
-          id: `WL${String(i + 1).padStart(5, '0')}`,
-          title: titles[Math.floor(Math.random() * titles.length)] + ` ${i + 1}`,
-          category: categories[Math.floor(Math.random() * categories.length)],
-          price: isPriceDropped ? Math.floor(basePrice * 0.85) : basePrice,
-          originalPrice: isPriceDropped ? basePrice : undefined,
-          status,
-          image: `https://picsum.photos/400/300?random=${i}`,
-          location: locations[Math.floor(Math.random() * locations.length)],
-          bedrooms: Math.floor(Math.random() * 4) + 1,
-          bathrooms: Math.floor(Math.random() * 3) + 1,
-          sqft: Math.floor(Math.random() * 2000) + 500,
-          addedDate: new Date(2025, 0, Math.floor(Math.random() * 30) + 1),
-          notes: Math.random() > 0.5 ? 'Perfect for summer vacation' : undefined,
-          rating: Math.round((Math.random() * 2 + 3) * 10) / 10,
-          reviews: Math.floor(Math.random() * 200) + 10,
-          userRating: Math.random() > 0.7 ? Math.floor(Math.random() * 5) + 1 : undefined,
-          userReview: Math.random() > 0.7 ? 'Great property with amazing views!' : undefined
-        };
-      });
+        // Fetch data from GET /bookings/wishlist
+        const response: any = await api.get('/bookings/wishlist');
+
+        if (response.success) {
+          // Map API response to the frontend's WishlistItem interface
+          const mappedData = response.data.data.items.map((item: any): WishlistItem => ({
+            id: item.id, // The unique ID of the wishlist entry
+            propertyId: item.itemId,
+            title: item.itemDetails.name || 'N/A',
+            category: item.itemDetails.category || 'house', // Default to 'house' if not provided
+            price: item.itemDetails.price || 0,
+            status: item.isAvailable ? 'available' : 'unavailable', // Map isAvailable to status
+            image: item.itemDetails.image || 'https://via.placeholder.com/400x300',
+            location: item.itemDetails.location || 'N/A',
+            rating: item.itemDetails.rating || 0,
+            addedDate: new Date(item.createdAt),
+            notes: item.notes || '', // Handle undefined notes
+            // Set defaults for fields not available in the basic wishlist response
+            bedrooms: item.itemDetails.bedrooms || 0,
+            bathrooms: item.itemDetails.bathrooms || 0,
+            sqft: item.itemDetails.sqft || 0,
+            reviews: item.itemDetails.reviews || 0,
+          }));
+          setWishlistItems(mappedData);
+        } else {
+          //toast.error(response.data.message || 'Could not fetch wishlist.');
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch wishlist:", error);
+        //toast.error(error.response?.data?.message || "An error occurred while fetching your wishlist.");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setTimeout(() => {
-      setWishlistItems(generateMockWishlist());
-      setLoading(false);
-    }, 1000);
+    fetchWishlist();
   }, []);
 
   // Update goToPageInput when currentPage changes
@@ -213,9 +217,24 @@ const WishlistPage: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleRemove = (itemId: string) => {
+  const handleRemove = async (itemId: string) => {
     if (confirm('Are you sure you want to remove this item from your wishlist?')) {
-      setWishlistItems(prev => prev.filter(item => item.id !== itemId));
+      try {
+        const token = localStorage.getItem("authToken");
+        if (!token) return //toast.error("Please log in again.");
+        api.setAuth(token);
+        
+        // Call the DELETE endpoint
+        await api.delete(`/bookings/wishlist/${itemId}`);
+        
+        // Update state on success
+        setWishlistItems(prev => prev.filter(item => item.id !== itemId));
+        //toast.success("Item removed from wishlist.");
+        
+      } catch (error: any) {
+        console.error("Failed to remove item:", error);
+        //toast.error(error.response?.data?.message || "Could not remove item.");
+      }
     }
   };
 
@@ -233,6 +252,7 @@ const WishlistPage: React.FC = () => {
   };
 
   const handleSaveReview = () => {
+    // TODO: Connect this to a PUT /bookings/wishlist/:itemId endpoint
     if (selectedItem) {
       setWishlistItems(prev => 
         prev.map(item => 
@@ -250,6 +270,7 @@ const WishlistPage: React.FC = () => {
       setEditingNotes('');
       setEditingReview('');
       setEditingRating(0);
+      //toast.success("Notes and review updated locally.");
     }
   };
 

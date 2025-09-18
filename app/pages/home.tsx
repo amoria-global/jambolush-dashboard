@@ -5,6 +5,7 @@ import HostPage from "../all/host/page";
 import TourGuideDashboard from "./tourguide/dashboard";
 import AgentDashboard from "./agent/dashboard";
 import GuestDashboard from "./guest/dashboard";
+import Dashboard from "./host/dashboard";
 
 
 // Import your dashboard components
@@ -79,7 +80,7 @@ export default function HomePage() {
   const renderDashboard = () => {
     switch (userType) {
       case 'host':
-        return <HostPage />;
+        return <Dashboard />;
       case 'tourguide':
         return <TourGuideDashboard />;
       case 'guest':

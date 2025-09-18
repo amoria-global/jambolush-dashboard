@@ -1,9 +1,10 @@
 "use client";
-import React, { useState } from 'react'; // Import useState
+import React, { useEffect, useState } from 'react'; // Import useState
 import SideBar from "./components/sidebar";
 import TopBar from "./components/topbar";
 import "./styles/globals.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
+import authService from './api/authService';
 
 export default function RootLayout({
   children,
@@ -17,7 +18,11 @@ export default function RootLayout({
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
-
+  useEffect(() => {
+    // Initialize auth service once at app startup
+    authService.initialize();
+  }, [])
+  
   return (
     <html lang="en">
       <head>

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import api from "../api/apiService"; // Import your API service
+import authService, { UserSession } from '@/app/api/authService';
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
 
@@ -18,249 +18,113 @@ interface SideBarProps {
   toggleSidebar: () => void;
 }
 
-interface UserProfile {
-  id: string;
-  email: string;
-  name: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  phoneCountryCode?: string;
-  profile?: string | null;
-  country?: string;
-  state?: string | null;
-  province?: string | null;
-  city?: string | null;
-  street?: string | null;
-  zipCode?: string | null;
-  postalCode?: string | null;
-  postcode?: string | null;
-  pinCode?: string | null;
-  eircode?: string | null;
-  cep?: string | null;
-  status: string;
-  userType: UserRole; // This maps to our role system
-  provider?: string;
-}
-
-interface UserSession {
-    user: UserProfile;
-    token: string;
-    role: UserRole;
-}
-
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
-    const [user, setUser] = useState<UserProfile | null>(null);
-    const [userSession, setUserSession] = useState<UserSession | null>(null);
+    const [session, setSession] = useState<UserSession | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-    // URL parameters state
-    const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
 
     const pathname = usePathname();
     const router = useRouter();
 
-    // Client-side URL parameter extraction
+    // Initialize auth service and session
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search);
-            setUrlParams(params);
-        }
+        const initializeAuth = async () => {
+            try {
+                setIsLoading(true);
+                const userSession = await authService.initialize();
+                
+                if (userSession) {
+                    setSession(userSession);
+                    setIsAuthenticated(true);
+                } else {
+                    setIsAuthenticated(false);
+                    // Don't redirect here - let the page handle it
+                }
+            } catch (error) {
+                console.error('Sidebar auth initialization failed:', error);
+                setIsAuthenticated(false);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        initializeAuth();
     }, []);
 
-    // Function to get URL token
-    const getUrlToken = (): string | null => {
-        if (typeof window === 'undefined' || !urlParams) return null;
-        return urlParams.get('token');
-    };
+    // Listen for auth events
+    useEffect(() => {
+        const handleLogin = (userSession: UserSession) => {
+            setSession(userSession);
+            setIsAuthenticated(true);
+        };
 
-    // Function to get URL refresh token
-    const getUrlRefreshToken = (): string | null => {
-        if (typeof window === 'undefined' || !urlParams) return null;
-        return urlParams.get('refresh_token');
-    };
+        const handleLogout = () => {
+            setSession(null);
+            setIsAuthenticated(false);
+            // Redirect to login
+        };
 
-    // Function to clean URL after token extraction
-    const cleanUrlParams = () => {
-        if (typeof window !== 'undefined') {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('token');
-            url.searchParams.delete('refresh_token');
-            window.history.replaceState({}, '', url.toString());
-        }
-    };
-
-    // Function to fetch user session from API
-    const fetchUserSession = async () => {
-        try {
-            setIsLoading(true);
-            
-            // Always prioritize token from URL parameters
-            const urlToken = getUrlToken();
-            let authToken: string | null = null;
-
-            if (urlToken) {
-                // Use token from URL parameters
-                authToken = urlToken;
-                
-                // Store token in localStorage immediately
-                localStorage.setItem('authToken', urlToken);
-                localStorage.setItem('refreshToken', getUrlRefreshToken() || '');
-                // Clean URL after storing token
-                cleanUrlParams();
-                
-                console.log('Token retrieved from URL and stored in localStorage');
-            } else {
-                // Fallback to localStorage only if no URL token
-                authToken = localStorage.getItem('authToken');
-            }
-            
-            if (!authToken) {
-                // No token available, redirect to login
-                console.log('No token found, redirecting to login');
-                handleLogout();
-                return;
-            }
-
-            // Set authorization header
-            api.setAuth(authToken);
-            const response = await api.get('auth/me');
-
-            if (response.data) {
-                const userData: UserProfile = response.data;
-                
-                // Validate if user has appropriate role for dashboard access
-                const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
-                if (!validRoles.includes(userData.userType)) {
-                    console.error('Invalid user role:', userData.userType);
-                    handleLogout();
-                    return;
-                }
-
-                // Create user session
-                const session: UserSession = {
-                    user: userData,
-                    token: authToken,
-                    role: userData.userType
+        const handleProfileUpdate = (updatedUser: any) => {
+            if (session) {
+                const updatedSession = {
+                    ...session,
+                    user: updatedUser
                 };
-
-                setUserSession(session);
-                setUser(userData);
-                setIsAuthenticated(true);
-
-                // Store session data
-                localStorage.setItem('userSession', JSON.stringify({
-                    role: userData.userType,
-                    name: getUserDisplayName(userData),
-                    id: userData.id,
-                    email: userData.email
-                }));
-
-                console.log('User session established successfully');
-
-            } else {
-                // Invalid token or no user data
-                console.log('Invalid token or no user data, logging out');
-                handleLogout();
-            }
-        } catch (error) {
-            console.error('Failed to fetch user session:', error);
-            handleLogout();
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Function to handle logout
-    const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userSession');
-        setUser(null);
-        setUserSession(null);
-        setIsAuthenticated(false);
-        
-        // Redirect to login page
-        console.log('Logging out and redirecting to login');
-        // router.push('http://localhost:3001/all/login');
-       // window.location.href = 'http://localhost:3001/all/login';
-    };
-
-    // Initialize authentication on component mount and when URL params change
-    useEffect(() => {
-        if (urlParams !== null) {
-            fetchUserSession();
-        }
-    }, [urlParams]);
-
-    // Monitor localStorage changes (for when token is removed externally)
-    useEffect(() => {
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'authToken' && !e.newValue && isAuthenticated) {
-                console.log('Auth token removed from localStorage, logging out');
-                handleLogout();
+                setSession(updatedSession);
             }
         };
 
-        if (typeof window !== 'undefined') {
-            window.addEventListener('storage', handleStorageChange);
-            return () => window.removeEventListener('storage', handleStorageChange);
-        }
-    }, [isAuthenticated]);
-
-    useEffect(() => {
-  // Handle comprehensive profile updates
-  const handleProfileUpdate = (event: CustomEvent) => {
-    if (user && event.detail.user) {
-      console.log('Sidebar: Profile updated, refreshing user data');
-      
-      // Update user state with all the new data
-      const updatedUser = {
-        ...user,
-        ...event.detail.user,
-        // Ensure we maintain the structure expected by the sidebar
-        name: event.detail.user.name || `${event.detail.user.firstName || ''} ${event.detail.user.lastName || ''}`.trim(),
-        profile: event.detail.user.profile
-      };
-      
-      setUser(updatedUser);
-      
-      // Also update userSession if needed
-      if (userSession) {
-        const updatedSession = {
-          ...userSession,
-          user: updatedUser
+        const handleTokenRefresh = () => {
+            // Session will be updated automatically by the auth service
+            console.log('Tokens refreshed successfully');
         };
-        setUserSession(updatedSession);
+
+        const handleSessionExpired = () => {
+            setSession(null);
+            setIsAuthenticated(false);
+        };
+
+        // Subscribe to auth events
+        authService.on('login', handleLogin);
+        authService.on('logout', handleLogout);
+        authService.on('profile_updated', handleProfileUpdate);
+        authService.on('token_refreshed', handleTokenRefresh);
+        authService.on('session_expired', handleSessionExpired);
+
+        // Cleanup
+        return () => {
+            authService.off('login', handleLogin);
+            authService.off('logout', handleLogout);
+            authService.off('profile_updated', handleProfileUpdate);
+            authService.off('token_refreshed', handleTokenRefresh);
+            authService.off('session_expired', handleSessionExpired);
+        };
+    }, [session, router]);
+
+    // Listen for custom profile update events (backward compatibility)
+    useEffect(() => {
+        const handleProfileUpdate = (event: CustomEvent) => {
+            if (session && event.detail.user) {
+                console.log('Sidebar: Profile updated via custom event');
+                authService.updateProfile(event.detail.user);
+            }
+        };
+
+        const handleProfileImageUpdate = (event: CustomEvent) => {
+            if (session && event.detail.profile) {
+                console.log('Sidebar: Profile image updated via custom event');
+                authService.updateProfile({ profile: event.detail.profile });
+            }
+        };
+
+        window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+        window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
         
-        // Update localStorage session data
-        localStorage.setItem('userSession', JSON.stringify({
-          role: updatedUser.userType,
-          name: getUserDisplayName(updatedUser),
-          id: updatedUser.id,
-          email: updatedUser.email
-        }));
-      }
-    }
-  };
-
-  // Handle legacy profile image updates (for backward compatibility)
-  const handleProfileImageUpdate = (event: CustomEvent) => {
-    if (user && event.detail.profile) {
-      console.log('Sidebar: Profile image updated');
-      setUser({ ...user, profile: event.detail.profile });
-    }
-  };
-
-  // Add both event listeners
-  window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
-  window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
-  
-  return () => {
-    window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
-    window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
-  };
-}, [user, userSession]); // Added userSession to dependencies
+        return () => {
+            window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+            window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+        };
+    }, [session]);
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
@@ -270,31 +134,49 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     }, [pathname]);
 
     // Helper function to get user display name
-    const getUserDisplayName = (userData: UserProfile) => {
-        if (userData.name) return userData.name;
-        if (userData.firstName && userData.lastName) {
-            return `${userData.firstName} ${userData.lastName}`.trim();
+    const getUserDisplayName = () => {
+        if (!session?.user) return 'User';
+        const user = session.user;
+        if (user.name) return user.name;
+        if (user.firstName && user.lastName) {
+            return `${user.firstName} ${user.lastName}`.trim();
         }
-        return userData.email;
+        return user.email;
     };
 
     // Helper function to get user avatar or initials
     const getUserAvatar = () => {
-        if (user?.profile) return user.profile;
-        if (user?.firstName && user?.lastName) {
+        if (!session?.user) return 'U';
+        const user = session.user;
+        
+        if (user.profile) return user.profile;
+        if (user.firstName && user.lastName) {
             return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
         }
-        if (user?.name) {
+        if (user.name) {
             const names = user.name.split(' ');
             return names.length > 1 
                 ? `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase()
                 : names[0].charAt(0).toUpperCase();
         }
-        return user?.email?.charAt(0).toUpperCase() || 'U';
+        return user.email?.charAt(0).toUpperCase() || 'U';
+    };
+
+    // Handle logout
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+            // The auth service will emit logout event which will be handled above
+        } catch (error) {
+            console.error('Logout failed:', error);
+            // Force logout even if API call fails
+            setSession(null);
+            setIsAuthenticated(false);
+        }
     };
 
     // Define navigation items for each role
-    const navigationItems: Record<UserRole, NavigationItem[]> = {
+    const navigationItems: Record<UserRole, NavigationItem[]>| any = {
         guest: [
             { label: 'Home', icon: 'bi-house', path: '/all/guest' },
             { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/guest/bookings' },
@@ -319,6 +201,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent' },
             { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
             { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
+            { label: 'Bookings', icon: 'bi-calendar3', path: '/all/agent/bookings' },
             { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/agent/earnings' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
@@ -328,10 +211,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/tourguide' },
             { label: 'My Tours', icon: 'bi-compass', path: '/all/tourguide/tours' },
             { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/tourguide/schedule' },
-            { label: 'Guests', icon: 'bi-people', path: '/all/tourguide/guests' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/tourguide/earnings' },
             { label: 'Reviews', icon: 'bi-star', path: '/all/tourguide/reviews' },
-            { label: 'Messages', icon: 'bi-envelope', path: '/all/messages' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ]
     };
@@ -369,8 +250,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     }
 
     // Not authenticated - this will trigger redirect to login
-    if (!isAuthenticated || !user || !userSession) {
-        return null;
+    if (!isAuthenticated || !session) {
+        return "loading ... ";
     }
 
     return (
@@ -402,22 +283,22 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 md:translate-x-0`}
             >
                 {/* Header */}
-<div className="p-6 border-b border-gray-100">
-  <div className="flex items-center space-x-3">
-    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
-      <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
-    </div>
-    <div>
-      <h1 className="text-xl font-bold text-black">Jambolush</h1>
-      <p className="text-base text-gray-600">{getRoleDisplayName(userSession.role)} Dashboard</p>
-    </div>
-  </div>
-</div>
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
+                      <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
+                    </div>
+                    <div>
+                      <h1 className="text-xl font-bold text-black">Jambolush</h1>
+                      <p className="text-base text-gray-600">{getRoleDisplayName(session.role)} Dashboard</p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Navigation Items */}
                 <div className="p-4">
                     <nav className="space-y-1">
-                        {navigationItems[userSession.role].map((item, index) => (
+                        {navigationItems[session.role].map((item: any, index: number) => (
                             <Link
                                 key={index}
                                 href={item.path}
@@ -472,23 +353,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
                 {/* Profile Section */}
                 <div className="p-4">
-                    <Link
-                        href="/all/profile"
-                        className="flex items-center space-x-3 px-3 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-200"
-                    >
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden" style={{ backgroundColor: '#F20C8F' }}>
-                            {user.profile ? (
-                                <img src={user.profile} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-white text-sm font-semibold">{getUserAvatar()}</span>
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-base font-medium text-black truncate">{getUserDisplayName(user)}</p>
-                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                        </div>
-                    </Link>
-
                     {/* Logout Button */}
                     <button
                         onClick={handleLogout}
@@ -503,4 +367,4 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     );
 };
 
-export default SideBar; 
+export default SideBar;

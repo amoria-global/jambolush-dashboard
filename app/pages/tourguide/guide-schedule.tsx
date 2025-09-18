@@ -1,9 +1,11 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import api from '@/app/api/apiService';
 
 // Types
 interface TourSchedule {
   id: string;
+  tourId: string; // Added tourId field
   tourTitle: string;
   tourType: 'city' | 'nature' | 'cultural' | 'adventure' | 'food' | 'historical';
   date: Date;
@@ -36,6 +38,32 @@ interface Booking {
   specialRequests?: string;
 }
 
+interface CalendarDay {
+  date: string;
+  tours: TourSchedule[];
+  totalBookings: number;
+  totalRevenue: number;
+  isToday: boolean;
+}
+
+interface CalendarResponse {
+  success: boolean;
+  message: string;
+  data: {
+    year: number;
+    month: number;
+    days: CalendarDay[];
+  };
+}
+
+interface Tour {
+  id: string;
+  title: string;
+  type: string;
+  location: string;
+  price: number;
+}
+
 type ViewMode = 'calendar' | 'list';
 
 const TourGuideSchedulePage: React.FC = () => {
@@ -64,22 +92,25 @@ const TourGuideSchedulePage: React.FC = () => {
     }
   };
 
-const formatCurrency = (amount: number): string => {
+  const formatCurrency = (amount: number): string => {
     return amount.toLocaleString('en-US');
   };
 
   // States
   const [schedules, setSchedules] = useState<TourSchedule[]>([]);
   const [filteredSchedules, setFilteredSchedules] = useState<TourSchedule[]>([]);
+  const [availableTours, setAvailableTours] = useState<Tour[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<TourSchedule | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Partial<TourSchedule> | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,100 +118,172 @@ const formatCurrency = (amount: number): string => {
   const [tourTypeFilter, setTourTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
 
-  // Mock data generation
-  useEffect(() => {
-    const generateMockSchedules = (): TourSchedule[] => {
-      const statuses: TourSchedule['status'][] = ['available', 'confirmed', 'pending', 'cancelled', 'completed'];
-      const tourTypes: TourSchedule['tourType'][] = ['city', 'nature', 'cultural', 'adventure', 'food', 'historical'];
-      const tourTitles = [
-        'Downtown Walking Tour', 'Sunset Beach Adventure', 'Cultural Heritage Experience',
-        'Mountain Hiking Expedition', 'Local Food & Market Tour', 'Historical Sites Discovery',
-        'Art Gallery & Museum Tour', 'Wildlife Safari Experience', 'Coastal Kayaking Adventure',
-        'Night City Photography Tour'
-      ];
-      const locations = [
-        'Downtown District', 'Beachfront Promenade', 'Old Town Square',
-        'Mountain Base Camp', 'Central Market', 'Historic Quarter', 'Museum District'
-      ];
-      const languages = [['English'], ['English', 'Spanish'], ['English', 'French'], ['English', 'German']];
+  // API Functions
+  const fetchAvailableTours = async () => {
+    try {
+      const response: any = await api.get('/tours/guide/my-tours');
+      if (response.data.success) {
+        setAvailableTours(response.data.data.tours || []);
+      }
+    } catch (err) {
+      console.error('Error fetching tours:', err);
+    }
+  };
+
+  const fetchTourSchedules = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      const schedules: TourSchedule[] = [];
-      const today = new Date();
+      // Fetch a wider date range to get all schedules using calendar endpoint
+      // Start from 6 months ago to 12 months in the future
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 6);
       
-      // Generate schedules for the next 60 days
-      for (let dayOffset = -10; dayOffset < 50; dayOffset++) {
-        const scheduleDate = new Date(today);
-        scheduleDate.setDate(today.getDate() + dayOffset);
+      const allSchedules: TourSchedule[] = [];
+      
+      // Fetch 18 months of data to ensure we get all schedules
+      for (let i = 0; i < 18; i++) {
+        const targetDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+        const year = targetDate.getFullYear();
+        const month = targetDate.getMonth() + 1;
         
-        // Generate 0-3 tours per day
-        const toursPerDay = Math.floor(Math.random() * 4);
-        
-        for (let tourNum = 0; tourNum < toursPerDay; tourNum++) {
-          const status = dayOffset < 0 ? 'completed' : 
-                         statuses[Math.floor(Math.random() * (statuses.length - 1))];
-          const maxGuests = Math.floor(Math.random() * 15) + 5;
-          const currentGuests = status === 'available' ? 0 : 
-                               status === 'cancelled' ? 0 :
-                               Math.floor(Math.random() * maxGuests);
+        try {
+          const response: any = await api.get(`/tours/guide/bookings/calendar?year=${year}&month=${month}`);
           
-          const startHour = 8 + Math.floor(Math.random() * 10);
-          const duration = Math.floor(Math.random() * 4) + 1;
-          
-          schedules.push({
-            id: `TS${String(schedules.length + 1).padStart(5, '0')}`,
-            tourTitle: tourTitles[Math.floor(Math.random() * tourTitles.length)],
-            tourType: tourTypes[Math.floor(Math.random() * tourTypes.length)],
-            date: new Date(scheduleDate),
-            startTime: `${startHour.toString().padStart(2, '0')}:00`,
-            endTime: `${(startHour + duration).toString().padStart(2, '0')}:00`,
-            duration: duration,
-            location: locations[Math.floor(Math.random() * locations.length)],
-            meetingPoint: 'Main entrance, near the information desk',
-            maxGuests: maxGuests,
-            currentGuests: currentGuests,
-            status: status,
-            price: Math.floor(Math.random() * 100) + 50,
-            pricePerPerson: true,
-            language: languages[Math.floor(Math.random() * languages.length)],
-            description: 'Join us for an unforgettable experience exploring the best our city has to offer.',
-            specialInstructions: Math.random() > 0.5 ? 'Please wear comfortable walking shoes and bring water.' : undefined,
-            guestNotes: Math.random() > 0.7 ? 'Group includes children under 12' : undefined,
-            createdAt: new Date(today.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-            lastModified: new Date(),
-            bookings: currentGuests > 0 ? generateBookings(currentGuests) : []
-          });
+          if (response.data.success && response.data.data?.days) {
+            const monthSchedules = response.data.data.days.flatMap((day: any) => 
+              day.tours?.map((tour: any) => ({
+                ...tour,
+                tourId: tour.tourId || tour.id, // Ensure tourId is present
+                date: new Date(tour.date),
+                createdAt: new Date(tour.createdAt || tour.date),
+                lastModified: new Date(tour.lastModified || tour.date)
+              })) || []
+            );
+            
+            allSchedules.push(...monthSchedules);
+          }
+        } catch (monthError) {
+          console.warn(`Failed to fetch calendar data for ${year}-${month}:`, monthError);
+          // Continue with other months
         }
       }
       
-      return schedules.sort((a, b) => a.date.getTime() - b.date.getTime());
-    };
-
-    const generateBookings = (guestCount: number): Booking[] => {
-      const bookings: Booking[] = [];
-      let remainingGuests = guestCount;
+      // Remove duplicates based on schedule ID
+      const uniqueSchedules = allSchedules.filter((schedule, index, self) => 
+        index === self.findIndex(s => s.id === schedule.id)
+      );
       
-      while (remainingGuests > 0) {
-        const groupSize = Math.min(Math.floor(Math.random() * 4) + 1, remainingGuests);
-        bookings.push({
-          id: `B${Math.random().toString(36).substr(2, 9)}`,
-          guestName: `Guest ${bookings.length + 1}`,
-          guestEmail: `guest${bookings.length + 1}@email.com`,
-          numberOfPeople: groupSize,
-          status: Math.random() > 0.2 ? 'confirmed' : 'pending',
-          bookingDate: new Date(),
-          specialRequests: Math.random() > 0.7 ? 'Vegetarian meal required' : undefined
-        });
-        remainingGuests -= groupSize;
+      setSchedules(uniqueSchedules);
+    } catch (err) {
+      console.error('Error fetching schedules:', err);
+      setError('Failed to fetch schedules. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCalendarData = async (year: number, month: number) => {
+    try {
+      const response: any = await api.get(`/tours/guide/bookings/calendar?year=${year}&month=${month + 1}`);
+      
+      if (response.data.success) {
+        const calendarDays = response.data.data.days.map((day: any) => ({
+          ...day,
+          date: day.date,
+          tours: day.tours.map((tour: any) => ({
+            ...tour,
+            tourId: tour.tourId || tour.id,
+            date: new Date(tour.date),
+            createdAt: new Date(tour.createdAt || tour.date),
+            lastModified: new Date(tour.lastModified || tour.date)
+          }))
+        }));
+        setCalendarData(calendarDays);
+      }
+    } catch (err) {
+      console.error('Error fetching calendar data:', err);
+      setError('Failed to fetch calendar data.');
+    }
+  };
+
+  const createTourSchedule = async (scheduleData: Partial<TourSchedule>) => {
+    try {
+      setLoading(true);
+      
+      if (!scheduleData.tourId) {
+        throw new Error('Tour selection is required to create a schedule');
       }
       
-      return bookings;
-    };
-
-    setTimeout(() => {
-      setSchedules(generateMockSchedules());
+      const response: any = await api.post(`/tours/${scheduleData.tourId}/schedules`, scheduleData);
+      
+      if (response.data.success) {
+        await fetchTourSchedules(); // Refresh data
+        return response.data.data;
+      } else {
+        throw new Error(response.message || 'Failed to create schedule');
+      }
+    } catch (err) {
+      console.error('Error creating schedule:', err);
+      setError('Failed to create schedule. Please try again.');
+      throw err;
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+
+  const updateTourSchedule = async (scheduleId: string, scheduleData: Partial<TourSchedule>) => {
+    try {
+      setLoading(true);
+      const response: any = await api.put(`/tours/schedules/${scheduleId}`, scheduleData);
+      
+      if (response.data.success) {
+        await fetchTourSchedules(); // Refresh data
+        return response.data.data;
+      } else {
+        throw new Error(response.message || 'Failed to update schedule');
+      }
+    } catch (err) {
+      console.error('Error updating schedule:', err);
+      setError('Failed to update schedule. Please try again.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTourSchedule = async (scheduleId: string) => {
+    try {
+      setLoading(true);
+      const response: any = await api.delete(`/tours/schedules/${scheduleId}`);
+      
+      if (response.data.success) {
+        await fetchTourSchedules(); // Refresh data
+        return true;
+      } else {
+        throw new Error(response.message || 'Failed to delete schedule');
+      }
+    } catch (err) {
+      console.error('Error deleting schedule:', err);
+      setError('Failed to delete schedule. Please try again.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on component mount and when month changes
+  useEffect(() => {
+    fetchAvailableTours();
+    fetchTourSchedules();
   }, []);
+
+  useEffect(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    fetchCalendarData(year, month);
+  }, [currentMonth]);
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {
@@ -207,7 +310,7 @@ const formatCurrency = (amount: number): string => {
     };
   }, [schedules]);
 
-  // Filter logic (simplified - no sorting toggles)
+  // Filter logic
   useEffect(() => {
     let filtered = [...schedules];
 
@@ -251,7 +354,7 @@ const formatCurrency = (amount: number): string => {
   const totalPages = Math.ceil(filteredSchedules.length / itemsPerPage);
 
   // Calendar view data
-  const calendarData = useMemo(() => {
+  const calendarViewData = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     const firstDay = new Date(year, month, 1);
@@ -266,7 +369,15 @@ const formatCurrency = (amount: number): string => {
       const week = [];
       for (let i = 0; i < 7; i++) {
         const date = new Date(currentDate);
-        const daySchedules = filteredSchedules.filter(s => {
+        const dateString = date.toISOString().split('T')[0];
+        
+        // Find calendar day data from server response
+        const calendarDay = calendarData.find(day => 
+          day.date.startsWith(dateString)
+        );
+        
+        // If no server data, filter from local schedules
+        const daySchedules = calendarDay?.tours || filteredSchedules.filter(s => {
           const scheduleDate = new Date(s.date);
           return scheduleDate.getDate() === date.getDate() &&
                  scheduleDate.getMonth() === date.getMonth() &&
@@ -276,7 +387,9 @@ const formatCurrency = (amount: number): string => {
         week.push({
           date: date,
           schedules: daySchedules,
-          isCurrentMonth: date.getMonth() === month
+          isCurrentMonth: date.getMonth() === month,
+          totalBookings: calendarDay?.totalBookings || daySchedules.reduce((sum, s) => sum + s.currentGuests, 0),
+          totalRevenue: calendarDay?.totalRevenue || daySchedules.reduce((sum, s) => sum + (s.price * s.currentGuests), 0)
         });
         
         currentDate.setDate(currentDate.getDate() + 1);
@@ -285,7 +398,7 @@ const formatCurrency = (amount: number): string => {
     }
     
     return weeks;
-  }, [currentMonth, filteredSchedules]);
+  }, [currentMonth, filteredSchedules, calendarData]);
 
   // Handlers
   const handleViewDetails = (schedule: TourSchedule) => {
@@ -294,22 +407,29 @@ const formatCurrency = (amount: number): string => {
   };
 
   const handleAddNew = () => {
+    if (availableTours.length === 0) {
+      setError('You need to create at least one tour before scheduling.');
+      return;
+    }
+
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     
+    const firstTour = availableTours[0];
     setEditingSchedule({
-      tourTitle: '',
-      tourType: 'city',
+      tourId: firstTour.id,
+      tourTitle: firstTour.title,
+      tourType: firstTour.type as any || 'city',
       date: tomorrow,
       startTime: '09:00',
       endTime: '12:00',
       duration: 3,
-      location: '',
+      location: firstTour.location,
       meetingPoint: '',
       maxGuests: 10,
       currentGuests: 0,
       status: 'available',
-      price: 50,
+      price: firstTour.price || 50,
       pricePerPerson: true,
       language: ['English'],
       description: '',
@@ -324,41 +444,48 @@ const formatCurrency = (amount: number): string => {
     setShowAddEditModal(true);
   };
 
-  const handleSaveSchedule = () => {
+  const handleSaveSchedule = async () => {
     if (editingSchedule) {
-      if (editingSchedule.id) {
-        // Update existing
-        setSchedules(prev => 
-          prev.map(s => s.id === editingSchedule.id ? {...s, ...editingSchedule, lastModified: new Date()} as TourSchedule : s)
-        );
-      } else {
-        // Add new
-        const newSchedule: TourSchedule = {
-          ...editingSchedule as TourSchedule,
-          id: `TS${String(schedules.length + 1).padStart(5, '0')}`,
-          bookings: [],
-          createdAt: new Date(),
-          lastModified: new Date()
-        };
-        setSchedules(prev => [...prev, newSchedule]);
+      try {
+        if (editingSchedule.id) {
+          // Update existing
+          await updateTourSchedule(editingSchedule.id, editingSchedule);
+        } else {
+          // Add new
+          await createTourSchedule(editingSchedule);
+        }
+        setShowAddEditModal(false);
+        setEditingSchedule(null);
+        setError(null);
+      } catch (err) {
+        // Error is handled in the API functions
+        console.error('Error saving schedule:', err);
       }
-      setShowAddEditModal(false);
-      setEditingSchedule(null);
     }
   };
 
-  const handleDelete = (scheduleId: string) => {
+  const handleDelete = async (scheduleId: string) => {
     if (confirm('Are you sure you want to delete this tour schedule? This action cannot be undone.')) {
-      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
-      setShowDetailModal(false);
+      try {
+        await deleteTourSchedule(scheduleId);
+        setShowDetailModal(false);
+        setError(null);
+      } catch (err) {
+        // Error is handled in the API function
+        console.error('Error deleting schedule:', err);
+      }
     }
   };
 
-  const handleCancelTour = (schedule: TourSchedule) => {
+  const handleCancelTour = async (schedule: TourSchedule) => {
     if (confirm(`Are you sure you want to cancel "${schedule.tourTitle}"? All guests will be notified.`)) {
-      setSchedules(prev => 
-        prev.map(s => s.id === schedule.id ? {...s, status: 'cancelled'} : s)
-      );
+      try {
+        await updateTourSchedule(schedule.id, { ...schedule, status: 'cancelled' });
+        setError(null);
+      } catch (err) {
+        // Error is handled in the API function
+        console.error('Error cancelling tour:', err);
+      }
     }
   };
 
@@ -408,7 +535,7 @@ const formatCurrency = (amount: number): string => {
         {/* Summary Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4">
               <div>
                 <p className="text-xs sm:text-sm text-gray-600">Today</p>
                 <p className="text-lg sm:text-2xl font-bold text-gray-900">{summaryStats.today}</p>
@@ -478,14 +605,14 @@ const formatCurrency = (amount: number): string => {
           </div>
           
           <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-         <div className="flex items-center justify-between">
-         <div>
-        <p className="text-xs sm:text-sm text-gray-600">Revenue</p>
-      <p className="text-lg sm:text-xl font-bold text-green-600">${formatCurrency(summaryStats.revenue)}</p>
-        </div>
-      <i className="bi bi-cash-stack text-lg sm:text-2xl text-green-500"></i>
-       </div>
-        </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs sm:text-sm text-gray-600">Revenue</p>
+                <p className="text-lg sm:text-xl font-bold text-green-600">${formatCurrency(summaryStats.revenue)}</p>
+              </div>
+              <i className="bi bi-cash-stack text-lg sm:text-2xl text-green-500"></i>
+            </div>
+          </div>
         </div>
 
         {/* Filters Section */}
@@ -602,8 +729,24 @@ const formatCurrency = (amount: number): string => {
           </div>
         )}
 
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <i className="bi bi-exclamation-triangle text-red-600 mr-2"></i>
+              <span className="text-red-800">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-600 hover:text-red-800"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Empty State */}
-        {!loading && filteredSchedules.length === 0 && (
+        {!loading && !error && filteredSchedules.length === 0 && (
           <div className="bg-gray-100 rounded-lg shadow-xl p-8 sm:p-12 text-center">
             <i className="bi bi-calendar text-4xl sm:text-6xl text-gray-300"></i>
             <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">
@@ -616,20 +759,25 @@ const formatCurrency = (amount: number): string => {
                 ? "Start by adding your first tour schedule!"
                 : "Try adjusting your filters or search criteria"}
             </p>
-            {schedules.length === 0 && (
+            {schedules.length === 0 && availableTours.length > 0 && (
               <button
                 onClick={handleAddNew}
                 className="mt-4 px-4 sm:px-6 py-2 sm:py-3 text-white rounded-lg font-medium cursor-pointer text-sm sm:text-base"
                 style={{ backgroundColor: '#083A85' }}
               >
-                <i className="bi bi-plus-circle mr-2"></i>Add Your First Tour
+                <i className="bi bi-plus-circle mr-2"></i>Add Your First Schedule
               </button>
+            )}
+            {availableTours.length === 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                You need to create tours first before scheduling.
+              </p>
             )}
           </div>
         )}
 
         {/* Calendar View */}
-        {!loading && filteredSchedules.length > 0 && viewMode === 'calendar' && (
+        {!loading && !error && filteredSchedules.length > 0 && viewMode === 'calendar' && (
           <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6">
             {/* Calendar Header */}
             <div className="flex justify-between items-center mb-4 sm:mb-6">
@@ -659,7 +807,7 @@ const formatCurrency = (amount: number): string => {
               ))}
               
               {/* Calendar Days */}
-              {calendarData.map((week, weekIndex) => (
+              {calendarViewData.map((week, weekIndex) => (
                 week.map((day, dayIndex) => {
                   const isToday = new Date().toDateString() === day.date.toDateString();
                   
@@ -718,7 +866,7 @@ const formatCurrency = (amount: number): string => {
         )}
 
         {/* List View */}
-        {!loading && filteredSchedules.length > 0 && viewMode === 'list' && (
+        {!loading && !error && filteredSchedules.length > 0 && viewMode === 'list' && (
           <div className="bg-white rounded-lg shadow-xl overflow-hidden">
             {/* Mobile Card View */}
             <div className="block sm:hidden">
@@ -802,7 +950,7 @@ const formatCurrency = (amount: number): string => {
               </div>
             </div>
 
-            {/* Desktop Table View - Simplified without sortable headers */}
+            {/* Desktop Table View */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -889,12 +1037,12 @@ const formatCurrency = (amount: number): string => {
                           </span>
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm lg:text-base font-medium text-gray-900">
-                        ${formatCurrency(schedule.price * schedule.currentGuests)}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                        ${formatCurrency(schedule.price)}/person
-                        </div>
+                          <div className="text-sm lg:text-base font-medium text-gray-900">
+                            ${formatCurrency(schedule.price * schedule.currentGuests)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ${formatCurrency(schedule.price)}/person
+                          </div>
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm lg:text-base font-medium">
                           <button
@@ -994,6 +1142,218 @@ const formatCurrency = (amount: number): string => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Floating Action Button */}
+        {!loading && (
+          <button
+            onClick={handleAddNew}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-40"
+            style={{ backgroundColor: '#083A85' }}
+            title="Add New Schedule"
+          >
+            <i className="bi bi-plus text-xl sm:text-2xl"></i>
+          </button>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showAddEditModal && editingSchedule && (
+          <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-2 sm:p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl">
+              <div className="p-4 sm:p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    {editingSchedule.id ? 'Edit Schedule' : 'Add New Schedule'}
+                  </h2>
+                  <button
+                    onClick={() => setShowAddEditModal(false)}
+                    className="text-gray-400 hover:text-red-600 cursor-pointer"
+                  >
+                    <i className="bi bi-x-lg text-xl"></i>
+                  </button>
+                </div>
+                
+                {/* Form fields */}
+                <div className="space-y-4">
+                  {/* Tour Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Tour</label>
+                    <select
+                      value={editingSchedule.tourId || ''}
+                      onChange={(e) => {
+                        const selectedTour = availableTours.find(tour => tour.id === e.target.value);
+                        setEditingSchedule(prev => ({
+                          ...prev,
+                          tourId: e.target.value,
+                          tourTitle: selectedTour?.title || '',
+                          tourType: selectedTour?.type as any || 'city',
+                          location: selectedTour?.location || '',
+                          price: selectedTour?.price || 50
+                        }));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      {availableTours.map(tour => (
+                        <option key={tour.id} value={tour.id}>
+                          {tour.title} - {tour.location}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tour Title</label>
+                    <input
+                      type="text"
+                      value={editingSchedule.tourTitle}
+                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, tourTitle: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter tour title"
+                      readOnly
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Tour Type</label>
+                      <select
+                        value={editingSchedule.tourType}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, tourType: e.target.value as any }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled
+                      >
+                        <option value="city">City Tour</option>
+                        <option value="nature">Nature</option>
+                        <option value="cultural">Cultural</option>
+                        <option value="adventure">Adventure</option>
+                        <option value="food">Food & Culinary</option>
+                        <option value="historical">Historical</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Duration (hours)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={editingSchedule.duration}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, duration: parseInt(e.target.value) || 1 }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <input
+                      type="text"
+                      value={editingSchedule.location}
+                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter location"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                      <input
+                        type="date"
+                        value={editingSchedule.date ? editingSchedule.date.toISOString().split('T')[0] : ''}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, date: new Date(e.target.value) }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                      <input
+                        type="time"
+                        value={editingSchedule.startTime}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, startTime: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                      <input
+                        type="time"
+                        value={editingSchedule.endTime}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, endTime: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Max Guests</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editingSchedule.maxGuests}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, maxGuests: parseInt(e.target.value) || 1 }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Price per Person ($)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingSchedule.price}
+                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Meeting Point</label>
+                    <input
+                      type="text"
+                      value={editingSchedule.meetingPoint}
+                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, meetingPoint: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter meeting point"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
+                    <textarea
+                      value={editingSchedule.specialInstructions}
+                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, specialInstructions: e.target.value }))}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter any special instructions for guests"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowAddEditModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveSchedule}
+                    className="flex-1 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
+                    style={{ backgroundColor: '#083A85' }}
+                    disabled={loading}
+                  >
+                    {loading ? 'Saving...' : (editingSchedule.id ? 'Update Schedule' : 'Create Schedule')}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1140,7 +1500,7 @@ const formatCurrency = (amount: number): string => {
                     className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer text-sm sm:text-base"
                   >
                     <i className="bi bi-pencil mr-2"></i>
-                    Edit Tour
+                    Edit Schedule
                   </button>
                   {selectedSchedule.status !== 'cancelled' && selectedSchedule.status !== 'completed' && (
                     <button
@@ -1169,7 +1529,7 @@ const formatCurrency = (amount: number): string => {
           </div>
         )}
 
-       </div>
+      </div>
     </div>
   );
 };
