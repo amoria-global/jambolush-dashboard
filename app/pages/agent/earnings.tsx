@@ -279,12 +279,11 @@ const Earnings = () => {
 
   // --- RENDER ---
   return (
-    <div className="bg-gray-100 min-h-screen p-4 font-sans">
+    <div className="min-h-screen py-10 font-sans">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-6">
-          <h1 className="text-3xl font-bold text-black">Agent Earnings</h1>
-          <p className="text-gray-500">Manage your commission from properties and tours.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#083A85]">Earnings</h1>
         </header>
 
         {/* Summary Cards */}

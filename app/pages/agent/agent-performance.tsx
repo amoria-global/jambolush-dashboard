@@ -377,7 +377,7 @@ const AgentPerformanceDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Agent Performance Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-[#083A85]">Agent Performance Dashboard</h1>
           <p className="text-gray-600 mt-2">Track your commission earnings and property management performance</p>
         </div>
 

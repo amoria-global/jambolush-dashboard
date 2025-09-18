@@ -30,7 +30,8 @@ interface UserProfile {
   status: string;
   userType: UserRole;
   provider?: string;
-  verification?: string; // Added verification property
+  isVerified?: string; // Added verification property
+  verificationStatus?: string; // e.g., 'pending', 'verified', 'rejected'
 }
 
 interface UserSession {
@@ -156,7 +157,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         }
 
         // Check verification status - redirect to assessment if not verified
-        if (userData.verification !== 'verified' && userData.userType === "agent") {
+        if (!userData.isVerified && userData.userType === "agent") {
           console.log('User verification not completed, redirecting to assessment');
           router.push('/all/assessment');
           return;

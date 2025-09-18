@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import api from '../api/apiService';
 
 interface Question {
   id: string;
   question: string;
   options: string[];
-  correctAnswers?: number[];
+  correctAnswers: number[];
+  isMultipleSelect?: boolean;
 }
 
 interface Answer {
@@ -24,6 +26,22 @@ interface UserProfile {
   userType: string;
 }
 
+interface AssessmentResult {
+  totalQuestions: number;
+  correctAnswers: number;
+  score: number;
+  percentage: number;
+  questionsResults: QuestionResult[];
+}
+
+interface QuestionResult {
+  questionId: string;
+  question: string;
+  userAnswer: number[];
+  correctAnswer: number[];
+  isCorrect: boolean;
+}
+
 const AssessmentContent: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -31,107 +49,548 @@ const AssessmentContent: React.FC = () => {
   const [showTimeAlert, setShowTimeAlert] = useState(false);
   const [assessmentStarted, setAssessmentStarted] = useState(false);
   const [assessmentCompleted, setAssessmentCompleted] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
   const [timeExpired, setTimeExpired] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Email configuration - these should be set in your environment variables
+  // Email configuration
   const config = {
-    apikey: process.env.BREVO_API_KEY || 'your-brevo-api-key-here',
+    apikey: process.env.BREVO_API_KEY || 'your-brevo-api-key',
     senderemail: process.env.RSENDER_EMAIL || 'noreply@jambolush.com'
   };
 
-  // API service for making authenticated requests
-  const api = {
-    get: async (endpoint: string) => {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/${endpoint}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return { data };
-    },
-    
-    post: async (endpoint: string, data: any) => {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data_result = await response.json();
-      return { data: data_result };
-    }
-  };
 
   // Get user data from auth/me endpoint
   const getUserData = async () => {
     try {
+      const authToken: any = localStorage.getItem('authToken');
       setIsLoadingUser(true);
+      api.setAuth(authToken);
       const response = await api.get('auth/me');
-      
+
       if (response.data) {
         const userData: UserProfile = response.data;
         setUser(userData);
         console.log('User data fetched successfully:', userData);
         return userData;
-      } else {
-        console.warn('No user data received from auth/me');
-        // Fallback user data for testing
-        const fallbackUser: UserProfile = {
-          id: 'test-user',
-          email: 'test@example.com',
-          name: 'Test User',
-          firstName: 'Test',
-          lastName: 'User',
-          userType: 'agent'
-        };
-        setUser(fallbackUser);
-        return fallbackUser;
       }
     } catch (error) {
       console.error('Error fetching user data:', error);
-      // Fallback user data for testing
-      const fallbackUser: UserProfile = {
-        id: 'fallback-user',
-        email: 'fallback@example.com',
-        name: 'Fallback User',
-        firstName: 'Fallback',
-        lastName: 'User',
-        userType: 'agent'
-      };
-      setUser(fallbackUser);
-      return fallbackUser;
     } finally {
       setIsLoadingUser(false);
     }
   };
 
-  // Send email to admin using Brevo API
-  const sendAdminNotification = async (userEmail: string, userName: string, userAnswers: Answer[]) => {
-    const completedQuestions = userAnswers.filter(a => a.selectedOptions.length > 0).length;
-    const completionPercentage = Math.round((completedQuestions / questions.length) * 100);
+  // Enhanced questions with correct answers
+  const questions: Question[] = [
+    {
+      id: "Q1",
+      question: "You arrive at a property for inspection and realize the GPS location provided is off by 2 km. How do you handle the situation?",
+      options: [
+        "Call the host immediately and ask for verbal directions.",
+        "Abandon the inspection and reschedule.",
+        "Use a mapping app to locate nearby landmarks and confirm with the host.",
+        "Ask a passerby for directions without verifying with the host."
+      ],
+      correctAnswers: [2]
+    },
+    {
+      id: "Q2",
+      question: "A host offers you $50 to approve their property faster. What's your response?",
+      options: [
+        "Accept and approve it immediately.",
+        "Decline politely and report to the platform.",
+        "Take the money but delay the approval.",
+        "Ignore the offer and proceed with the listing."
+      ],
+      correctAnswers: [1]
+    },
+    {
+      id: "Q3",
+      question: "A property owner calls their home 'luxury' but it's poorly maintained. What do you do?",
+      options: [
+        "Approve it without changes.",
+        "Document the issues with photos and notes.",
+        "Suggest repairs before marketing as 'luxury'.",
+        "Change the listing title yourself without telling the owner."
+      ],
+      correctAnswers: [1, 2],
+      isMultipleSelect: true
+    },
+    {
+      id: "Q4",
+      question: "Two guests left opposite reviews for the same property. How do you decide which reflects reality?",
+      options: [
+        "Ask both guests for photos or proof.",
+        "Remove both reviews.",
+        "Keep only the positive review to protect the host.",
+        "Automatically believe the first reviewer."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q5",
+      question: "If commission is 15% and the host wants $300 for 4 nights, what guest price should you list?",
+      options: ["$345", "$300", "$315", "$350"],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q6",
+      question: "You have 4 inspections in 3 towns in one day, but one asks to reschedule urgently. What's your best move?",
+      options: [
+        "Cancel another inspection to fit them in.",
+        "Rearrange stops based on distance and urgency.",
+        "Ignore their request and keep your schedule.",
+        "Postpone all inspections to another day."
+      ],
+      correctAnswers: [1]
+    },
+    {
+      id: "Q7",
+      question: "To attract digital nomads, which feature is most important to add?",
+      options: [
+        "24-hour check-in.",
+        "Strong and reliable Wi-Fi.",
+        "Large parking space.",
+        "Garden seating area."
+      ],
+      correctAnswers: [1]
+    },
+    {
+      id: "Q8",
+      question: "A host has great photos but refuses on-site verification. What do you do?",
+      options: [
+        "List them anyway.",
+        "Mark listing 'pending verification' and keep promoting.",
+        "Decline listing until verification is done.",
+        "Use their photos without telling them."
+      ],
+      correctAnswers: [2]
+    },
+    {
+      id: "Q9",
+      question: "A property is 80% booked by a competitor. How would you still convince the owner to list with Jambolush?",
+      options: [
+        "Offer unrealistic earnings projections.",
+        "Highlight global reach and additional bookings potential.",
+        "Insist on removing them from the competitor before joining.",
+        "Ignore their current bookings."
+      ],
+      correctAnswers: [1]
+    },
+    {
+      id: "Q10",
+      question: "What 3 key details would attract an international traveler to a rural homestay over a city hotel?",
+      options: [
+        "Local culture, unique experiences, lower price.",
+        "Basic amenities, strict rules, remote location.",
+        "Poor transport, high price, privacy.",
+        "Limited food, shared bathrooms, low security."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q11",
+      question: "A local festival is expected to bring 1,000 visitors. What's your plan to benefit Jambolush?",
+      options: [
+        "Do nothing; the market will adjust.",
+        "Pre-onboard nearby properties and promote festival packages.",
+        "Increase commission rates temporarily.",
+        "Block bookings during the event."
+      ],
+      correctAnswers: [1]
+    },
+    {
+      id: "Q12",
+      question: "A host says, 'Your commission is too high.' How do you respond?",
+      options: [
+        "Explain marketing value and higher booking potential.",
+        "Compare to less reputable platforms.",
+        "Offer unapproved discounts.",
+        "Tell them all competitors charge more."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q13",
+      question: "If bookings drop 25% in your area, what could be a cause?",
+      options: [
+        "Seasonal changes, economic downturn, increased competition.",
+        "Host mood swings, random chance, inflation only.",
+        "Weather, but nothing else matters.",
+        "Always guest fault."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q14",
+      question: "What low-cost marketing tactic can bring 10 new hosts in a month?",
+      options: [
+        "Community presentations and local partnerships.",
+        "Expensive TV ads only.",
+        "Waiting for hosts to find the website.",
+        "Sending flyers without follow-up."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q15",
+      question: "A luxury property owner wants no nearby competition. How do you respond?",
+      options: [
+        "Explain fairness policy and focus on their unique value.",
+        "Agree and block other listings.",
+        "Ignore request and list anyway without telling.",
+        "Offer secret deals."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q16",
+      question: "Describe a time you worked without immediate reward. Why?",
+      options: [
+        "Because I believed in the long-term outcome.",
+        "Because I was forced.",
+        "I never work without immediate pay.",
+        "Only for friends."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q17",
+      question: "If given easy and difficult leads, which do you choose first?",
+      options: [
+        "Difficult — shows skill and earns trust.",
+        "Easy — quick win.",
+        "Ignore both.",
+        "Let others decide."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q18",
+      question: "Zero commission month — what do you do?",
+      options: [
+        "Quit immediately.",
+        "Stay motivated and work on leads.",
+        "Complain to management.",
+        "Take a break from work."
+      ],
+      correctAnswers: [1]
+    },
+    {
+      id: "Q19",
+      question: "What sacrifice are you willing to make to hit targets?",
+      options: [
+        "Extra hours and weekend work.",
+        "Cutting corners.",
+        "Ignoring ethics.",
+        "None."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q20",
+      question: "As CEO for a day, what's your move to boost agents?",
+      options: [
+        "Introduce performance bonuses.",
+        "Fire half the team.",
+        "Cut training budget.",
+        "Reduce commission rates only."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q21",
+      question: "A property owner distrusts online platforms. How do you pitch Jambolush?",
+      options: [
+        "Focus on trust, visibility, and guest screening.",
+        "Say everyone else is online.",
+        "Avoid the conversation.",
+        "Force them to sign."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q22",
+      question: "Host claims non-payment but records show payment sent. What do you do?",
+      options: [
+        "Provide proof and assist with bank follow-up.",
+        "Ignore complaint.",
+        "Argue until they accept.",
+        "Send payment twice."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q23",
+      question: "Explain policy to someone who never used internet:",
+      options: [
+        "Use simple language and examples.",
+        "Read it fast.",
+        "Send them a link only.",
+        "Skip explanation."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q24",
+      question: "Neighbor says property is unsafe. What's your move?",
+      options: [
+        "Investigate discreetly and verify.",
+        "Ignore.",
+        "Blacklist immediately.",
+        "Tell host without checking."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q25",
+      question: "Close a host deal in under 5 minutes — your approach?",
+      options: [
+        "Highlight benefits and act confident.",
+        "Read entire T&C line by line.",
+        "Ask them to decide later.",
+        "Discuss personal stories only."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q26",
+      question: "Skeptical meeting audience — what do you do?",
+      options: [
+        "Engage with real success stories.",
+        "Ignore them.",
+        "End presentation early.",
+        "Offer random discounts."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q27",
+      question: "Negative review going viral — your step?",
+      options: [
+        "Address issue publicly with solution.",
+        "Delete all reviews.",
+        "Ignore.",
+        "Blame the guest."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q28",
+      question: "Two hosts argue in meeting — what's your action?",
+      options: [
+        "Calm both and refocus discussion.",
+        "Leave room.",
+        "Take sides.",
+        "End meeting abruptly."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q29",
+      question: "Great location, no safety features — list it?",
+      options: [
+        "No, require upgrades first.",
+        "Yes, waive requirements.",
+        "Yes, but temporary pending fix.",
+        "Blacklist property."
+      ],
+      correctAnswers: [0, 2],
+      isMultipleSelect: true
+    },
+    {
+      id: "Q30",
+      question: "Another agent poaching leads — your action?",
+      options: [
+        "Report professionally and protect leads.",
+        "Ignore.",
+        "Confront aggressively.",
+        "Poach theirs back."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q31",
+      question: "Property used for illegal activities after listing — step?",
+      options: [
+        "Remove listing, report to authorities.",
+        "Ignore to keep revenue.",
+        "Warn host only.",
+        "Reduce visibility."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q32",
+      question: "Host cancels last-minute — guest upset. Action?",
+      options: [
+        "Offer alternative and assist refund.",
+        "Ignore.",
+        "Blame guest.",
+        "Blacklist host instantly."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q33",
+      question: "Host refuses contract but wants listing — do you?",
+      options: [
+        "No, require signed contract.",
+        "Yes, verbal deal.",
+        "Yes, skip paperwork.",
+        "Yes, under fake profile."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q34",
+      question: "Competitor recruits in your area — counter move?",
+      options: [
+        "Highlight your platform's unique benefits.",
+        "Ignore.",
+        "Join competitor.",
+        "Cut commission to zero."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q35",
+      question: "Upload property with bad internet — how?",
+      options: [
+        "Save offline and upload when connected.",
+        "Cancel listing.",
+        "Ask host to upload.",
+        "Skip photos."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q36",
+      question: "No tripod for photos — solution?",
+      options: [
+        "Stabilize phone against solid object.",
+        "Hold phone loosely.",
+        "Use zoom only.",
+        "Skip photography."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q37",
+      question: "No dimensions given — what's your method?",
+      options: [
+        "Measure manually with tape.",
+        "Guess.",
+        "Ask host without verifying.",
+        "Leave blank."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q38",
+      question: "Verify host ID — process?",
+      options: [
+        "Check authenticity and match with person.",
+        "Accept any photo.",
+        "Ignore verification.",
+        "Use expired ID."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q39",
+      question: "Social media caption for new listing:",
+      options: [
+        "Discover comfort and style at the heart of the city — book now!",
+        "Cheap rooms here.",
+        "Random emojis.",
+        "Contact us maybe."
+      ],
+      correctAnswers: [0]
+    },
+    {
+      id: "Q40",
+      question: "Limited info from host — how to list?",
+      options: [
+        "Collect minimum required and schedule follow-up.",
+        "Guess missing details.",
+        "Publish incomplete listing.",
+        "Skip verification."
+      ],
+      correctAnswers: [0]
+    }
+  ];
+  
+  const questionsPerPage = 3;
+  const totalQuestionPages = Math.ceil(questions.length / questionsPerPage);
+  const totalSteps = totalQuestionPages + 2; // Includes Welcome and Submit pages
+
+  // Calculate assessment results
+  const calculateResults = (): AssessmentResult => {
+    const questionsResults: QuestionResult[] = questions.map(question => {
+      const userAnswer = answers.find(a => a.questionId === question.id);
+      const userSelectedOptions = userAnswer?.selectedOptions || [];
+      
+      // Check if answer is correct
+      const isCorrect = question.correctAnswers.length === userSelectedOptions.length && 
+        question.correctAnswers.every(correct => userSelectedOptions.includes(correct));
+
+      return {
+        questionId: question.id,
+        question: question.question,
+        userAnswer: userSelectedOptions,
+        correctAnswer: question.correctAnswers,
+        isCorrect
+      };
+    });
+
+    const correctAnswers = questionsResults.filter(result => result.isCorrect).length;
+    const totalQuestions = questions.length;
+    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+
+    return {
+      totalQuestions,
+      correctAnswers,
+      score: correctAnswers,
+      percentage,
+      questionsResults
+    };
+  };
+
+  // Save assessment to database
+  const saveAssessmentToDatabase = async (results: AssessmentResult) => {
+    try {
+      const assessmentData = {
+        userId: user?.id,
+        userEmail: user?.email,
+        userName: user?.name || `${user?.firstName} ${user?.lastName}`,
+        answers: answers,
+        results: results,
+        timeSpent: 4800 - timeRemaining,
+        completedAt: new Date(),
+        assessmentType: 'field-agent-evaluation'
+      };
+
+      await api.post('assessments', assessmentData);
+      console.log('Assessment saved to database successfully');
+      return true;
+    } catch (error) {
+      console.error('Error saving assessment to database:', error);
+      setSaveError('Failed to save assessment data. Your results are still recorded.');
+      return false;
+    }
+  };
+
+  // Enhanced email functions with results
+  const sendEnhancedAdminNotification = async (userEmail: string, userName: string, userAnswers: Answer[], results: AssessmentResult) => {
     const submissionTime = new Date().toLocaleString();
     const assessmentId = `JFA-${Date.now().toString().slice(-6)}`;
     
@@ -146,40 +605,47 @@ const AssessmentContent: React.FC = () => {
           name: "Admin Team"
         }
       ],
-      subject: `🎯 New Field Agent Assessment Completed - ${userName}`,
+      subject: `🎯 Field Agent Assessment Results - ${userName} (${results.percentage}%)`,
       htmlContent: `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Assessment Notification</title>
+          <title>Assessment Results</title>
         </head>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8f9fa;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
             <!-- Header -->
             <div style="background: linear-gradient(135deg, #083A85 0%, #0a4499 100%); color: white; padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; font-size: 28px; font-weight: bold; line-height: 1.2;">New Assessment Completed</h1>
-              <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Jambolush Field Agent Assessment System</p>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Assessment Results Available</h1>
+              <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Field Agent Assessment Completed</p>
             </div>
             
             <!-- Content -->
             <div style="padding: 40px 30px;">
-              <!-- Alert Banner -->
-              <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-bottom: 30px; text-align: center;">
-                <strong style="color: #856404;">🚨 Action Required: New Assessment Awaiting Review</strong>
+              <!-- Results Summary -->
+              <div style="background: ${results.percentage >= 70 ? '#d4edda' : results.percentage >= 50 ? '#fff3cd' : '#f8d7da'}; 
+                          border: 1px solid ${results.percentage >= 70 ? '#c3e6cb' : results.percentage >= 50 ? '#ffeaa7' : '#f5c6cb'}; 
+                          border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
+                <h2 style="margin: 0 0 15px 0; color: ${results.percentage >= 70 ? '#155724' : results.percentage >= 50 ? '#856404' : '#721c24'}; font-size: 24px;">
+                  Score: ${results.correctAnswers}/${results.totalQuestions} (${results.percentage}%)
+                </h2>
+                <p style="margin: 0; color: ${results.percentage >= 70 ? '#155724' : results.percentage >= 50 ? '#856404' : '#721c24'}; font-size: 16px;">
+                  ${results.percentage >= 70 ? 'Excellent Performance!' : results.percentage >= 50 ? 'Good Performance' : 'Needs Improvement'}
+                </p>
               </div>
 
               <!-- Candidate Information -->
-              <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 25px; border-left: 4px solid #083A85;">
-                <h2 style="margin: 0 0 20px 0; color: #083A85; font-size: 20px;">Candidate Information</h2>
+              <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Candidate Details</h3>
                 <table style="width: 100%; border-collapse: collapse;">
                   <tr>
-                    <td style="padding: 10px 0; font-weight: bold; color: #555; width: 140px; border-bottom: 1px solid #dee2e6;">Full Name:</td>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555; width: 140px; border-bottom: 1px solid #dee2e6;">Name:</td>
                     <td style="padding: 10px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userName}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 10px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Email Address:</td>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Email:</td>
                     <td style="padding: 10px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userEmail}</td>
                   </tr>
                   <tr>
@@ -187,98 +653,45 @@ const AssessmentContent: React.FC = () => {
                     <td style="padding: 10px 0; color: #333; font-family: monospace; border-bottom: 1px solid #dee2e6;">${assessmentId}</td>
                   </tr>
                   <tr>
-                    <td style="padding: 10px 0; font-weight: bold; color: #555;">Submission Time:</td>
-                    <td style="padding: 10px 0; color: #333;">${submissionTime}</td>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Completion Time:</td>
+                    <td style="padding: 10px 0; color: #333; border-bottom: 1px solid #dee2e6;">${submissionTime}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0; font-weight: bold; color: #555;">Time Spent:</td>
+                    <td style="padding: 10px 0; color: #333;">${Math.round((4800 - timeRemaining) / 60)} minutes</td>
                   </tr>
                 </table>
               </div>
 
-              <!-- Assessment Statistics -->
+              <!-- Performance Breakdown -->
               <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Assessment Statistics</h3>
-                
-                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                  <div style="flex: 1; text-align: center; padding: 20px; background: #e3f2fd; border-radius: 10px; border: 2px solid #1976d2;">
-                    <div style="font-size: 32px; font-weight: bold; color: #1976d2; margin-bottom: 5px;">${completedQuestions}</div>
-                    <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Questions Answered</div>
-                    <div style="font-size: 14px; color: #888; margin-top: 2px;">out of ${questions.length}</div>
-                  </div>
-                  <div style="flex: 1; text-align: center; padding: 20px; background: #e8f5e8; border-radius: 10px; border: 2px solid #388e3c;">
-                    <div style="font-size: 32px; font-weight: bold; color: #388e3c; margin-bottom: 5px;">${completionPercentage}%</div>
-                    <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">Completion Rate</div>
-                    <div style="font-size: 14px; color: #888; margin-top: 2px;">assessment progress</div>
-                  </div>
-                </div>
-
-                <!-- Assessment Details -->
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-                  <h4 style="margin: 0 0 15px 0; color: #333;">Assessment Overview</h4>
-                  <ul style="color: #555; line-height: 1.8; margin: 0; padding-left: 20px;">
-                    <li><strong>Assessment Type:</strong> Field Agent Evaluation</li>
-                    <li><strong>Duration:</strong> 80 minutes (1 hour 20 minutes)</li>
-                    <li><strong>Question Categories:</strong> Situational judgment, problem-solving, ethics, technical skills</li>
-                    <li><strong>Format:</strong> Multiple choice with single correct answers</li>
-                  </ul>
-                </div>
-              </div>
-
-              <!-- Next Steps -->
-              <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Recommended Next Steps</h3>
-                
+                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Performance Analysis</h3>
                 <div style="margin-bottom: 20px;">
-                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
-                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">1</div>
-                    <div>
-                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Review Assessment Responses</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.5;">Log into the admin dashboard to review detailed responses and evaluate candidate suitability.</p>
-                    </div>
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>Correct Answers</span>
+                    <strong>${results.correctAnswers}/${results.totalQuestions}</strong>
                   </div>
-                  
-                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
-                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">2</div>
-                    <div>
-                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Conduct Scoring & Evaluation</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.5;">Use the assessment rubric to score responses and determine if the candidate meets requirements.</p>
-                    </div>
-                  </div>
-                  
-                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
-                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">3</div>
-                    <div>
-                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Schedule Follow-up Interview</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.5;">If the candidate passes the assessment, schedule a follow-up interview within 5 business days.</p>
-                    </div>
-                  </div>
-                  
-                  <div style="display: flex; align-items: flex-start; gap: 15px;">
-                    <div style="width: 30px; height: 30px; background: #083A85; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">4</div>
-                    <div>
-                      <h4 style="margin: 0 0 5px 0; color: #333; font-size: 16px;">Provide Candidate Feedback</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.5;">Send feedback to the candidate within 3-5 business days, regardless of the outcome.</p>
-                    </div>
+                  <div style="height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden;">
+                    <div style="height: 100%; width: ${results.percentage}%; background: linear-gradient(90deg, #28a745, #20c997);"></div>
                   </div>
                 </div>
+                
+                <p style="margin: 15px 0 0 0; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #666;">
+                  <strong>Recommendation:</strong> 
+                  ${results.percentage >= 70 ? 'Strong candidate - recommend for interview phase.' : 
+                    results.percentage >= 50 ? 'Moderate performance - consider for interview with additional screening.' : 
+                    'Below threshold - additional training or re-assessment recommended.'}
+                </p>
               </div>
 
-              <!-- Call to Action -->
+              <!-- Action Items -->
               <div style="background: linear-gradient(135deg, #083A85 0%, #0a4499 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
-                <h3 style="margin: 0 0 15px 0; font-size: 18px;">Ready to Review?</h3>
-                <p style="margin: 0 0 20px 0; opacity: 0.9; line-height: 1.5;">Access the admin dashboard to begin your assessment review process.</p>
-                <a href="/admin/assessments" style="display: inline-block; background: white; color: #083A85; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; transition: all 0.3s ease;">
-                  Review Assessment Now →
+                <h3 style="margin: 0 0 15px 0; font-size: 18px;">Next Steps</h3>
+                <p style="margin: 0 0 20px 0; opacity: 0.9;">Access the full assessment details and candidate responses in the admin dashboard.</p>
+                <a href="/admin/assessments/${assessmentId}" style="display: inline-block; background: white; color: #083A85; padding: 12px 30px; border-radius: 25px; text-decoration: none; font-weight: bold;">
+                  View Full Results →
                 </a>
               </div>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background: #f8f9fa; padding: 25px 30px; text-align: center; border-top: 1px solid #dee2e6;">
-              <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">
-                This is an automated notification from the Jambolush Assessment System.
-              </p>
-              <p style="margin: 0; color: #6c757d; font-size: 12px;">
-                For questions, contact the development team or check the admin documentation.
-              </p>
             </div>
           </div>
         </body>
@@ -296,22 +709,14 @@ const AssessmentContent: React.FC = () => {
         body: JSON.stringify(emailData),
       });
 
-      if (response.ok) {
-        console.log('Admin notification email sent successfully');
-        return true;
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to send admin notification:', response.status, errorText);
-        return false;
-      }
+      return response.ok;
     } catch (error) {
       console.error('Error sending admin notification:', error);
       return false;
     }
   };
 
-  // Send confirmation email to user using Brevo API
-  const sendUserConfirmation = async (userEmail: string, userName: string) => {
+  const sendEnhancedUserConfirmation = async (userEmail: string, userName: string, results: AssessmentResult) => {
     const submissionTime = new Date().toLocaleString();
     const assessmentId = `JFA-${Date.now().toString().slice(-6)}`;
     
@@ -326,143 +731,57 @@ const AssessmentContent: React.FC = () => {
           name: userName
         }
       ],
-      subject: `✅ Assessment Submitted Successfully - Welcome to Jambolush!`,
+      subject: `✅ Assessment Results - ${results.percentage}% Score`,
       htmlContent: `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Assessment Confirmation</title>
+          <title>Assessment Results</title>
         </head>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8f9fa;">
           <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
             <!-- Header -->
             <div style="background: linear-gradient(135deg, #083A85 0%, #0a4499 100%); color: white; padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; font-size: 28px; font-weight: bold; line-height: 1.2;">Assessment Submitted Successfully!</h1>
-              <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Thank you for completing the Field Agent Assessment</p>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Assessment Complete!</h1>
+              <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Your Field Agent Assessment Results</p>
             </div>
             
             <!-- Content -->
             <div style="padding: 40px 30px;">
-              <!-- Success Message -->
-              <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
-                <div style="width: 60px; height: 60px; background: #28a745; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
-                  <span style="font-size: 28px; color: white;">✓</span>
-                </div>
-                <h2 style="margin: 0 0 10px 0; color: #155724; font-size: 24px;">Congratulations, ${userName}!</h2>
-                <p style="margin: 0; color: #155724; font-size: 16px; line-height: 1.5;">
-                  Your Field Agent Assessment has been successfully submitted and is now under review by our expert team.
+              <!-- Results -->
+              <div style="background: ${results.percentage >= 70 ? '#d4edda' : results.percentage >= 50 ? '#fff3cd' : '#f8d7da'}; 
+                          border: 1px solid ${results.percentage >= 70 ? '#c3e6cb' : results.percentage >= 50 ? '#ffeaa7' : '#f5c6cb'}; 
+                          border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
+                <h2 style="margin: 0 0 10px 0; color: ${results.percentage >= 70 ? '#155724' : results.percentage >= 50 ? '#856404' : '#721c24'}; font-size: 32px;">
+                  ${results.percentage}%
+                </h2>
+                <p style="margin: 0 0 10px 0; color: ${results.percentage >= 70 ? '#155724' : results.percentage >= 50 ? '#856404' : '#721c24'}; font-size: 18px; font-weight: bold;">
+                  ${results.correctAnswers} out of ${results.totalQuestions} correct
+                </p>
+                <p style="margin: 0; color: ${results.percentage >= 70 ? '#155724' : results.percentage >= 50 ? '#856404' : '#721c24'};">
+                  ${results.percentage >= 70 ? 'Excellent work! You demonstrated strong competency.' : 
+                    results.percentage >= 50 ? 'Good effort! You showed solid understanding.' : 
+                    'Keep learning and growing. Consider additional preparation.'}
                 </p>
               </div>
 
-              <!-- Assessment Summary -->
+              <!-- Summary -->
               <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 25px;">
-                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">Assessment Summary</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #555; width: 150px; border-bottom: 1px solid #dee2e6;">Candidate Name:</td>
-                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Email Address:</td>
-                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">${userEmail}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Assessment Type:</td>
-                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">Field Agent Evaluation</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Total Questions:</td>
-                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">40 Questions</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #555; border-bottom: 1px solid #dee2e6;">Submission Time:</td>
-                    <td style="padding: 12px 0; color: #333; border-bottom: 1px solid #dee2e6;">${submissionTime}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 12px 0; font-weight: bold; color: #555;">Reference ID:</td>
-                    <td style="padding: 12px 0; color: #333; font-family: monospace; background: #e9ecef; padding: 8px; border-radius: 4px;">${assessmentId}</td>
-                  </tr>
-                </table>
+                <h3 style="margin: 0 0 15px 0; color: #333;">Assessment Summary</h3>
+                <p style="margin: 0 0 15px 0; color: #666;">Completion Time: ${submissionTime}</p>
+                <p style="margin: 0 0 15px 0; color: #666;">Time Spent: ${Math.round((4800 - timeRemaining) / 60)} minutes</p>
+                <p style="margin: 0; color: #666;">Assessment ID: ${assessmentId}</p>
               </div>
 
-              <!-- What Happens Next -->
-              <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <h3 style="margin: 0 0 20px 0; color: #333; font-size: 18px;">What Happens Next?</h3>
-                
-                <div style="margin-bottom: 20px;">
-                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">1</div>
-                    <div>
-                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Expert Review Process</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.6;">Our experienced team will carefully review and evaluate your responses against our comprehensive assessment criteria.</p>
-                    </div>
-                  </div>
-                  
-                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">2</div>
-                    <div>
-                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Evaluation Timeline</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.6;">You can expect to receive feedback and results within <strong style="color: #1976d2;">3-5 business days</strong> of your submission.</p>
-                    </div>
-                  </div>
-                  
-                  <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
-                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">3</div>
-                    <div>
-                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Interview Invitation</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.6;">Successful candidates will be invited to participate in a follow-up interview to discuss the role in more detail.</p>
-                    </div>
-                  </div>
-                  
-                  <div style="display: flex; align-items: flex-start; gap: 15px;">
-                    <div style="width: 35px; height: 35px; background: #e3f2fd; border: 2px solid #1976d2; color: #1976d2; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold;">4</div>
-                    <div>
-                      <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px;">Onboarding Process</h4>
-                      <p style="margin: 0; color: #666; line-height: 1.6;">If selected, we'll guide you through our comprehensive onboarding program to ensure your success as a Field Agent.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Important Notes -->
-              <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 12px; padding: 20px; margin-bottom: 25px;">
-                <h4 style="margin: 0 0 12px 0; color: #856404; font-size: 16px;">📋 Important Notes</h4>
-                <ul style="color: #856404; line-height: 1.7; margin: 0; padding-left: 20px;">
-                  <li>Please keep this email and your reference ID for future correspondence</li>
-                  <li>We will contact you exclusively via email, so please check your inbox regularly</li>
-                  <li>If you don't hear from us within 5 business days, please check your spam folder</li>
-                  <li>Feel free to reach out if you have any questions about the process</li>
-                </ul>
-              </div>
-
-              <!-- Thank You Message -->
-              <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; border-radius: 12px; text-align: center;">
-                <h3 style="margin: 0 0 15px 0; font-size: 20px;">Thank You for Your Interest!</h3>
-                <p style="margin: 0; opacity: 0.95; line-height: 1.6; font-size: 16px;">
-                  We appreciate the time and effort you've invested in this assessment. Your dedication to joining our Field Agent team is valued, and we're excited about the possibility of working together to create exceptional experiences for our guests worldwide.
-                </p>
-              </div>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background: #083A85; color: white; padding: 30px; text-align: center;">
-              <h3 style="margin: 0 0 15px 0; font-size: 18px;">Stay Connected with Jambolush</h3>
-              <p style="margin: 0 0 20px 0; opacity: 0.9; line-height: 1.5;">
-                Follow us on social media for the latest updates, opportunities, and company news.
-              </p>
-              
-              <div style="margin: 20px 0;">
-                <p style="margin: 0; opacity: 0.8; font-size: 14px;">
-                  Questions about your assessment? Contact us at 
-                  <a href="mailto:careers@jambolush.com" style="color: #87CEEB; text-decoration: none;">careers@jambolush.com</a>
-                </p>
-              </div>
-              
-              <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-                <p style="margin: 0; opacity: 0.7; font-size: 12px;">
-                  © 2024 Jambolush. All rights reserved. | This email was sent regarding your Field Agent Assessment.
+              <!-- Next Steps -->
+              <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 25px; border-radius: 12px; text-align: center;">
+                <h3 style="margin: 0 0 15px 0;">What's Next?</h3>
+                <p style="margin: 0 0 15px 0; opacity: 0.9;">
+                  ${results.percentage >= 70 ? 
+                    'Congratulations! Our team will contact you within 2-3 business days to discuss the next steps in the hiring process.' :
+                    'Thank you for your interest. Our team will review your assessment and contact you within 5 business days with feedback.'}
                 </p>
               </div>
             </div>
@@ -482,422 +801,12 @@ const AssessmentContent: React.FC = () => {
         body: JSON.stringify(emailData),
       });
 
-      if (response.ok) {
-        console.log('User confirmation email sent successfully');
-        return true;
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to send user confirmation:', response.status, errorText);
-        return false;
-      }
+      return response.ok;
     } catch (error) {
       console.error('Error sending user confirmation:', error);
       return false;
     }
   };
-
-  // All 40 assessment questions
-  const questions: Question[] = [
-    {
-      id: "Q1",
-      question: "You arrive at a property for inspection and realize the GPS location provided is off by 2 km. How do you handle the situation?",
-      options: [
-        "Call the host immediately and ask for verbal directions.",
-        "Abandon the inspection and reschedule.",
-        "Use a mapping app to locate nearby landmarks and confirm with the host.",
-        "Ask a passerby for directions without verifying with the host."
-      ]
-    },
-    {
-      id: "Q2",
-      question: "A host offers you $50 to approve their property faster. What's your response?",
-      options: [
-        "Accept and approve it immediately.",
-        "Decline politely and report to the platform.",
-        "Take the money but delay the approval.",
-        "Ignore the offer and proceed with the listing."
-      ]
-    },
-    {
-      id: "Q3",
-      question: "A property owner calls their home 'luxury' but it's poorly maintained. What do you do?",
-      options: [
-        "Approve it without changes.",
-        "Document the issues with photos and notes.",
-        "Suggest repairs before marketing as 'luxury'.",
-        "Change the listing title yourself without telling the owner."
-      ]
-    },
-    {
-      id: "Q4",
-      question: "Two guests left opposite reviews for the same property. How do you decide which reflects reality?",
-      options: [
-        "Ask both guests for photos or proof.",
-        "Remove both reviews.",
-        "Keep only the positive review to protect the host.",
-        "Automatically believe the first reviewer."
-      ]
-    },
-    {
-      id: "Q5",
-      question: "If commission is 15% and the host wants $300 for 4 nights, what guest price should you list?",
-      options: ["$345", "$300", "$315", "$350"]
-    },
-    {
-      id: "Q6",
-      question: "You have 4 inspections in 3 towns in one day, but one asks to reschedule urgently. What's your best move?",
-      options: [
-        "Cancel another inspection to fit them in.",
-        "Rearrange stops based on distance and urgency.",
-        "Ignore their request and keep your schedule.",
-        "Postpone all inspections to another day."
-      ]
-    },
-    {
-      id: "Q7",
-      question: "To attract digital nomads, which feature is most important to add?",
-      options: [
-        "24-hour check-in.",
-        "Strong and reliable Wi-Fi.",
-        "Large parking space.",
-        "Garden seating area."
-      ]
-    },
-    {
-      id: "Q8",
-      question: "A host has great photos but refuses on-site verification. What do you do?",
-      options: [
-        "List them anyway.",
-        "Mark listing 'pending verification' and keep promoting.",
-        "Decline listing until verification is done.",
-        "Use their photos without telling them."
-      ]
-    },
-    {
-      id: "Q9",
-      question: "A property is 80% booked by a competitor. How would you still convince the owner to list with Jambolush?",
-      options: [
-        "Offer unrealistic earnings projections.",
-        "Highlight global reach and additional bookings potential.",
-        "Insist on removing them from the competitor before joining.",
-        "Ignore their current bookings."
-      ]
-    },
-    {
-      id: "Q10",
-      question: "What 3 key details would attract an international traveler to a rural homestay over a city hotel?",
-      options: [
-        "Local culture, unique experiences, lower price.",
-        "Basic amenities, strict rules, remote location.",
-        "Poor transport, high price, privacy.",
-        "Limited food, shared bathrooms, low security."
-      ]
-    },
-    {
-      id: "Q11",
-      question: "A local festival is expected to bring 1,000 visitors. What's your plan to benefit Jambolush?",
-      options: [
-        "Do nothing; the market will adjust.",
-        "Pre-onboard nearby properties and promote festival packages.",
-        "Increase commission rates temporarily.",
-        "Block bookings during the event."
-      ]
-    },
-    {
-      id: "Q12",
-      question: "A host says, 'Your commission is too high.' How do you respond?",
-      options: [
-        "Explain marketing value and higher booking potential.",
-        "Compare to less reputable platforms.",
-        "Offer unapproved discounts.",
-        "Tell them all competitors charge more."
-      ]
-    },
-    {
-      id: "Q13",
-      question: "If bookings drop 25% in your area, what could be a cause?",
-      options: [
-        "Seasonal changes, economic downturn, increased competition.",
-        "Host mood swings, random chance, inflation only.",
-        "Weather, but nothing else matters.",
-        "Always guest fault."
-      ]
-    },
-    {
-      id: "Q14",
-      question: "What low-cost marketing tactic can bring 10 new hosts in a month?",
-      options: [
-        "Community presentations and local partnerships.",
-        "Expensive TV ads only.",
-        "Waiting for hosts to find the website.",
-        "Sending flyers without follow-up."
-      ]
-    },
-    {
-      id: "Q15",
-      question: "A luxury property owner wants no nearby competition. How do you respond?",
-      options: [
-        "Explain fairness policy and focus on their unique value.",
-        "Agree and block other listings.",
-        "Ignore request and list anyway without telling.",
-        "Offer secret deals."
-      ]
-    },
-    {
-      id: "Q16",
-      question: "Describe a time you worked without immediate reward. Why?",
-      options: [
-        "Because I believed in the long-term outcome.",
-        "Because I was forced.",
-        "I never work without immediate pay.",
-        "Only for friends."
-      ]
-    },
-    {
-      id: "Q17",
-      question: "If given easy and difficult leads, which do you choose first?",
-      options: [
-        "Difficult — shows skill and earns trust.",
-        "Easy — quick win.",
-        "Ignore both.",
-        "Let others decide."
-      ]
-    },
-    {
-      id: "Q18",
-      question: "Zero commission month — what do you do?",
-      options: [
-        "Quit immediately.",
-        "Stay motivated and work on leads.",
-        "Complain to management.",
-        "Take a break from work."
-      ]
-    },
-    {
-      id: "Q19",
-      question: "What sacrifice are you willing to make to hit targets?",
-      options: [
-        "Extra hours and weekend work.",
-        "Cutting corners.",
-        "Ignoring ethics.",
-        "None."
-      ]
-    },
-    {
-      id: "Q20",
-      question: "As CEO for a day, what's your move to boost agents?",
-      options: [
-        "Introduce performance bonuses.",
-        "Fire half the team.",
-        "Cut training budget.",
-        "Reduce commission rates only."
-      ]
-    },
-    {
-      id: "Q21",
-      question: "A property owner distrusts online platforms. How do you pitch Jambolush?",
-      options: [
-        "Focus on trust, visibility, and guest screening.",
-        "Say everyone else is online.",
-        "Avoid the conversation.",
-        "Force them to sign."
-      ]
-    },
-    {
-      id: "Q22",
-      question: "Host claims non-payment but records show payment sent. What do you do?",
-      options: [
-        "Provide proof and assist with bank follow-up.",
-        "Ignore complaint.",
-        "Argue until they accept.",
-        "Send payment twice."
-      ]
-    },
-    {
-      id: "Q23",
-      question: "Explain policy to someone who never used internet:",
-      options: [
-        "Use simple language and examples.",
-        "Read it fast.",
-        "Send them a link only.",
-        "Skip explanation."
-      ]
-    },
-    {
-      id: "Q24",
-      question: "Neighbor says property is unsafe. What's your move?",
-      options: [
-        "Investigate discreetly and verify.",
-        "Ignore.",
-        "Blacklist immediately.",
-        "Tell host without checking."
-      ]
-    },
-    {
-      id: "Q25",
-      question: "Close a host deal in under 5 minutes — your approach?",
-      options: [
-        "Highlight benefits and act confident.",
-        "Read entire T&C line by line.",
-        "Ask them to decide later.",
-        "Discuss personal stories only."
-      ]
-    },
-    {
-      id: "Q26",
-      question: "Skeptical meeting audience — what do you do?",
-      options: [
-        "Engage with real success stories.",
-        "Ignore them.",
-        "End presentation early.",
-        "Offer random discounts."
-      ]
-    },
-    {
-      id: "Q27",
-      question: "Negative review going viral — your step?",
-      options: [
-        "Address issue publicly with solution.",
-        "Delete all reviews.",
-        "Ignore.",
-        "Blame the guest."
-      ]
-    },
-    {
-      id: "Q28",
-      question: "Two hosts argue in meeting — what's your action?",
-      options: [
-        "Calm both and refocus discussion.",
-        "Leave room.",
-        "Take sides.",
-        "End meeting abruptly."
-      ]
-    },
-    {
-      id: "Q29",
-      question: "Great location, no safety features — list it?",
-      options: [
-        "No, require upgrades first.",
-        "Yes, waive requirements.",
-        "Yes, but temporary pending fix.",
-        "Blacklist property."
-      ]
-    },
-    {
-      id: "Q30",
-      question: "Another agent poaching leads — your action?",
-      options: [
-        "Report professionally and protect leads.",
-        "Ignore.",
-        "Confront aggressively.",
-        "Poach theirs back."
-      ]
-    },
-    {
-      id: "Q31",
-      question: "Property used for illegal activities after listing — step?",
-      options: [
-        "Remove listing, report to authorities.",
-        "Ignore to keep revenue.",
-        "Warn host only.",
-        "Reduce visibility."
-      ]
-    },
-    {
-      id: "Q32",
-      question: "Host cancels last-minute — guest upset. Action?",
-      options: [
-        "Offer alternative and assist refund.",
-        "Ignore.",
-        "Blame guest.",
-        "Blacklist host instantly."
-      ]
-    },
-    {
-      id: "Q33",
-      question: "Host refuses contract but wants listing — do you?",
-      options: [
-        "No, require signed contract.",
-        "Yes, verbal deal.",
-        "Yes, skip paperwork.",
-        "Yes, under fake profile."
-      ]
-    },
-    {
-      id: "Q34",
-      question: "Competitor recruits in your area — counter move?",
-      options: [
-        "Highlight your platform's unique benefits.",
-        "Ignore.",
-        "Join competitor.",
-        "Cut commission to zero."
-      ]
-    },
-    {
-      id: "Q35",
-      question: "Upload property with bad internet — how?",
-      options: [
-        "Save offline and upload when connected.",
-        "Cancel listing.",
-        "Ask host to upload.",
-        "Skip photos."
-      ]
-    },
-    {
-      id: "Q36",
-      question: "No tripod for photos — solution?",
-      options: [
-        "Stabilize phone against solid object.",
-        "Hold phone loosely.",
-        "Use zoom only.",
-        "Skip photography."
-      ]
-    },
-    {
-      id: "Q37",
-      question: "No dimensions given — what's your method?",
-      options: [
-        "Measure manually with tape.",
-        "Guess.",
-        "Ask host without verifying.",
-        "Leave blank."
-      ]
-    },
-    {
-      id: "Q38",
-      question: "Verify host ID — process?",
-      options: [
-        "Check authenticity and match with person.",
-        "Accept any photo.",
-        "Ignore verification.",
-        "Use expired ID."
-      ]
-    },
-    {
-      id: "Q39",
-      question: "Social media caption for new listing:",
-      options: [
-        "Discover comfort and style at the heart of the city — book now!",
-        "Cheap rooms here.",
-        "Random emojis.",
-        "Contact us maybe."
-      ]
-    },
-    {
-      id: "Q40",
-      question: "Limited info from host — how to list?",
-      options: [
-        "Collect minimum required and schedule follow-up.",
-        "Guess missing details.",
-        "Publish incomplete listing.",
-        "Skip verification."
-      ]
-    }
-  ];
-  
-  const questionsPerPage = 3;
-  const totalQuestionPages = Math.ceil(questions.length / questionsPerPage);
-  const totalSteps = totalQuestionPages + 2; // Includes Welcome and Submit pages
 
   // Fetch user data on component mount
   useEffect(() => {
@@ -942,16 +851,38 @@ const AssessmentContent: React.FC = () => {
   };
 
   const handleAnswerSelect = (questionId: string, optionIndex: number) => {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return;
+
     setAnswers(prev => {
       const existing = prev.find(a => a.questionId === questionId);
-      if (existing) {
-        return prev.map(a =>
-          a.questionId === questionId
-            ? { ...a, selectedOptions: [optionIndex] }
-            : a
-        );
+      
+      if (question.isMultipleSelect) {
+        // Handle multiple select questions
+        if (existing) {
+          const newSelection = existing.selectedOptions.includes(optionIndex)
+            ? existing.selectedOptions.filter(idx => idx !== optionIndex)
+            : [...existing.selectedOptions, optionIndex];
+          
+          return prev.map(a =>
+            a.questionId === questionId
+              ? { ...a, selectedOptions: newSelection }
+              : a
+          );
+        } else {
+          return [...prev, { questionId, selectedOptions: [optionIndex] }];
+        }
       } else {
-        return [...prev, { questionId, selectedOptions: [optionIndex] }];
+        // Handle single select questions
+        if (existing) {
+          return prev.map(a =>
+            a.questionId === questionId
+              ? { ...a, selectedOptions: [optionIndex] }
+              : a
+          );
+        } else {
+          return [...prev, { questionId, selectedOptions: [optionIndex] }];
+        }
       }
     });
   };
@@ -996,47 +927,58 @@ const AssessmentContent: React.FC = () => {
     
     setIsSubmitting(true);
     setEmailError(null);
+    setSaveError(null);
     
     try {
+      // Calculate results first
+      const results = calculateResults();
+      setAssessmentResult(results);
+
       const userName = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Assessment Candidate';
       const userEmail = user?.email || 'candidate@example.com';
       
-      console.log('Starting email submission process...');
-      console.log('User Name:', userName);
-      console.log('User Email:', userEmail);
-      console.log('Assessment Answers:', answers);
+      console.log('Assessment Results:', results);
       
-      // Send both emails concurrently
+      // Save to database
+      const savedToDb = await saveAssessmentToDatabase(results);
+      
+      // Send enhanced emails with results
       const [adminEmailSent, userEmailSent] = await Promise.all([
-        sendAdminNotification(userEmail, userName, answers),
-        sendUserConfirmation(userEmail, userName)
+        sendEnhancedAdminNotification(userEmail, userName, answers, results),
+        sendEnhancedUserConfirmation(userEmail, userName, results)
       ]);
       
-      if (adminEmailSent && userEmailSent) {
-        console.log('✅ Both emails sent successfully');
-      } else if (adminEmailSent) {
-        console.log('⚠️ Admin email sent, but user confirmation failed');
-        setEmailError('Assessment submitted successfully, but confirmation email failed to send.');
-      } else if (userEmailSent) {
-        console.log('⚠️ User confirmation sent, but admin notification failed');
-        setEmailError('Assessment submitted, but admin notification failed.');
-      } else {
-        console.log('❌ Both emails failed to send');
-        setEmailError('Assessment submitted, but email notifications failed. We will still review your submission.');
+      if (!adminEmailSent || !userEmailSent) {
+        setEmailError('Assessment completed but some notifications failed to send.');
+      }
+
+      if (!savedToDb) {
+        setSaveError('Results calculated but database save failed.');
       }
       
-      // You can add additional API call here to save assessment data to your database
-      // await api.post('assessments', { answers, userId: user?.id, completedAt: new Date() });
-      
       setAssessmentCompleted(true);
+      setShowResults(true);
       
     } catch (error) {
       console.error('Error during submission process:', error);
-      setEmailError('There was an issue with the submission process, but your assessment has been recorded.');
-      setAssessmentCompleted(true); // Still mark as completed
+      setEmailError('Submission completed with some issues. Your results are still recorded.');
+      
+      // Still show results even if there were errors
+      const results = calculateResults();
+      setAssessmentResult(results);
+      setAssessmentCompleted(true);
+      setShowResults(true);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleViewResults = () => {
+    setShowResults(true);
+  };
+
+  const handleBackToSummary = () => {
+    setShowResults(false);
   };
 
   // Component renders
@@ -1056,15 +998,26 @@ const AssessmentContent: React.FC = () => {
 
   // Time expired state
   if (timeExpired) {
+    const results = calculateResults();
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl text-center">
           <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <i className="bi bi-clock text-red-600" style={{ fontSize: '3rem' }}></i>
+            <svg className="w-12 h-12 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Time's Up!</h2>
-          <p className="text-gray-600 mb-8">
-            Unfortunately, you've run out of time. Your progress has been saved and will be reviewed by our team.
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Time's Up!</h2>
+          
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mb-6">
+            <h3 className="text-xl font-bold text-amber-800 mb-2">Your Results</h3>
+            <div className="text-3xl font-bold text-amber-900 mb-2">{results.percentage}%</div>
+            <p className="text-amber-700">{results.correctAnswers} out of {results.totalQuestions} correct</p>
+          </div>
+          
+          <p className="text-gray-600 mb-6">
+            Your progress has been automatically saved and submitted for review.
           </p>
           <p className="text-sm text-gray-500">
             We will be in touch regarding the next steps in the coming days.
@@ -1074,23 +1027,162 @@ const AssessmentContent: React.FC = () => {
     );
   }
 
-  // Assessment completed state
-  if (assessmentCompleted) {
+  // Results view
+  if (assessmentCompleted && showResults && assessmentResult) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4 font-sans">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-lg text-center">
-          <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <i className="bi bi-check-circle-fill text-green-600" style={{ fontSize: '3rem' }}></i>
+      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="bg-white rounded-t-3xl shadow-2xl p-8 text-center">
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
+              assessmentResult.percentage >= 70 ? 'bg-green-100' : 
+              assessmentResult.percentage >= 50 ? 'bg-yellow-100' : 'bg-red-100'
+            }`}>
+              <div className={`text-4xl font-bold ${
+                assessmentResult.percentage >= 70 ? 'text-green-600' : 
+                assessmentResult.percentage >= 50 ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {assessmentResult.percentage}%
+              </div>
+            </div>
+            
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Assessment Results</h2>
+            <p className="text-lg text-gray-600 mb-4">
+              You scored {assessmentResult.correctAnswers} out of {assessmentResult.totalQuestions} questions correctly
+            </p>
+            
+            <div className="flex justify-center space-x-4 mb-6">
+              <button
+                onClick={handleBackToSummary}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
+              >
+                ← Back to Summary
+              </button>
+            </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Assessment Submitted Successfully!</h2>
-          <p className="text-gray-600 mb-6">
-            Thank you for completing the Jambolush Field Agent Assessment. Your responses are now under review by our expert team.
-          </p>
-          {emailError && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-              <p className="text-amber-800 text-sm">{emailError}</p>
+
+          {/* Detailed Results */}
+          <div className="bg-white rounded-b-3xl shadow-2xl p-8 max-h-96 overflow-y-auto">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">Question-by-Question Review</h3>
+            
+            <div className="space-y-6">
+              {assessmentResult.questionsResults.map((result, index) => (
+                <div
+                  key={result.questionId}
+                  className={`p-6 rounded-xl border-2 ${
+                    result.isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-gray-900 flex-1">
+                      Q{index + 1}: {result.question}
+                    </h4>
+                    <div className={`ml-4 px-3 py-1 rounded-full text-sm font-bold ${
+                      result.isCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                    }`}>
+                      {result.isCorrect ? 'Correct' : 'Incorrect'}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <strong className="text-gray-700">Your answer: </strong>
+                      <span className={result.isCorrect ? 'text-green-700' : 'text-red-700'}>
+                        {result.userAnswer.length > 0 
+                          ? result.userAnswer.map(idx => questions.find(q => q.id === result.questionId)?.options[idx]).join(', ')
+                          : 'No answer selected'
+                        }
+                      </span>
+                    </div>
+                    
+                    {!result.isCorrect && (
+                      <div className="text-sm">
+                        <strong className="text-gray-700">Correct answer: </strong>
+                        <span className="text-green-700">
+                          {result.correctAnswer.map(idx => 
+                            questions.find(q => q.id === result.questionId)?.options[idx]
+                          ).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Error Messages */}
+          {(emailError || saveError) && (
+            <div className="mt-6 space-y-3">
+              {emailError && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-amber-800 text-sm">{emailError}</p>
+                </div>
+              )}
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 text-sm">{saveError}</p>
+                </div>
+              )}
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // Assessment completed summary state
+  if (assessmentCompleted && !showResults) {
+    return (
+      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl text-center">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${
+            assessmentResult && assessmentResult.percentage >= 80 ? 'bg-green-100' : 
+            assessmentResult && assessmentResult.percentage >= 50 ? 'bg-yellow-100' : 'bg-red-100'
+          }`}>
+            <svg className="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Assessment Submitted Successfully!</h2>
+          
+          {assessmentResult && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
+              <h3 className="text-xl font-bold text-blue-800 mb-2">Your Score</h3>
+              <div className="text-4xl font-bold text-blue-900 mb-2">{assessmentResult.percentage}%</div>
+              <p className="text-blue-700">{assessmentResult.correctAnswers} out of {assessmentResult.totalQuestions} correct</p>
+            </div>
+          )}
+          
+          <p className="text-gray-600 mb-6">
+            Thank you for completing the Jambolush Field Agent Assessment. Your responses have been recorded and our expert team will review them carefully.
+          </p>
+          
+          {assessmentResult && (
+            <button
+              onClick={handleViewResults}
+              className="mb-6 px-8 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-semibold"
+            >
+              View Detailed Results
+            </button>
+          )}
+
+          {(emailError || saveError) && (
+            <div className="space-y-3 mb-6">
+              {emailError && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-amber-800 text-sm">{emailError}</p>
+                </div>
+              )}
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 text-sm">{saveError}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
           <p className="text-sm text-gray-500 mb-4">
             You will receive feedback and results via email within 3-5 business days.
           </p>
@@ -1104,12 +1196,14 @@ const AssessmentContent: React.FC = () => {
 
   // Main assessment interface
   return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans flex flex-col pt-10">
+    <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
       {/* Time alert notification */}
       {showTimeAlert && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
-            <i className="bi bi-exclamation-circle-fill me-3"></i>
+            <svg className="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
             <span className="font-semibold">Time Check: {formatTime(timeRemaining)} remaining</span>
           </div>
         </div>
@@ -1129,9 +1223,12 @@ const AssessmentContent: React.FC = () => {
             </p>
           </div>
           {assessmentStarted && !assessmentCompleted && (
-            <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'
-              }`}>
-              <i className="bi bi-clock-fill text-white me-2"></i>
+            <div className={`flex items-center px-4 py-2 rounded-xl transition-colors duration-300 ${
+              timeRemaining <= 1200 ? 'bg-red-500/90 animate-pulse' : 'bg-black/20'
+            }`}>
+              <svg className="w-5 h-5 text-white mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V5z" clipRule="evenodd" />
+              </svg>
               <span className="font-mono text-lg font-medium text-white">
                 {formatTime(timeRemaining)}
               </span>
@@ -1160,23 +1257,28 @@ const AssessmentContent: React.FC = () => {
       )}
 
       {/* Main content */}
-      <main className="flex-grow w-full bg-white">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12">
+      <main className="flex-grow w-full bg-white overflow-hidden overflow-y-visible min-h-[50vh] max-h-[80vh]">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12 mb-4">
           
           {/* Welcome step */}
           {currentStep === 0 && (
-            <div className="space-y-8">
+            <div className="space-y-8 mb-12">
               {/* User information display */}
               {user && (
                 <div className="bg-blue-50 border-l-4 border-[#083A85] rounded-r-lg p-6">
                   <div className="flex items-center mb-4">
-                    <i className="bi bi-person-fill text-[#083A85] me-3"></i>
+                    <svg className="w-6 h-6 text-[#083A85] mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                    </svg>
                     <span className="font-semibold text-slate-800">
                       {user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Assessment Candidate'}
                     </span>
                   </div>
                   <div className="flex items-center">
-                    <i className="bi bi-envelope-fill text-[#083A85] me-3"></i>
+                    <svg className="w-6 h-6 text-[#083A85] mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                    </svg>
                     <span className="font-bold text-slate-700">{user.email}</span>
                   </div>
                 </div>
@@ -1195,12 +1297,13 @@ const AssessmentContent: React.FC = () => {
                   <h3 className="font-bold text-slate-800 mb-4 text-lg">Important Instructions:</h3>
                   <ul className="space-y-3 text-slate-700">
                     {[
-                      { text: `You have <strong>1 hour and 20 minutes</strong> to complete all 40 questions.` },
-                      { text: "Each question has only one correct answer. Choose the most appropriate option." },
+                      { text: `You have <strong>1 hour and 20 minutes</strong> to complete all ${questions.length} questions.` },
+                      { text: "Most questions have one correct answer. Some allow multiple selections." },
                       { text: "Time alerts will appear when you have 50 and 20 minutes remaining." },
                       { text: "The timer will turn red and pulse when <strong>20 minutes</strong> remain." },
                       { text: "Once started, the assessment cannot be paused. Ensure you're in a quiet environment." },
-                      { text: "You can navigate back to previous questions to review your answers." }
+                      { text: "You can navigate back to previous questions to review your answers." },
+                      { text: "Your results will be calculated and displayed immediately after submission." }
                     ].map((item, i) => (
                       <li key={i} className="flex items-start">
                         <span className="text-amber-500 mr-3 mt-1 text-xl font-bold">•</span>
@@ -1212,9 +1315,11 @@ const AssessmentContent: React.FC = () => {
 
                 <button
                   onClick={handleNext}
-                  className="cursor-pointer inline-flex place-items-center px-12 py-4 bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white font-bold text-lg rounded-full hover:from-[#0a4499] hover:to-[#0c52b8] transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
+                  className="cursor-pointer inline-flex items-center px-12 py-4 bg-gradient-to-br from-[#083A85] to-[#0a4499] text-white font-bold text-lg rounded-full hover:from-[#0a4499] hover:to-[#0c52b8] transition-all shadow-lg hover:shadow-2xl transform hover:scale-105"
                 >
-                  <i className="bi bi-play-fill me-2" style={{ fontSize: '1.5rem' }}></i>
+                  <svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
                   Start Assessment
                 </button>
               </div>
@@ -1223,7 +1328,7 @@ const AssessmentContent: React.FC = () => {
 
           {/* Question steps */}
           {currentStep > 0 && currentStep < totalSteps - 1 && (
-            <div className="space-y-10">
+            <div className="space-y-10 mb-20">
               {getQuestionsForPage(currentStep - 1).map((question, idx) => {
                 const globalIdx = ((currentStep - 1) * questionsPerPage) + idx;
                 return (
@@ -1236,6 +1341,11 @@ const AssessmentContent: React.FC = () => {
                         <p className="text-xl text-slate-900 font-bold leading-relaxed">
                           {question.question}
                         </p>
+                        {question.isMultipleSelect && (
+                          <p className="text-sm text-blue-600 font-medium mt-2">
+                            * Multiple answers may be correct - select all that apply
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1245,20 +1355,31 @@ const AssessmentContent: React.FC = () => {
                         return (
                           <label
                             key={optionIdx}
-                            className={`flex items-center p-4 rounded-xl transition-all duration-200 border-2 cursor-pointer ${isSelected
-                              ? 'bg-blue-50 border-[#083A85] shadow-md transform scale-[1.02]'
-                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm'
-                              }`}
+                            className={`flex items-center p-4 rounded-xl transition-all duration-200 border-2 cursor-pointer ${
+                              isSelected
+                                ? 'bg-blue-50 border-[#083A85] shadow-md transform scale-[1.02]'
+                                : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm'
+                            }`}
                           >
                             <input
-                              type="radio"
+                              type={question.isMultipleSelect ? "checkbox" : "radio"}
                               name={`question-${question.id}`}
                               checked={isSelected}
                               onChange={() => handleAnswerSelect(question.id, optionIdx)}
                               className="sr-only"
                             />
-                            <div className={`w-6 h-6 rounded-full border-2 flex-shrink-0 mr-4 flex items-center justify-center transition-all ${isSelected ? 'border-[#083A85] bg-[#083A85]' : 'border-slate-400'}`}>
-                                {isSelected && <div className="w-3 h-3 bg-white rounded-full"></div>}
+                            <div className={`w-6 h-6 ${question.isMultipleSelect ? 'rounded' : 'rounded-full'} border-2 flex-shrink-0 mr-4 flex items-center justify-center transition-all ${
+                              isSelected ? 'border-[#083A85] bg-[#083A85]' : 'border-slate-400'
+                            }`}>
+                              {isSelected && (
+                                question.isMultipleSelect ? (
+                                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  <div className="w-3 h-3 bg-white rounded-full"></div>
+                                )
+                              )}
                             </div>
                             <span className="text-slate-800 font-medium text-base leading-relaxed">
                               {option}
@@ -1287,7 +1408,9 @@ const AssessmentContent: React.FC = () => {
                 {/* Completion summary */}
                 <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-6 max-w-md mx-auto">
                   <div className="flex items-center justify-center mb-4">
-                    <i className="bi bi-check-circle-fill text-green-600 me-3" style={{ fontSize: '2.5rem' }}></i>
+                    <svg className="w-12 h-12 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
                     <div className="text-left">
                       <div className="text-2xl font-bold text-slate-800">
                         {answers.filter(a => a.selectedOptions.length > 0).length} of {questions.length}
@@ -1305,7 +1428,8 @@ const AssessmentContent: React.FC = () => {
                   <h3 className="font-bold text-slate-800 mb-3">Submission Confirmation</h3>
                   <p className="text-slate-700 leading-relaxed">
                     By submitting this assessment, you confirm that these answers represent your own work and understanding. 
-                    Our expert team will review your responses carefully, and you will receive feedback within 3-5 business days.
+                    Your results will be calculated automatically and displayed immediately, and our expert team will receive 
+                    a detailed report for review.
                   </p>
                 </div>
 
@@ -1317,23 +1441,18 @@ const AssessmentContent: React.FC = () => {
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin me-3"></div>
-                      Submitting Assessment...
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin mr-3"></div>
+                      Processing Assessment...
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-send-fill me-3" style={{ fontSize: '1.5rem' }}></i>
+                      <svg className="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                      </svg>
                       Submit Assessment
                     </>
                   )}
                 </button>
-
-                {/* Error message */}
-                {emailError && (
-                  <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md mx-auto">
-                    <p className="text-amber-800 text-sm">{emailError}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1350,24 +1469,26 @@ const AssessmentContent: React.FC = () => {
             disabled={currentStep === 0}
             className="cursor-pointer inline-flex items-center px-6 py-3 rounded-full font-semibold transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:hover:bg-slate-200"
           >
-            <i className="bi bi-chevron-left me-2"></i>
+            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
             Previous
           </button>
 
           {/* Step indicators */}
           <div className="flex items-center space-x-2">
-              {Array.from({ length: totalSteps }).map((_, stepIndex) => (
-                  <div
-                      key={stepIndex}
-                      className={`h-3 rounded-full transition-all duration-300 ${
-                          stepIndex === currentStep
-                              ? 'w-10 bg-gradient-to-r from-[#083A85] to-[#0a4499]'
-                              : stepIndex < currentStep
-                              ? 'w-3 bg-[#083A85]'
-                              : 'w-3 bg-slate-300'
-                      }`}
-                  />
-              ))}
+            {Array.from({ length: totalSteps }).map((_, stepIndex) => (
+              <div
+                key={stepIndex}
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  stepIndex === currentStep
+                    ? 'w-10 bg-gradient-to-r from-[#083A85] to-[#0a4499]'
+                    : stepIndex < currentStep
+                    ? 'w-3 bg-[#083A85]'
+                    : 'w-3 bg-slate-300'
+                }`}
+              />
+            ))}
           </div>
 
           {/* Next button */}
@@ -1381,12 +1502,16 @@ const AssessmentContent: React.FC = () => {
               {currentStep === 0 ? (
                 <>
                   Start Assessment
-                  <i className="bi bi-chevron-right ms-2"></i>
+                  <svg className="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
                 </>
               ) : (
                 <>
                   Next
-                  <i className="bi bi-chevron-right ms-2"></i>
+                  <svg className="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
                 </>
               )}
             </button>

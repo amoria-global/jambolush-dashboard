@@ -122,8 +122,8 @@ const TourGuideSchedulePage: React.FC = () => {
   const fetchAvailableTours = async () => {
     try {
       const response: any = await api.get('/tours/guide/my-tours');
-      if (response.success) {
-        setAvailableTours(response.data || []);
+      if (response.data.success) {
+        setAvailableTours(response.data.data.tours || []);
       }
     } catch (err) {
       console.error('Error fetching tours:', err);
@@ -151,7 +151,7 @@ const TourGuideSchedulePage: React.FC = () => {
         try {
           const response: any = await api.get(`/tours/guide/bookings/calendar?year=${year}&month=${month}`);
           
-          if (response.success && response.data.data?.days) {
+          if (response.data.success && response.data.data?.days) {
             const monthSchedules = response.data.data.days.flatMap((day: any) => 
               day.tours?.map((tour: any) => ({
                 ...tour,
@@ -188,8 +188,8 @@ const TourGuideSchedulePage: React.FC = () => {
     try {
       const response: any = await api.get(`/tours/guide/bookings/calendar?year=${year}&month=${month + 1}`);
       
-      if (response.success) {
-        const calendarDays = response.data.days.map((day: any) => ({
+      if (response.data.success) {
+        const calendarDays = response.data.data.days.map((day: any) => ({
           ...day,
           date: day.date,
           tours: day.tours.map((tour: any) => ({
@@ -218,9 +218,9 @@ const TourGuideSchedulePage: React.FC = () => {
       
       const response: any = await api.post(`/tours/${scheduleData.tourId}/schedules`, scheduleData);
       
-      if (response.success) {
+      if (response.data.success) {
         await fetchTourSchedules(); // Refresh data
-        return response.data;
+        return response.data.data;
       } else {
         throw new Error(response.message || 'Failed to create schedule');
       }
@@ -238,9 +238,9 @@ const TourGuideSchedulePage: React.FC = () => {
       setLoading(true);
       const response: any = await api.put(`/tours/schedules/${scheduleId}`, scheduleData);
       
-      if (response.success) {
+      if (response.data.success) {
         await fetchTourSchedules(); // Refresh data
-        return response.data;
+        return response.data.data;
       } else {
         throw new Error(response.message || 'Failed to update schedule');
       }
@@ -258,7 +258,7 @@ const TourGuideSchedulePage: React.FC = () => {
       setLoading(true);
       const response: any = await api.delete(`/tours/schedules/${scheduleId}`);
       
-      if (response.success) {
+      if (response.data.success) {
         await fetchTourSchedules(); // Refresh data
         return true;
       } else {
@@ -535,7 +535,7 @@ const TourGuideSchedulePage: React.FC = () => {
         {/* Summary Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4">
               <div>
                 <p className="text-xs sm:text-sm text-gray-600">Today</p>
                 <p className="text-lg sm:text-2xl font-bold text-gray-900">{summaryStats.today}</p>

@@ -251,7 +251,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
     // Not authenticated - this will trigger redirect to login
     if (!isAuthenticated || !session) {
-        return null;
+        return "loading ... ";
     }
 
     return (
@@ -353,23 +353,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
                 {/* Profile Section */}
                 <div className="p-4">
-                    <Link
-                        href="/all/profile"
-                        className="flex items-center space-x-3 px-3 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-200"
-                    >
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden" style={{ backgroundColor: '#F20C8F' }}>
-                            {session.user.profile ? (
-                                <img src={session.user.profile} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <span className="text-white text-sm font-semibold">{getUserAvatar()}</span>
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-base font-medium text-black truncate">{getUserDisplayName()}</p>
-                            <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
-                        </div>
-                    </Link>
-
                     {/* Logout Button */}
                     <button
                         onClick={handleLogout}

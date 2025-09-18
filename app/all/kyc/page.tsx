@@ -438,7 +438,7 @@ const KYCUploadPage: React.FC = () => {
         setIsModalOpen(false);
         resetForm();
         // Redirect to dashboard or verification status page
-        router.push('/all/dashboard');
+        router.push('/');
       }, 3000);
 
     } catch (error: any) {
@@ -547,7 +547,7 @@ const KYCUploadPage: React.FC = () => {
       <head>
         <title>KYC Verification - Amoria Global</title>
       </head>
-      <div className="min-h-screen bg-gray-50">
+      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
@@ -562,7 +562,7 @@ const KYCUploadPage: React.FC = () => {
                     )}
                   </div>
                   <button 
-                    onClick={() => {setIsModalOpen(false); router.push("/all/dashboard")}} 
+                    onClick={() => {setIsModalOpen(false); router.push("/")}} 
                     className="cursor-pointer"
                   >
                     <div className="w-8 h-8 sm:w-10 sm:h-10 p-2 sm:p-3 bg-gray-300 text-black-400 hover:text-white hover:bg-red-500 rounded-full transition-colors flex items-center justify-center">
@@ -654,7 +654,7 @@ const KYCUploadPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-y-auto" style={{ maxHeight: 'calc(95vh - 240px)' }}>
+                <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-y-auto mb-8" style={{ maxHeight: 'calc(95vh - 240px)' }}>
                   {/* Step 1: Personal Details */}
                   {currentStep === 1 && (
                     <div className="space-y-4 sm:space-y-6">

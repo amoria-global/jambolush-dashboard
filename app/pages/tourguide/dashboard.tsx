@@ -16,6 +16,7 @@ const TourGuideDashboard = () => {
     const [toursData, setToursData] = useState<any>([]);
     const [loading, setLoading] = useState<any>(true);
     const [error, setError] = useState<any>(null);
+    const [userName, setUserName] = useState('Tour Guide');
 
     // Fetch all dashboard data
     useEffect(() => {
@@ -35,7 +36,7 @@ const TourGuideDashboard = () => {
 
                 // Fetch recent bookings
                 const bookingsResponse = await api.get('/tours/guide/bookings');
-                setBookingsData(bookingsResponse.data.data);
+                setBookingsData(bookingsResponse.data.data.bookings);
 
                 // Fetch earnings data
                 const earningsResponse = await api.get('/tours/guide/earnings');
@@ -43,7 +44,7 @@ const TourGuideDashboard = () => {
 
                 // Fetch guide's tours
                 const toursResponse = await api.get('/tours/guide/my-tours');
-                setToursData(toursResponse.data.data);
+                setToursData(toursResponse.data.data.tours);
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -251,10 +252,32 @@ const TourGuideDashboard = () => {
             icon: 'translate' 
         },
     ];
+    
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 17) return 'Good afternoon';
+        if (hour < 21) return 'Good evening';
+        return 'Good night';
+    };
 
+    // Load user name from localStorage or context
+                const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+                if (user.name) {
+                    setUserName(user.name);
+                }
+    
     return (
         <div className="mt-20">
             <div className="max-w-7xl mx-auto">
+                          
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+                        {getTimeBasedGreeting()}, {userName}!
+                    </h1>
+                    <p className="text-gray-600 text-md">Here's what's happening with your property business</p>
+                </div>
                
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">

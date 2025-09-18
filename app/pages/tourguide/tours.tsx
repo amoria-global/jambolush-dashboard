@@ -417,7 +417,7 @@ const TourGuideMyTours: FC = () => {
 
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-[#083A85] mb-2">My Tours Dashboard</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#083A85]">My Tours</h1>
             <p className="text-gray-600">Manage all your tours and experiences in one place.</p>
           </div>
           <button 
