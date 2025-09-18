@@ -100,6 +100,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+  const [userName, setUserName] = useState('Tour Guide');
 
   // Chart data state
   const [chartData, setChartData] = useState({
@@ -141,6 +142,11 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+
+      const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+                if (user.name) {
+                    setUserName(user.name);
+                }
 
       // Initialize with default data
       let tempDashboardData = getDefaultDashboardData() as EnhancedHostDashboard;
@@ -274,6 +280,18 @@ const Dashboard: React.FC = () => {
     }
   };
 
+
+
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 17) return 'Good afternoon';
+        if (hour < 21) return 'Good evening';
+        return 'Good night';
+    };
+
+
+
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -354,11 +372,13 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Host Dashboard</h1>
-              <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with your properties.</p>
-            </div>
-            
+             {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+                        {getTimeBasedGreeting()}, {userName}!
+                    </h1>
+                    <p className="text-gray-600 text-md">Here's what's happening with your property business</p>
+                </div>
             {/* Time Range Selector */}
             <div className="flex gap-2">
               {(['week', 'month', 'quarter', 'year'] as const).map((range) => (

@@ -23,7 +23,11 @@ const TourGuideDashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                
+
+                const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+                if (user.name) {
+                    setUserName(user.name);
+                }
                 // Fetch basic dashboard data
                 const dashboardResponse = await api.get('/tours/guide/dashboard');
                 const dashboard = dashboardResponse.data.data;
@@ -262,10 +266,7 @@ const TourGuideDashboard = () => {
     };
 
     // Load user name from localStorage or context
-                const user = JSON.parse(localStorage.getItem('userSession') || '{}');
-                if (user.name) {
-                    setUserName(user.name);
-                }
+               
     
     return (
         <div className="mt-20">
