@@ -431,7 +431,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     }
 
     // Not authenticated - this will trigger redirect to login
-    if (!isAuthenticated || !user || !userSession) {
+    if (!isAuthenticated || !user) {
         return null;
     }
 
