@@ -1,11 +1,12 @@
-// app/components/sidebar.tsx
+//app/components/sidebar.tsx 
 "use client";
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import authService, { UserSession } from '@/app/api/authService';
+import api from "../api/apiService"; // Import your API service
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
+type TourGuideType = 'freelancer' | 'employed';
 
 interface NavigationItem {
     label: string;
@@ -18,115 +19,269 @@ interface SideBarProps {
   toggleSidebar: () => void;
 }
 
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  phoneCountryCode?: string;
+  profile?: string | null;
+  country?: string;
+  state?: string | null;
+  province?: string | null;
+  city?: string | null;
+  street?: string | null;
+  zipCode?: string | null;
+  postalCode?: string | null;
+  postcode?: string | null;
+  pinCode?: string | null;
+  eircode?: string | null;
+  cep?: string | null;
+  status: string;
+  userType: UserRole; // This maps to our role system
+  provider?: string;
+  tourGuideType?: TourGuideType; // Added property to fix compile error
+}
+
+interface UserSession {
+    user: UserProfile;
+    token: string;
+    role: UserRole;
+}
+
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const [session, setSession] = useState<UserSession | null>(null);
+    const [userSession, setUserSession] = useState<UserSession | null>(null);
+    const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    // URL parameters state
+    const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
 
     const pathname = usePathname();
     const router = useRouter();
 
-    // Initialize auth service and session
+    // Client-side URL parameter extraction
     useEffect(() => {
-        const initializeAuth = async () => {
-            try {
-                setIsLoading(true);
-                const userSession = await authService.initialize();
-                
-                if (userSession) {
-                    setSession(userSession);
-                    setIsAuthenticated(true);
-                } else {
-                    setIsAuthenticated(false);
-                    // Don't redirect here - let the page handle it
-                }
-            } catch (error) {
-                console.error('Sidebar auth initialization failed:', error);
-                setIsAuthenticated(false);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        initializeAuth();
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setUrlParams(params);
+        }
     }, []);
 
-    // Listen for auth events
-    useEffect(() => {
-        const handleLogin = (userSession: UserSession) => {
-            setSession(userSession);
-            setIsAuthenticated(true);
-        };
+    // Function to get URL token
+    const getUrlToken = (): string | null => {
+        if (typeof window === 'undefined' || !urlParams) return null;
+        return urlParams.get('token');
+    };
 
-        const handleLogout = () => {
-            setSession(null);
-            setIsAuthenticated(false);
-            // Redirect to login
-        };
+    // Function to get URL refresh token
+    const getUrlRefreshToken = (): string | null => {
+        if (typeof window === 'undefined' || !urlParams) return null;
+        return urlParams.get('refresh_token');
+    };
 
-        const handleProfileUpdate = (updatedUser: any) => {
-            if (session) {
-                const updatedSession = {
-                    ...session,
-                    user: updatedUser
+    // Function to clean URL after token extraction
+    const cleanUrlParams = () => {
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('token');
+            url.searchParams.delete('refresh_token');
+            window.history.replaceState({}, '', url.toString());
+        }
+    };
+
+    // Function to fetch user session from API
+    const fetchUserSession = async () => {
+        try {
+            setIsLoading(true);
+            
+            // Always prioritize token from URL parameters
+            const urlToken = getUrlToken();
+            let authToken: string | null = null;
+
+            if (urlToken) {
+                // Use token from URL parameters
+                authToken = urlToken;
+                
+                // Store token in localStorage immediately
+                localStorage.setItem('authToken', urlToken);
+                localStorage.setItem('refreshToken', getUrlRefreshToken() || '');
+                // Clean URL after storing token
+                cleanUrlParams();
+                
+                console.log('Token retrieved from URL and stored in localStorage');
+            } else {
+                // Fallback to localStorage only if no URL token
+                authToken = localStorage.getItem('authToken');
+            }
+            
+            if (!authToken) {
+                // No token available, redirect to login
+                console.log('No token found, redirecting to login');
+                handleLogout();
+                return;
+            }
+
+            // Set authorization header
+            api.setAuth(authToken);
+            const response = await api.get('auth/me');
+
+            console.log('=== SIDEBAR DEBUG: Full API Response ===', response);
+            console.log('=== SIDEBAR DEBUG: Response.data ===', response.data);
+
+            // FIXED: Access the nested data structure correctly
+            if (response.data && response.data.success && response.data.data) {
+                // FIXED: Extract user data from response.data.data (not response.data)
+                const userData: UserProfile = {
+                    ...response.data.data,
+                    id: response.data.data.id.toString() // Ensure ID is string
                 };
-                setSession(updatedSession);
+                
+                console.log('=== SIDEBAR DEBUG: Extracted User Data ===', userData);
+                console.log('=== SIDEBAR DEBUG: Tour Guide Type ===', userData.tourGuideType);
+                
+                // Validate if user has appropriate role for dashboard access
+                const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
+                if (!validRoles.includes(userData.userType)) {
+                    console.error('Invalid user role:', userData.userType);
+                    handleLogout();
+                    return;
+                }
+
+                // Create user session
+                const sessionData: UserSession = {
+                    user: userData,
+                    token: authToken,
+                    role: userData.userType
+                };
+
+                setUserSession(sessionData);
+                setSession(sessionData); // Keep both for compatibility
+                setUser(userData);
+                setIsAuthenticated(true);
+
+                // Store session data with tour guide type
+                localStorage.setItem('userSession', JSON.stringify({
+                    role: userData.userType,
+                    name: getUserDisplayName(userData),
+                    id: userData.id,
+                    email: userData.email,
+                    tourGuideType: userData.tourGuideType // FIXED: Include tour guide type
+                }));
+
+                console.log('User session established successfully');
+
+            } else {
+                // Invalid token or no user data
+                console.log('Invalid token or no user data, logging out');
+                handleLogout();
             }
-        };
+        } catch (error) {
+            console.error('Failed to fetch user session:', error);
+            handleLogout();
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        const handleTokenRefresh = () => {
-            // Session will be updated automatically by the auth service
-            console.log('Tokens refreshed successfully');
-        };
-
-        const handleSessionExpired = () => {
-            setSession(null);
-            setIsAuthenticated(false);
-        };
-
-        // Subscribe to auth events
-        authService.on('login', handleLogin);
-        authService.on('logout', handleLogout);
-        authService.on('profile_updated', handleProfileUpdate);
-        authService.on('token_refreshed', handleTokenRefresh);
-        authService.on('session_expired', handleSessionExpired);
-
-        // Cleanup
-        return () => {
-            authService.off('login', handleLogin);
-            authService.off('logout', handleLogout);
-            authService.off('profile_updated', handleProfileUpdate);
-            authService.off('token_refreshed', handleTokenRefresh);
-            authService.off('session_expired', handleSessionExpired);
-        };
-    }, [session, router]);
-
-    // Listen for custom profile update events (backward compatibility)
-    useEffect(() => {
-        const handleProfileUpdate = (event: CustomEvent) => {
-            if (session && event.detail.user) {
-                console.log('Sidebar: Profile updated via custom event');
-                authService.updateProfile(event.detail.user);
-            }
-        };
-
-        const handleProfileImageUpdate = (event: CustomEvent) => {
-            if (session && event.detail.profile) {
-                console.log('Sidebar: Profile image updated via custom event');
-                authService.updateProfile({ profile: event.detail.profile });
-            }
-        };
-
-        window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
-        window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+    // Function to handle logout
+    const handleLogout = async () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userSession');
+        setUser(null);
+        setUserSession(null);
+        setSession(null);
+        setIsAuthenticated(false);
         
-        return () => {
-            window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
-            window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
-        };
-    }, [session]);
+        // Redirect to login page
+        console.log('Logging out and redirecting to login');
+        // router.push('http://localhost:3001/all/login');
+       // window.location.href = 'http://localhost:3001/all/login';
+    };
 
-    // Close sidebar on route change (mobile)
+    // Initialize authentication on component mount and when URL params change
+    useEffect(() => {
+        if (urlParams !== null) {
+            fetchUserSession();
+        }
+    }, [urlParams]);
+
+    // Monitor localStorage changes (for when token is removed externally)
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'authToken' && !e.newValue && isAuthenticated) {
+                console.log('Auth token removed from localStorage, logging out');
+                handleLogout();
+            }
+        };
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('storage', handleStorageChange);
+            return () => window.removeEventListener('storage', handleStorageChange);
+        }
+    }, [isAuthenticated]);
+
+    useEffect(() => {
+  // Handle comprehensive profile updates
+  const handleProfileUpdate = (event: CustomEvent) => {
+    if (user && event.detail.user) {
+      console.log('Sidebar: Profile updated, refreshing user data');
+      
+      // Update user state with all the new data
+      const updatedUser = {
+        ...user,
+        ...event.detail.user,
+        // Ensure we maintain the structure expected by the sidebar
+        name: event.detail.user.name || `${event.detail.user.firstName || ''} ${event.detail.user.lastName || ''}`.trim(),
+        profile: event.detail.user.profile,
+        tourGuideType: event.detail.user.tourGuideType || user.tourGuideType // FIXED: Include tour guide type
+      };
+      
+      setUser(updatedUser);
+      
+      // Also update userSession if needed
+      if (userSession) {
+        const updatedSession = {
+          ...userSession,
+          user: updatedUser
+        };
+        setUserSession(updatedSession);
+        setSession(updatedSession); // Keep both updated
+        
+        // Update localStorage session data
+        localStorage.setItem('userSession', JSON.stringify({
+          role: updatedUser.userType,
+          name: getUserDisplayName(updatedUser),
+          id: updatedUser.id,
+          email: updatedUser.email,
+          tourGuideType: updatedUser.tourGuideType // FIXED: Include tour guide type
+        }));
+      }
+    }
+  };
+
+  // Handle legacy profile image updates (for backward compatibility)
+  const handleProfileImageUpdate = (event: CustomEvent) => {
+    if (user && event.detail.profile) {
+      console.log('Sidebar: Profile image updated');
+      setUser({ ...user, profile: event.detail.profile });
+    }
+  };
+
+  // Add both event listeners
+  window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+  window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+  
+  return () => {
+    window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+  };
+}, [user, userSession]); // Added userSession to dependencies
+
     useEffect(() => {
         if (isSidebarOpen) {
             toggleSidebar();
@@ -134,20 +289,16 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     }, [pathname]);
 
     // Helper function to get user display name
-    const getUserDisplayName = () => {
-        if (!session?.user) return 'User';
-        const user = session.user;
-        if (user.name) return user.name;
-        if (user.firstName && user.lastName) {
-            return `${user.firstName} ${user.lastName}`.trim();
+    const getUserDisplayName = (userData: UserProfile) => {
+        if (userData.name) return userData.name;
+        if (userData.firstName && userData.lastName) {
+            return `${userData.firstName} ${userData.lastName}`.trim();
         }
-        return user.email;
+        return userData.email || '';
     };
 
-    // Helper function to get user avatar or initials
     const getUserAvatar = () => {
-        if (!session?.user) return 'U';
-        const user = session.user;
+        if (!user) return 'U';
         
         if (user.profile) return user.profile;
         if (user.firstName && user.lastName) {
@@ -162,21 +313,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         return user.email?.charAt(0).toUpperCase() || 'U';
     };
 
-    // Handle logout
-    const handleLogout = async () => {
-        try {
-            await authService.logout();
-            // The auth service will emit logout event which will be handled above
-        } catch (error) {
-            console.error('Logout failed:', error);
-            // Force logout even if API call fails
-            setSession(null);
-            setIsAuthenticated(false);
-        }
-    };
-
     // Define navigation items for each role
-    const navigationItems: Record<UserRole, NavigationItem[]>| any = {
+    const navigationItems: Record<UserRole, NavigationItem[]> = {
         guest: [
             { label: 'Home', icon: 'bi-house', path: '/all/guest' },
             { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/guest/bookings' },
@@ -223,21 +361,64 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         { label: 'Help & Support', icon: 'bi-question-circle', path: '/all/support-page' }
     ];
 
-    const getRoleDisplayName = (role: UserRole): string => {
+    const getRoleDisplayName = (role: UserRole, tourGuideType?: TourGuideType): string => {
+        console.log('=== SIDEBAR DEBUG: getRoleDisplayName called ===');
+        console.log('Role:', role);
+        console.log('TourGuideType:', tourGuideType);
+        
+        if (role === 'tourguide' && tourGuideType) {
+            if (tourGuideType === 'freelancer') {
+                console.log('=== SIDEBAR DEBUG: Returning Freelancer ===');
+                return 'Freelancer';
+            } else if (tourGuideType === 'employed') {
+                console.log('=== SIDEBAR DEBUG: Returning Company ===');
+                return 'Company';
+            }
+        }
+        
         const roleNames: Record<UserRole, string> = {
             guest: 'Guest',
             host: 'Host',
             agent: 'Agent',
             tourguide: 'Tour Guide'
         };
-        return roleNames[role] || 'Guest';
+        
+        const result = roleNames[role] || 'Guest';
+        console.log('=== SIDEBAR DEBUG: Returning default role ===', result);
+        return result;
+    };
+
+    const getDashboardTitle = (role: UserRole, tourGuideType?: TourGuideType): string => {
+        console.log('=== SIDEBAR DEBUG: getDashboardTitle called ===');
+        console.log('Role:', role);
+        console.log('TourGuideType:', tourGuideType);
+        
+        if (role === 'tourguide' && tourGuideType) {
+            if (tourGuideType === 'freelancer') {
+                console.log('=== SIDEBAR DEBUG: Returning Freelancer Dashboard ===');
+                return 'Freelancer Dashboard';
+            } else if (tourGuideType === 'employed') {
+                console.log('=== SIDEBAR DEBUG: Returning Company Dashboard ===');
+                return 'Company Dashboard';
+            }
+        }
+        
+        const dashboardTitles: Record<UserRole, string> = {
+            guest: 'Guest Dashboard',
+            host: 'Host Dashboard',
+            agent: 'Agent Dashboard',
+            tourguide: 'Tour Guide Dashboard'
+        };
+        
+        const result = dashboardTitles[role] || 'Dashboard';
+        console.log('=== SIDEBAR DEBUG: Returning default dashboard title ===', result);
+        return result;
     };
 
     const isActive = (path: string): boolean => {
         return pathname === path;
     };
 
-    // Loading state
     if (isLoading) {
         return (
             <div className="fixed top-0 left-0 w-72 h-full bg-white border-r border-gray-200 shadow-lg z-40 flex items-center justify-center">
@@ -250,13 +431,19 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     }
 
     // Not authenticated - this will trigger redirect to login
-    if (!isAuthenticated || !session) {
-        return "loading ... ";
+    if (!isAuthenticated || !user || !userSession) {
+        return null;
     }
+
+    // Final debug log before rendering
+    console.log('=== SIDEBAR DEBUG: About to render ===');
+    console.log('User:', user);
+    console.log('User role:', user.userType);
+    console.log('Tour guide type:', user.tourGuideType);
+    console.log('Dashboard title will be:', getDashboardTitle(user.userType, user.tourGuideType));
 
     return (
         <>
-            {/* Mobile overlay */}
             <div
                 className={`fixed inset-0 bg-white/30 backdrop-blur-sm z-30 transition-opacity duration-300 md:hidden ${
                     isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -265,7 +452,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 aria-hidden="true"
             />
 
-            {/* Mobile menu button */}
             <button
                 className="md:hidden fixed top-4 left-4 z-60 p-2 rounded-md bg-white text-gray-800 shadow-md"
                 onClick={toggleSidebar}
@@ -275,30 +461,31 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 <i className="bi bi-list text-2xl" />
             </button>
 
-            {/* Sidebar */}
             <div
                 id="sidebar"
                 className={`fixed top-0 left-0 w-72 h-full bg-white border-r border-gray-200 shadow-lg overflow-y-auto z-40 transition-transform duration-300 ease-in-out
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                 md:translate-x-0`}
             >
-                {/* Header */}
+                {/* FIXED: Header now uses getDashboardTitle with tour guide type */}
                 <div className="p-6 border-b border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
-                      <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
+                            <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-black">Jambolush</h1>
+                            <p className="text-base text-gray-600">
+                                {getDashboardTitle(user.userType, user.tourGuideType)}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                      <h1 className="text-xl font-bold text-black">Jambolush</h1>
-                      <p className="text-base text-gray-600">{getRoleDisplayName(session.role)} Dashboard</p>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Navigation Items */}
                 <div className="p-4">
                     <nav className="space-y-1">
-                        {navigationItems[session.role].map((item: any, index: number) => (
+                        {/* FIXED: Use userSession consistently */}
+                        {userSession && navigationItems[userSession.role].map((item: any, index: number) => (
                             <Link
                                 key={index}
                                 href={item.path}
@@ -320,10 +507,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                     </nav>
                 </div>
 
-                {/* Divider */}
                 <div className="mx-4 border-t border-gray-200" />
 
-                {/* Common Items */}
                 <div className="p-4">
                     <nav className="space-y-1">
                         {commonItems.map((item, index) => (
@@ -348,11 +533,26 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                     </nav>
                 </div>
 
-                {/* Divider */}
                 <div className="mx-4 border-t border-gray-200" />
 
-                {/* Profile Section */}
                 <div className="p-4">
+                    <Link
+                        href="/all/profile"
+                        className="flex items-center space-x-3 px-3 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-all duration-200"
+                    >
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden" style={{ backgroundColor: '#F20C8F' }}>
+                            {user.profile ? (
+                                <img src={user.profile} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-white text-sm font-semibold">{getUserAvatar()}</span>
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-base font-medium text-black truncate">{getUserDisplayName(user)}</p>
+                            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                    </Link>
+
                     {/* Logout Button */}
                     <button
                         onClick={handleLogout}
