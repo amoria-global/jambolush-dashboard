@@ -1,11 +1,12 @@
-// app/components/topbar.tsx
+//app/components/topbar.tsx - FINAL FIXED VERSION
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
-import api from "../api/apiService";
+import api from "../api/apiService"; // Use your existing apiService
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
+type TourGuideType = 'freelancer' | 'employed';
 
 interface UserProfile {
   id: string;
@@ -30,8 +31,8 @@ interface UserProfile {
   status: string;
   userType: UserRole;
   provider?: string;
-  isVerified?: string; // Added verification property
-  verificationStatus?: string; // e.g., 'pending', 'verified', 'rejected'
+  isVerified: boolean;
+  tourGuideType?: TourGuideType;
 }
 
 interface UserSession {
@@ -59,7 +60,6 @@ interface TopBarProps {
 }
 
 export default function TopBar({ onMenuButtonClick }: TopBarProps) {
-  // Authentication state
   const [user, setUser] = useState<UserProfile | null>(null);
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,26 +67,20 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [lastNotificationCheck, setLastNotificationCheck] = useState<Date>(new Date());
 
-  // UI state
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  // Data state
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [balance, setBalance] = useState<number>(0);
   const [messagesCount, setMessagesCount] = useState<number>(0);
 
-  // URL parameters state
   const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
 
-  // Refs for dropdown detection
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
-  // Router
   const router = useRouter();
 
-  // Client-side URL parameter extraction
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -94,7 +88,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   }, []);
 
-  // Function to get URL token
   const getUrlToken = (): string | null => {
     if (typeof window === 'undefined' || !urlParams) return null;
     return urlParams.get('token');
@@ -105,7 +98,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     return urlParams.get('refresh_token');
   };
 
-  // Function to clean URL after token extraction
   const cleanUrlParams = () => {
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -114,7 +106,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   };
 
-  // Function to fetch user session from API
   const fetchUserSession = async () => {
     try {
       setIsLoading(true);
@@ -143,11 +134,28 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         return;
       }
 
+      // Set auth token in the API service
       api.setAuth(authToken);
+      
+      // Call the /auth/me endpoint using your API service
       const response = await api.get('auth/me');
+      
+      // Debug: Log the complete API response structure
+      console.log('=== TOPBAR DEBUG: Complete API Response ===', response);
+      console.log('=== TOPBAR DEBUG: Response.data ===', response.data);
+      console.log('=== TOPBAR DEBUG: Response.data.data ===', response.data.data);
 
-      if (response.data) {
-        const userData: UserProfile = response.data;
+      // FIXED: Check if the API call was successful and access nested data
+      if (response.data && response.data.success && response.data.data) {
+        // FIXED: Extract the actual user data from response.data.data
+        const userData: UserProfile = {
+          ...response.data.data,
+          id: response.data.data.id.toString() // Ensure ID is string
+        };
+        
+        console.log('=== TOPBAR DEBUG: Processed User Data ===', userData);
+        console.log('=== TOPBAR DEBUG: User Type ===', userData.userType);
+        console.log('=== TOPBAR DEBUG: Tour Guide Type ===', userData.tourGuideType);
         
         const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
         if (!validRoles.includes(userData.userType)) {
@@ -174,10 +182,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setUser(userData);
         setIsAuthenticated(true);
         await fetchUserData(authToken);
-        console.log('User session established successfully');
+        console.log('TopBar User session established successfully');
 
       } else {
         console.log('Invalid token or no user data, logging out');
+        console.log('Response structure:', response);
         handleLogout();
       }
     } catch (error) {
@@ -188,7 +197,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   };
 
-  // Function to fetch additional user data (notifications, balance, etc.)
   const fetchUserData = async (authToken: string) => {
     try {
       await fetchNotifications();
@@ -224,14 +232,14 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       setNotificationsLoading(true);
       
       // Assuming api.getNotifications exists and is typed. If not, you might need to adjust.
-      const response: any = await api.get('/notifications', { params: {
+      const response = await api.get('/notifications', { params: {
         limit: 10,
         sortField: 'timestamp',
         sortOrder: 'desc'
       }});
 
       if (response.data && response.data.data) {
-        const transformedNotifications = response.data.data.notifications.map((notification: any) => ({
+        const transformedNotifications = response.data.data.map((notification: any) => ({
           ...notification,
           timestamp: new Date(notification.timestamp)
         }));
@@ -248,8 +256,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const markNotificationAsRead = async (notificationId: string) => {
     try {
-      // Assuming api.markNotificationAsRead exists. If not, use api.patch or similar.
-      await api.patch(`/notifications/${notificationId}/read`);
+      await api.markNotificationAsRead(notificationId);
       
       setNotifications(notifications.map(n => 
         n.id === notificationId ? { ...n, isRead: true } : n
@@ -339,7 +346,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const handleLogout = async () => {
     try {
       if (isAuthenticated) {
-        await api.post('auth/logout');
+        await api.logout();
       }
     } catch (error) {
       console.error('Logout API call failed:', error);
@@ -355,7 +362,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     
     console.log('Logging out and redirecting to login');
     // Example redirect, adjust as needed
-    router.push('https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href));
+    // router.push('/all/login');
   };
 
   useEffect(() => {
@@ -387,7 +394,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           ...user,
           ...event.detail.user,
           name: event.detail.user.name || `${event.detail.user.firstName || ''} ${event.detail.user.lastName || ''}`.trim(),
-          profile: event.detail.user.profile
+          profile: event.detail.user.profile,
+          tourGuideType: event.detail.user.tourGuideType || user.tourGuideType
         };
         
         setUser(updatedUser);
@@ -460,14 +468,31 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     return user?.email?.charAt(0).toUpperCase() || 'U';
   };
 
-  const getRoleDisplayName = (role: UserRole): string => {
+  const getRoleDisplayName = (role: UserRole, tourGuideType?: TourGuideType): string => {
+    console.log('=== TOPBAR DEBUG: getRoleDisplayName called ===');
+    console.log('Role:', role);
+    console.log('TourGuideType:', tourGuideType);
+    
+    if (role === 'tourguide' && tourGuideType) {
+      if (tourGuideType === 'freelancer') {
+        console.log('=== TOPBAR DEBUG: Returning Freelancer ===');
+        return 'Freelancer';
+      } else if (tourGuideType === 'employed') {
+        console.log('=== TOPBAR DEBUG: Returning Company ===');
+        return 'Company';
+      }
+    }
+    
     const roleNames: Record<UserRole, string> = {
       guest: 'Guest',
       host: 'Host',
       agent: 'Agent',
       tourguide: 'Tour Guide'
     };
-    return roleNames[role] || 'Guest';
+    
+    const result = roleNames[role] || 'Guest';
+    console.log('=== TOPBAR DEBUG: Returning default role ===', result);
+    return result;
   };
 
   // Loading state
@@ -495,6 +520,12 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   if (!isAuthenticated || !user || !userSession) {
     return null;
   }
+
+  // Final debug log before rendering
+  console.log('=== TOPBAR DEBUG: About to render ===');
+  console.log('User:', user);
+  console.log('User role:', user.userType);
+  console.log('Tour guide type:', user.tourGuideType);
 
   return (
     <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
@@ -630,6 +661,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
               )}
             </div>
 
+            {/* FIXED: Pass tour guide type to getRoleDisplayName */}
             <div className="hidden sm:flex flex-col leading-tight">
               <span className="font-semibold" style={{ color: "#083A85" }}>
                 {getUserDisplayName()}
@@ -637,7 +669,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
               <span className="text-sm text-gray-500">
                 {userSession.role === 'host' || userSession.role === 'agent' 
                   ? `$${balance.toFixed(2)}` 
-                  : getRoleDisplayName(userSession.role)
+                  : getRoleDisplayName(userSession.role, user.tourGuideType)
                 }
               </span>
             </div>
@@ -649,9 +681,12 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
           {isProfileOpen && (
             <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+              {/* FIXED: Pass tour guide type to getRoleDisplayName */}
               <div className="p-3 border-b">
                 <p className="font-bold text-gray-800">{getUserDisplayName()}</p>
-                <p className="text-sm text-gray-700">{getRoleDisplayName(userSession.role)} Account</p>
+                <p className="text-sm text-gray-700">
+                  {getRoleDisplayName(userSession.role, user.tourGuideType)} Account
+                </p>
                 <p className="text-xs text-gray-500 mt-1">{user.email}</p>
               </div>
               <div className="py-2">
