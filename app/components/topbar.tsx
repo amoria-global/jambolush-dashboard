@@ -143,14 +143,13 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       // Debug: Log the complete API response structure
       console.log('=== TOPBAR DEBUG: Complete API Response ===', response);
       console.log('=== TOPBAR DEBUG: Response.data ===', response.data);
-      console.log('=== TOPBAR DEBUG: Response.data.data ===', response.data.data);
 
-      // FIXED: Check if the API call was successful and access nested data
-      if (response.data && response.data.success && response.data.data) {
-        // FIXED: Extract the actual user data from response.data.data
+      // FIXED: Check if response contains user data directly
+      if (response.data && response.data.id) {
+        // FIXED: User data is directly in response.data
         const userData: UserProfile = {
-          ...response.data.data,
-          id: response.data.data.id.toString() // Ensure ID is string
+          ...response.data,
+          id: response.data.id.toString() // Ensure ID is string
         };
         
         console.log('=== TOPBAR DEBUG: Processed User Data ===', userData);

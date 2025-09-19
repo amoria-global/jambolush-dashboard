@@ -96,97 +96,97 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
     // Function to fetch user session from API
     const fetchUserSession = async () => {
-        try {
-            setIsLoading(true);
-            
-            // Always prioritize token from URL parameters
-            const urlToken = getUrlToken();
-            let authToken: string | null = null;
+    try {
+        setIsLoading(true);
+        
+        // Always prioritize token from URL parameters
+        const urlToken = getUrlToken();
+        let authToken: string | null = null;
 
-            if (urlToken) {
-                // Use token from URL parameters
-                authToken = urlToken;
-                
-                // Store token in localStorage immediately
-                localStorage.setItem('authToken', urlToken);
-                localStorage.setItem('refreshToken', getUrlRefreshToken() || '');
-                // Clean URL after storing token
-                cleanUrlParams();
-                
-                console.log('Token retrieved from URL and stored in localStorage');
-            } else {
-                // Fallback to localStorage only if no URL token
-                authToken = localStorage.getItem('authToken');
-            }
+        if (urlToken) {
+            // Use token from URL parameters
+            authToken = urlToken;
             
-            if (!authToken) {
-                // No token available, redirect to login
-                console.log('No token found, redirecting to login');
+            // Store token in localStorage immediately
+            localStorage.setItem('authToken', urlToken);
+            localStorage.setItem('refreshToken', getUrlRefreshToken() || '');
+            // Clean URL after storing token
+            cleanUrlParams();
+            
+            console.log('Token retrieved from URL and stored in localStorage');
+        } else {
+            // Fallback to localStorage only if no URL token
+            authToken = localStorage.getItem('authToken');
+        }
+        
+        if (!authToken) {
+            // No token available, redirect to login
+            console.log('No token found, redirecting to login');
+            handleLogout();
+            return;
+        }
+
+        // Set authorization header
+        api.setAuth(authToken);
+        const response = await api.get('auth/me');
+
+        console.log('=== SIDEBAR DEBUG: Full API Response ===', response);
+        console.log('=== SIDEBAR DEBUG: Response.data ===', response.data);
+
+        // FIXED: Check if response contains user data directly
+        if (response.data && response.data.id) {
+            // FIXED: User data is directly in response.data
+            const userData: UserProfile = {
+                ...response.data,
+                id: response.data.id.toString() // Ensure ID is string
+            };
+            
+            console.log('=== SIDEBAR DEBUG: Extracted User Data ===', userData);
+            console.log('=== SIDEBAR DEBUG: Tour Guide Type ===', userData.tourGuideType);
+            
+            // Validate if user has appropriate role for dashboard access
+            const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
+            if (!validRoles.includes(userData.userType)) {
+                console.error('Invalid user role:', userData.userType);
                 handleLogout();
                 return;
             }
 
-            // Set authorization header
-            api.setAuth(authToken);
-            const response = await api.get('auth/me');
+            // Create user session
+            const sessionData: UserSession = {
+                user: userData,
+                token: authToken,
+                role: userData.userType
+            };
 
-            console.log('=== SIDEBAR DEBUG: Full API Response ===', response);
-            console.log('=== SIDEBAR DEBUG: Response.data ===', response.data);
+            setUserSession(sessionData);
+            setSession(sessionData); // Keep both for compatibility
+            setUser(userData);
+            setIsAuthenticated(true);
 
-            // FIXED: Access the nested data structure correctly
-            if (response.data && response.data.success && response.data.data) {
-                // FIXED: Extract user data from response.data.data (not response.data)
-                const userData: UserProfile = {
-                    ...response.data.data,
-                    id: response.data.data.id.toString() // Ensure ID is string
-                };
-                
-                console.log('=== SIDEBAR DEBUG: Extracted User Data ===', userData);
-                console.log('=== SIDEBAR DEBUG: Tour Guide Type ===', userData.tourGuideType);
-                
-                // Validate if user has appropriate role for dashboard access
-                const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
-                if (!validRoles.includes(userData.userType)) {
-                    console.error('Invalid user role:', userData.userType);
-                    handleLogout();
-                    return;
-                }
+            // Store session data with tour guide type
+            localStorage.setItem('userSession', JSON.stringify({
+                role: userData.userType,
+                name: getUserDisplayName(userData),
+                id: userData.id,
+                email: userData.email,
+                tourGuideType: userData.tourGuideType // FIXED: Include tour guide type
+            }));
 
-                // Create user session
-                const sessionData: UserSession = {
-                    user: userData,
-                    token: authToken,
-                    role: userData.userType
-                };
+            console.log('User session established successfully');
 
-                setUserSession(sessionData);
-                setSession(sessionData); // Keep both for compatibility
-                setUser(userData);
-                setIsAuthenticated(true);
-
-                // Store session data with tour guide type
-                localStorage.setItem('userSession', JSON.stringify({
-                    role: userData.userType,
-                    name: getUserDisplayName(userData),
-                    id: userData.id,
-                    email: userData.email,
-                    tourGuideType: userData.tourGuideType // FIXED: Include tour guide type
-                }));
-
-                console.log('User session established successfully');
-
-            } else {
-                // Invalid token or no user data
-                console.log('Invalid token or no user data, logging out');
-                handleLogout();
-            }
-        } catch (error) {
-            console.error('Failed to fetch user session:', error);
+        } else {
+            // Invalid token or no user data
+            console.log('Invalid token or no user data, logging out');
             handleLogout();
-        } finally {
-            setIsLoading(false);
         }
-    };
+    } catch (error) {
+        console.error('Failed to fetch user session:', error);
+        handleLogout();
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     // Function to handle logout
     const handleLogout = async () => {
