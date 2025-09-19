@@ -200,7 +200,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         // Redirect to login page
         console.log('Logging out and redirecting to login');
         // router.push('http://localhost:3001/all/login');
-       // window.location.href = 'http://localhost:3001/all/login';
+       window.location.href = 'https://jambolush.com/all/login';
     };
 
     // Initialize authentication on component mount and when URL params change
