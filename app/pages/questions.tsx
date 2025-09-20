@@ -1,7 +1,9 @@
+//app/pages/questions.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/apiService';
+import { useRouter } from 'next/navigation';
 
 interface Question {
   id: string;
@@ -43,6 +45,7 @@ interface QuestionResult {
 }
 
 const AssessmentContent: React.FC = () => {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(4800); // 80 minutes in seconds
@@ -59,13 +62,24 @@ const AssessmentContent: React.FC = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [shouldRedirectToKYC, setShouldRedirectToKYC] = useState(false);
+
+  // Check if user should be redirected to KYC after assessment
+  useEffect(() => {
+    if (assessmentResult && assessmentResult.percentage >= 80 && assessmentCompleted) {
+      // Wait 3 seconds then redirect to KYC
+      setTimeout(() => {
+        setShouldRedirectToKYC(true);
+        router.push('/all/kyc');
+      }, 3000);
+    }
+  }, [assessmentResult, assessmentCompleted]);
 
   // Email configuration
   const config = {
     apikey: process.env.BREVO_API_KEY || 'your-brevo-api-key',
     senderemail: process.env.RSENDER_EMAIL || 'noreply@jambolush.com'
   };
-
 
   // Get user data from auth/me endpoint
   const getUserData = async () => {
@@ -907,18 +921,32 @@ const AssessmentContent: React.FC = () => {
     );
   };
 
-  const handleNext = () => {
+const handleNext = () => {
     if (currentStep === 0) {
       setAssessmentStarted(true);
     }
     if (currentStep < totalSteps - 1) {
       setCurrentStep(prev => prev + 1);
+      // Scroll to top when moving to next page
+      setTimeout(() => {
+        const mainContent = document.querySelector('.assessment-main-content');
+        if (mainContent) {
+          mainContent.scrollTop = 0;
+        }
+      }, 100);
     }
   };
 
   const handlePrevious = () => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
+      // Scroll to top when moving to previous page
+      setTimeout(() => {
+        const mainContent = document.querySelector('.assessment-main-content');
+        if (mainContent) {
+          mainContent.scrollTop = 0;
+        }
+      }, 100);
     }
   };
 
@@ -1029,8 +1057,29 @@ const AssessmentContent: React.FC = () => {
 
   // Results view
   if (assessmentCompleted && showResults && assessmentResult) {
-    return (
-      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
+    // Main assessment interface
+  return (
+    <>
+      <style>{`
+        .assessment-main-content::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .assessment-main-content::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 4px;
+        }
+        
+        .assessment-main-content::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        
+        .assessment-main-content::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `} </style>
+      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-4 p-4 sm:p-6 lg:p-8 z-50">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="bg-white rounded-t-3xl shadow-2xl p-8 text-center">
@@ -1128,6 +1177,7 @@ const AssessmentContent: React.FC = () => {
           )}
         </div>
       </div>
+    </>
     );
   }
 
@@ -1158,6 +1208,18 @@ const AssessmentContent: React.FC = () => {
           <p className="text-gray-600 mb-6">
             Thank you for completing the Jambolush Field Agent Assessment. Your responses have been recorded and our expert team will review them carefully.
           </p>
+          
+          {assessmentResult && assessmentResult.percentage >= 80 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <i className="bi bi-check-circle text-green-600 text-xl mr-3"></i>
+                <div>
+                  <p className="text-green-800 font-medium">Congratulations! You passed the assessment.</p>
+                  <p className="text-green-700 text-sm">You will be redirected to complete your KYC verification in a few seconds...</p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {assessmentResult && (
             <button
@@ -1195,11 +1257,11 @@ const AssessmentContent: React.FC = () => {
   }
 
   // Main assessment interface
-  return (
-    <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
+    return (
+    <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-2 p-4 sm:p-6 lg:p-8 z-50">
       {/* Time alert notification */}
       {showTimeAlert && (
-        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-bounce">
           <div className="bg-amber-500 text-white px-6 py-3 rounded-full shadow-lg flex items-center">
             <svg className="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -1257,8 +1319,8 @@ const AssessmentContent: React.FC = () => {
       )}
 
       {/* Main content */}
-      <main className="flex-grow w-full bg-white overflow-hidden overflow-y-visible min-h-[50vh] max-h-[80vh]">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12 mb-4">
+      <main className="assessment-main-content flex-grow w-full bg-white overflow-y-auto min-h-[60vh] max-h-[75vh] mb-20">
+        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-12 pb-8">
           
           {/* Welcome step */}
           {currentStep === 0 && (
@@ -1328,13 +1390,13 @@ const AssessmentContent: React.FC = () => {
 
           {/* Question steps */}
           {currentStep > 0 && currentStep < totalSteps - 1 && (
-            <div className="space-y-10 mb-20">
+            <div className="space-y-8 mb-6">
               {getQuestionsForPage(currentStep - 1).map((question, idx) => {
                 const globalIdx = ((currentStep - 1) * questionsPerPage) + idx;
                 return (
-                  <div key={question.id} className="bg-slate-50 rounded-2xl p-6">
-                    <div className="flex items-start mb-6">
-                      <span className="flex-shrink-0 w-12 h-12 bg-[#083A85] text-white border-2 border-blue-200 rounded-full flex items-center justify-center text-lg font-bold">
+                  <div key={question.id} className="bg-slate-50 rounded-2xl p-6 mb-4">
+                    <div className="flex items-start mb-4">
+                      <span className="flex-shrink-0 w-10 h-10 bg-[#083A85] text-white border-2 border-blue-200 rounded-full flex items-center justify-center text-base font-bold">
                         {globalIdx + 1}
                       </span>
                       <div className="ml-4">
@@ -1349,13 +1411,13 @@ const AssessmentContent: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-3 ml-16">
+                    <div className="space-y-3 ml-14">
                       {question.options.map((option, optionIdx) => {
                         const isSelected = isAnswerSelected(question.id, optionIdx);
                         return (
                           <label
                             key={optionIdx}
-                            className={`flex items-center p-4 rounded-xl transition-all duration-200 border-2 cursor-pointer ${
+                            className={`flex items-center p-3 rounded-xl transition-all duration-200 border-2 cursor-pointer ${
                               isSelected
                                 ? 'bg-blue-50 border-[#083A85] shadow-md transform scale-[1.02]'
                                 : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm'
@@ -1460,7 +1522,7 @@ const AssessmentContent: React.FC = () => {
       </main>
 
       {/* Footer navigation */}
-      <footer className="bg-slate-100 border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-5 sticky bottom-0 z-10">
+      <footer className="bg-slate-100 border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-4 fixed bottom-0 left-0 right-0 z-20 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Previous button */}
           <button

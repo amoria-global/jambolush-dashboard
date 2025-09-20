@@ -1,3 +1,4 @@
+//app/pages/agent/agent-clients.tsx
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -106,6 +107,61 @@ const AgentClientsPage: React.FC = () => {
   const [apiTotal, setApiTotal] = useState(0);
   const [apiTotalPages, setApiTotalPages] = useState(0);
   const [uniqueProperties, setUniqueProperties] = useState<string[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [showKYCModal, setShowKYCModal] = useState(false);
+
+  const checkKYCStatus = (): boolean => {
+    if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
+      setShowKYCModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+        const response = await api.get('/auth/me');
+        if (response.data) {
+          setUser(response.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+          <div className="p-6">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full">
+              <i className="bi bi-hourglass-split text-2xl text-yellow-600"></i>
+            </div>
+            <h3 className="text-xl font-semibold text-center text-gray-900 mb-3">
+              KYC Verification Pending
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              Your account verification is currently being processed. Please wait for verification to complete before performing this action. This process typically takes 2-4 hours.
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85]/80 transition-colors font-medium cursor-pointer"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const pageSize = 8;
 
@@ -267,6 +323,7 @@ const AgentClientsPage: React.FC = () => {
   // Fetch data on component mount and when dependencies change
   useEffect(() => {
     fetchAgentGuests();
+    fetchUserData();
   }, [currentPage, searchTerm, startDate, endDate, sortBy, sortOrder]);
 
   // Filter clients locally (since API might not handle all filters)
@@ -770,6 +827,7 @@ const AgentClientsPage: React.FC = () => {
           </div>
         )}
       </div>
+      <KYCPendingModal isOpen={showKYCModal} onClose={() => setShowKYCModal(false)} />
     </div>
   );
 };

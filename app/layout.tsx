@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react'; // Import useState
+import React, { useEffect, useState } from 'react';
 import SideBar from "./components/sidebar";
 import TopBar from "./components/topbar";
 import "./styles/globals.css";
