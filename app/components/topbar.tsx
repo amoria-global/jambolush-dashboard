@@ -33,6 +33,12 @@ interface UserProfile {
   provider?: string;
   isVerified: boolean;
   tourGuideType?: TourGuideType;
+  createdAt: string;
+  updatedAt: string;
+  kycCompleted?: boolean;
+  kycStatus?: string;
+  kycSubmittedAt?: string;
+  addressDocument?: string;
 }
 
 interface UserSession {

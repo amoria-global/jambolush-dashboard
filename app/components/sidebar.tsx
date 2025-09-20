@@ -37,12 +37,18 @@ interface UserProfile {
   postalCode?: string | null;
   postcode?: string | null;
   pinCode?: string | null;
-  eircode?: string | null;
+  eircode?: string | null; 
   cep?: string | null;
   status: string;
-  userType: UserRole; // This maps to our role system
+  userType: UserRole; 
   provider?: string;
-  tourGuideType?: TourGuideType; // Added property to fix compile error
+  tourGuideType?: TourGuideType;
+  createdAt: string;
+  updatedAt: string; 
+  kycCompleted?: boolean;
+  kycStatus?: string;
+  kycSubmittedAt?: string;
+  addressDocument?: string; 
 }
 
 interface UserSession {
@@ -145,19 +151,27 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             console.log('=== SIDEBAR DEBUG: Tour Guide Type ===', userData.tourGuideType);
             
             // Validate if user has appropriate role for dashboard access
-            const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
-            if (!validRoles.includes(userData.userType)) {
-                console.error('Invalid user role:', userData.userType);
-                handleLogout();
-                return;
-            }
+             const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
+             if (!validRoles.includes(userData.userType)) {
+            console.error('Invalid user role:', userData.userType);
+            handleLogout();
 
-            // Create user session
-            const sessionData: UserSession = {
-                user: userData,
-                token: authToken,
-                role: userData.userType
-            };
+            return;
+}
+
+// Check if KYC is required for hosts and tour guides
+if ((userData.userType === 'host' || userData.userType === 'tourguide') && !userData.kycCompleted) {
+    console.log('User requires KYC completion, redirecting to KYC page');
+    router.push('/all/kyc');
+    return;
+}
+
+// Create user session
+const sessionData: UserSession = {
+    user: userData,
+    token: authToken,
+    role: userData.userType
+};
 
             setUserSession(sessionData);
             setSession(sessionData); // Keep both for compatibility
@@ -396,10 +410,10 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         if (role === 'tourguide' && tourGuideType) {
             if (tourGuideType === 'freelancer') {
                 console.log('=== SIDEBAR DEBUG: Returning Freelancer Dashboard ===');
-                return 'Freelancer Dashboard';
+                return 'Freelancer Tours Dashboard';
             } else if (tourGuideType === 'employed') {
                 console.log('=== SIDEBAR DEBUG: Returning Company Dashboard ===');
-                return 'Company Dashboard';
+                return 'Company Tours Dashboard';
             }
         }
         
