@@ -1,3 +1,4 @@
+//app/all/kyc/page.tsx
 'use client';
 
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
@@ -36,6 +37,7 @@ interface KYCDocuments {
   passportPhoto: DocumentFile | null;
   idFront: DocumentFile | null;
   idBack: DocumentFile | null;
+  addressDocument: DocumentFile | null;
 }
 
 interface FormData {
@@ -123,7 +125,7 @@ const KYCUploadPage: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
-  
+  const addressDocInputRef = useRef<HTMLInputElement | null>(null);
   const isMountedRef = useRef<boolean>(true);
   const router = useRouter();
   const brevoService = new BrevoEmailService();
@@ -141,7 +143,8 @@ const KYCUploadPage: React.FC = () => {
     documents: {
       passportPhoto: null,
       idFront: null,
-      idBack: null
+      idBack: null,
+      addressDocument: null 
     }
   });
 
@@ -248,42 +251,51 @@ const KYCUploadPage: React.FC = () => {
     }
   };
 
-  const handleDocumentUpload = (documentType: keyof KYCDocuments, file: File | null) => {
-    if (!file) return;
+const handleDocumentUpload = (documentType: keyof KYCDocuments, file: File | null) => {
+  if (!file) return;
 
+  // Update validation for address documents to include PDF
+  if (documentType === 'addressDocument') {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (JPEG, PNG, WebP) or PDF');
+      return;
+    }
+  } else {
     const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validImageTypes.includes(file.type)) {
       alert('Please upload a valid image file (JPEG, PNG, WebP)');
       return;
     }
+  }
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      alert('File size must be less than 10MB');
-      return;
-    }
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    alert('File size must be less than 10MB');
+    return;
+  }
 
-    // Clean up previous object URL if it exists
-    const existingDocument = formData.documents[documentType];
-    if (existingDocument?.url?.startsWith('blob:')) {
-      URL.revokeObjectURL(existingDocument.url);
-    }
+  // Clean up previous object URL if it exists
+  const existingDocument = formData.documents[documentType];
+  if (existingDocument?.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(existingDocument.url);
+  }
 
-    const newDocument: DocumentFile = {
-      file,
-      url: URL.createObjectURL(file),
-      name: file.name,
-      uploaded: false
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      documents: {
-        ...prev.documents,
-        [documentType]: newDocument
-      }
-    }));
+  const newDocument: DocumentFile = {
+    file,
+    url: URL.createObjectURL(file),
+    name: file.name,
+    uploaded: false
   };
+
+  setFormData(prev => ({
+    ...prev,
+    documents: {
+      ...prev.documents,
+      [documentType]: newDocument
+    }
+  }));
+};
 
   const removeDocument = (documentType: keyof KYCDocuments) => {
     const document = formData.documents[documentType];
@@ -397,122 +409,166 @@ const KYCUploadPage: React.FC = () => {
       }
     }
 
+    // Upload address document if exists
+     if (formData.documents.addressDocument) {
+    try {
+    setUploadProgress(prev => ({ ...prev, addressDocument: 0 }));
+    uploadedUrls.addressDocument = await uploadDocumentToStorage(
+      formData.documents.addressDocument.file,
+      'address_verification',
+      (progress) => setUploadProgress(prev => ({ ...prev, addressDocument: progress }))
+    );
+  } catch (error) {
+    console.error('Failed to upload address document:', error);
+    setUploadProgress(prev => ({ ...prev, addressDocument: -1 }));
+    throw error;
+  }
+}
+
     return uploadedUrls;
   };
 
   const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true);
-      setSubmitError('');
-      setSubmitSuccess('');
-      setValidationErrors({});
-
-      if (!currentUser) {
-        throw new Error('User session not found. Please log in again.');
-      }
-
-      // Validate required documents based on document type
-      const { documentType } = formData.personalDetails;
-      
-      if (documentType === 'passport' && !formData.documents.passportPhoto) {
-        throw new Error('Passport photo is required for passport verification.');
-      }
-      
-      if (documentType === 'id' && (!formData.documents.idFront || !formData.documents.idBack)) {
-        throw new Error('Both front and back of ID are required for ID verification.');
-      }
-      
-      if (documentType === 'both' && (!formData.documents.passportPhoto || !formData.documents.idFront || !formData.documents.idBack)) {
-        throw new Error('Passport photo and both sides of ID are required for comprehensive verification.');
-      }
-
-      // Upload documents to Supabase
-      const uploadedUrls = await processDocuments();
-
-      // Send emails via Brevo
-      await brevoService.sendKYCSubmissionEmails(formData, uploadedUrls, currentUser.id);
-
-      setSubmitSuccess('KYC documents submitted successfully! You will receive a confirmation email shortly.');
-      
-      setTimeout(() => {
-        setIsModalOpen(false);
-        resetForm();
-        // Redirect to dashboard or verification status page
-        router.push('/');
-      }, 3000);
-
-    } catch (error: any) {
-      console.error('Error submitting KYC:', error);
-      setSubmitError(error.message || 'Failed to submit KYC documents. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    // Clean up object URLs
-    if (formData.documents.passportPhoto?.url?.startsWith('blob:')) {
-      URL.revokeObjectURL(formData.documents.passportPhoto.url);
-    }
-    if (formData.documents.idFront?.url?.startsWith('blob:')) {
-      URL.revokeObjectURL(formData.documents.idFront.url);
-    }
-    if (formData.documents.idBack?.url?.startsWith('blob:')) {
-      URL.revokeObjectURL(formData.documents.idBack.url);
-    }
-
-    setFormData({
-      personalDetails: {
-        fullName: '',
-        dateOfBirth: '',
-        nationality: '',
-        address: '',
-        phoneNumber: '',
-        email: '',
-        documentType: 'passport'
-      },
-      documents: {
-        passportPhoto: null,
-        idFront: null,
-        idBack: null
-      }
-    });
-    setCurrentStep(1);
-    setUploadProgress({});
+  try {
+    setIsSubmitting(true);
     setSubmitError('');
     setSubmitSuccess('');
     setValidationErrors({});
-  };
 
-  const isStepValid = (): boolean => {
-    if (currentStep === 1) {
-      const { fullName, dateOfBirth, nationality, address, phoneNumber, email } = formData.personalDetails;
-      return !!(
-        fullName && fullName.trim().length >= 2 &&
-        dateOfBirth &&
-        nationality &&
-        address && address.trim().length >= 10 &&
-        phoneNumber && phoneNumber.trim().length >= 10 &&
-        email && isValidEmail(email)
-      );
+    if (!currentUser) {
+      throw new Error('User session not found. Please log in again.');
+    }
+
+    // Validate required documents based on document type
+    const { documentType } = formData.personalDetails;
+    
+    if (documentType === 'passport' && !formData.documents.passportPhoto) {
+      throw new Error('Passport photo is required for passport verification.');
     }
     
-    if (currentStep === 2) {
-      const { documentType } = formData.personalDetails;
+    if (documentType === 'id' && (!formData.documents.idFront || !formData.documents.idBack)) {
+      throw new Error('Both front and back of ID are required for ID verification.');
+    }
+    
+    if (documentType === 'both' && (!formData.documents.passportPhoto || !formData.documents.idFront || !formData.documents.idBack)) {
+      throw new Error('Passport photo and both sides of ID are required for comprehensive verification.');
+    }
+
+    // Address document is required for all
+    if (!formData.documents.addressDocument) {
+      throw new Error('Address verification document is required.');
+    }
+
+    // Upload documents to Supabase
+    const uploadedUrls = await processDocuments();
+
+    // Submit KYC to backend
+    const kycData = {
+      personalDetails: formData.personalDetails,
+      addressDocumentUrl: uploadedUrls.addressDocument
+    };
+
+    const response = await api.post('/auth/kyc/submit', kycData);
+
+    if (response.data.success) {
+      setSubmitSuccess('KYC documents submitted successfully! Your account is under review.');
       
-      if (documentType === 'passport') {
-        return !!formData.documents.passportPhoto;
-      }
-      if (documentType === 'id') {
-        return !!(formData.documents.idFront && formData.documents.idBack);
-      }
-      if (documentType === 'both') {
-        return !!(formData.documents.passportPhoto && formData.documents.idFront && formData.documents.idBack);
-      }
+      // Trigger profile update event
+      window.dispatchEvent(new CustomEvent('profileUpdated', {
+        detail: { user: response.data.data.user }
+      }));
+
+      setTimeout(() => {
+        setIsModalOpen(false);
+        resetForm();
+        // Redirect to dashboard
+        router.push('/');
+      }, 3000);
+    } else {
+      throw new Error(response.data.message || 'Failed to submit KYC');
     }
+
+  } catch (error: any) {
+    console.error('Error submitting KYC:', error);
+    setSubmitError(error.message || 'Failed to submit KYC documents. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+const resetForm = () => {
+  // Clean up object URLs
+  if (formData.documents.passportPhoto?.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(formData.documents.passportPhoto.url);
+  }
+  if (formData.documents.idFront?.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(formData.documents.idFront.url);
+  }
+  if (formData.documents.idBack?.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(formData.documents.idBack.url);
+  }
+  // Add this line for address document
+  if (formData.documents.addressDocument?.url?.startsWith('blob:')) {
+    URL.revokeObjectURL(formData.documents.addressDocument.url);
+  }
+
+  setFormData({
+    personalDetails: {
+      fullName: '',
+      dateOfBirth: '',
+      nationality: '',
+      address: '',
+      phoneNumber: '',
+      email: '',
+      documentType: 'passport'
+    },
+    documents: {
+      passportPhoto: null,
+      idFront: null,
+      idBack: null,
+      addressDocument: null // Add this line
+    }
+  });
+  setCurrentStep(1);
+  setUploadProgress({});
+  setSubmitError('');
+  setSubmitSuccess('');
+  setValidationErrors({});
+};
+
+const isStepValid = (): boolean => {
+  if (currentStep === 1) {
+    const { fullName, dateOfBirth, nationality, address, phoneNumber, email } = formData.personalDetails;
+    return !!(
+      fullName && fullName.trim().length >= 2 &&
+      dateOfBirth &&
+      nationality &&
+      address && address.trim().length >= 10 &&
+      phoneNumber && phoneNumber.trim().length >= 10 &&
+      email && isValidEmail(email) &&
+      formData.documents.addressDocument // Add this requirement
+    );
+  }
+  
+  if (currentStep === 2) {
+    const { documentType } = formData.personalDetails;
     
-    return true;
-  };
+    // Base requirement: address document must always be present
+    const hasAddressDocument = !!formData.documents.addressDocument;
+    
+    if (documentType === 'passport') {
+      return !!(formData.documents.passportPhoto && hasAddressDocument);
+    }
+    if (documentType === 'id') {
+      return !!(formData.documents.idFront && formData.documents.idBack && hasAddressDocument);
+    }
+    if (documentType === 'both') {
+      return !!(formData.documents.passportPhoto && formData.documents.idFront && formData.documents.idBack && hasAddressDocument);
+    }
+  }
+  
+  return true;
+};
 
   const getStepLabel = (step: number): string => {
     switch(step) {
@@ -552,7 +608,7 @@ const KYCUploadPage: React.FC = () => {
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity" />
             <div className="flex items-center justify-center min-h-screen p-2 sm:p-4">
-              <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
+              <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex items-center justify-between z-10">
                   <div>
                     <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900">KYC Verification</h2>
@@ -654,7 +710,7 @@ const KYCUploadPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-y-auto mb-8" style={{ maxHeight: 'calc(95vh - 240px)' }}>
+                <div className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-y-auto">
                   {/* Step 1: Personal Details */}
                   {currentStep === 1 && (
                     <div className="space-y-4 sm:space-y-6">
@@ -743,6 +799,117 @@ const KYCUploadPage: React.FC = () => {
                           <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
                         )}
                       </div>
+                      
+                      {/* Address Verification Document Upload */}
+<div>
+  <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+    Address Verification Document <span className="text-red-500">*</span>
+  </label>
+  <div className={`border-2 rounded-lg p-4 transition-all mb-2 ${
+    formData.documents.addressDocument ? 'border-green-400 bg-green-50' : 'border-orange-400 bg-orange-50'
+  }`}>
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+      <div className="flex items-start">
+        <svg className="w-5 h-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+        </svg>
+        <div>
+          <p className="text-sm font-medium text-blue-800">Acceptable Documents:</p>
+          <ul className="text-sm text-blue-700 mt-1 space-y-1">
+            <li>• Government-issued documents from sector office</li>
+            <li>• Driver's license showing current address</li>
+            <li>• Bank statements (recent 3 months)</li>
+            <li>• Tax documents with address</li>
+            <li>• Insurance documents</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    {!formData.documents.addressDocument ? (
+      <div>
+        <button
+          type="button"
+          onClick={() => addressDocInputRef.current?.click()}
+          className="w-full py-6 sm:py-8 border-2 border-dashed border-orange-300 rounded-lg flex flex-col items-center justify-center hover:border-orange-400 hover:bg-orange-100 transition-all cursor-pointer"
+        >
+          <svg className="w-8 h-8 sm:w-12 sm:h-12 text-orange-400 mb-2 sm:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-xs sm:text-sm font-medium text-gray-700">Upload Address Verification Document</span>
+          <span className="text-xs sm:text-sm text-gray-500 mt-1">JPEG, PNG, PDF (Max 10MB)</span>
+        </button>
+        <input
+          ref={addressDocInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={(e) => handleDocumentUpload('addressDocument', e.target.files?.[0] || null)}
+          className="hidden"
+        />
+      </div>
+    ) : (
+      <div className="bg-white rounded-lg p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
+            <div className="w-16 h-12 sm:w-20 sm:h-16 rounded-lg overflow-hidden border border-gray-200">
+              <img
+                src={formData.documents.addressDocument.url}
+                alt="Address Document"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                {formData.documents.addressDocument.name}
+              </p>
+              <p className="text-xs sm:text-sm text-gray-500">
+                {formatFileSize(formData.documents.addressDocument.file.size)}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => removeDocument('addressDocument')}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Upload progress */}
+        {uploadProgress.addressDocument !== undefined && uploadProgress.addressDocument > 0 && uploadProgress.addressDocument < 100 && isSubmitting && (
+          <div className="mt-3">
+            <div className="bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-gradient-to-r from-[#083A85] to-[#0a4499] h-2 rounded-full transition-all"
+                style={{ width: `${uploadProgress.addressDocument}%` }}
+              />
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">Uploading... {uploadProgress.addressDocument}%</p>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</div>
+            {!formData.documents.addressDocument && (
+  <div className="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+    <div className="flex">
+      <div className="flex-shrink-0">
+        <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+      </div>
+      <div className="ml-3">
+        <p className="text-sm text-yellow-800">
+          <strong>Required:</strong> Address verification document is mandatory to proceed to the next step.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
                       <div>
                         <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
@@ -1087,7 +1254,7 @@ const KYCUploadPage: React.FC = () => {
                 </div>
 
                 {/* Bottom Navigation */}
-                <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between z-10">
+                <div className="bg-white border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}

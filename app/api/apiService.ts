@@ -1141,6 +1141,35 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
     return this.delete<BackendResponse<any>>(`/properties/${propertyId}`);
   }
 
+// ============ KYC API METHODS ============
+
+/**
+ * Submit KYC data
+ */
+async submitKYC(kycData: {
+  personalDetails: any;
+  addressDocumentUrl?: string;
+}): Promise<APIResponse<BackendResponse<any>>> {
+  return this.post<BackendResponse<any>>('/auth/kyc/submit', kycData);
+}
+
+/**
+ * Get KYC status
+ */
+async getKYCStatus(): Promise<APIResponse<BackendResponse<{
+  kycCompleted: boolean;
+  kycStatus: string;
+  kycSubmittedAt?: string;
+  requiresDocumentUpload: boolean;
+}>>> {
+  return this.get<BackendResponse<{
+    kycCompleted: boolean;
+    kycStatus: string;
+    kycSubmittedAt?: string;
+    requiresDocumentUpload: boolean;
+  }>>('/auth/kyc/status');
+}
+
   // ============ REVIEW API METHODS ============
 
   /**

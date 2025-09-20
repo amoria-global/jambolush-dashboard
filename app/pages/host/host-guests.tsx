@@ -1,3 +1,4 @@
+//app/pages/host/host-guests.tsx
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '@/app/api/apiService'; // Your API service
@@ -68,6 +69,36 @@ type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'bookings' | 'spending' | 'joinDate';
 type SortOrder = 'asc' | 'desc';
 
+const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="p-6">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full">
+            <i className="bi bi-hourglass-split text-2xl text-yellow-600"></i>
+          </div>
+          <h3 className="text-xl font-semibold text-center text-gray-900 mb-3">
+            KYC Verification Pending
+          </h3>
+          <p className="text-gray-600 text-center mb-6">
+            Your account verification is currently being processed. Please wait for verification to complete before performing this action. This process typically takes 2-4 hours.
+          </p>
+          <div className="flex justify-center">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85]/80 transition-colors font-medium cursor-pointer"
+            >
+              Understood
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface GuestSearchFilters {
   search?: string;
   verificationStatus?: 'verified' | 'pending' | 'unverified';
@@ -129,6 +160,31 @@ const GuestsListingPage: React.FC = () => {
   const [editBookingStatus, setEditBookingStatus] = useState<string>('');
   const [editPaymentStatus, setEditPaymentStatus] = useState<string>('');
   const [editSpecialRequests, setEditSpecialRequests] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [showKYCModal, setShowKYCModal] = useState(false);
+
+  const checkKYCStatus = (): boolean => {
+  if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
+    setShowKYCModal(true);
+    return false;
+  }
+  return true;
+};
+
+const fetchUserData = async () => {
+  try {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      api.setAuth(token);
+      const response = await api.get('/auth/me');
+      if (response.data) {
+        setUser(response.data);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+  }
+};
 
   // Helper function to map frontend booking status to backend values
   const mapBookingStatusToBackend = (status: string): 'active' | 'past' | 'upcoming' | undefined => {
@@ -356,6 +412,7 @@ const GuestsListingPage: React.FC = () => {
   };
 
   const handleEditGuest = async (guest: GuestWithBookings) => {
+    if (!checkKYCStatus()) return;
     setSelectedGuest(guest);
     
     // Fetch guest details if not already loaded
@@ -406,6 +463,7 @@ const GuestsListingPage: React.FC = () => {
   };
 
   const handleDeleteGuest = async (guestId: string) => {
+    if (!checkKYCStatus()) return;
     if (window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
       try {
         // Fetch guest details to get booking ID if not already loaded
