@@ -159,8 +159,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             return;
 }
 
-// Check if KYC is required for hosts and tour guides
-if ((userData.userType === 'host' || userData.userType === 'tourguide') && !userData.kycCompleted) {
+// Check if KYC is required for hosts, tour guides, and agents
+if ((userData.userType === 'host' || userData.userType === 'tourguide' || userData.userType === 'agent') && !userData.kycCompleted) {
     console.log('User requires KYC completion, redirecting to KYC page');
     router.push('/all/kyc');
     return;

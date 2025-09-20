@@ -1,3 +1,4 @@
+//app/pages/agent/approval-account.tsx
 import React, { useState, useEffect, FC } from 'react';
 // Define the props interface for the ProgressStep component
 interface ProgressStepProps {

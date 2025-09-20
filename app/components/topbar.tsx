@@ -1,4 +1,4 @@
-//app/components/topbar.tsx - FINAL FIXED VERSION
+//app/components/topbar.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -169,10 +169,17 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           return;
         }
 
-        // Check verification status - redirect to assessment if not verified
-        if (!userData.isVerified && userData.userType === "agent") {
-          console.log('User verification not completed, redirecting to assessment');
+        // Check if verified agent needs to take assessment (first login - kycStatus is null)
+        if (userData.isVerified && userData.userType === "agent" && userData.kycStatus === null) {
+          console.log('Agent needs to take assessment (first login), redirecting to assessment');
           router.push('/all/assessment');
+          return;
+        }
+
+        // Check KYC status for verified agents who have taken assessment - redirect to KYC if not completed
+        if (userData.isVerified && userData.userType === "agent" && userData.kycStatus !== null && !userData.kycCompleted) {
+          console.log('Agent assessment completed but KYC not completed, redirecting to KYC');
+          router.push('/all/kyc');
           return;
         }
 
