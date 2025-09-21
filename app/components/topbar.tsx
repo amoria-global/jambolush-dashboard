@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
-import api from "../api/apiService"; // Use your existing apiService
+import api from "../api/apiService";
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
 type TourGuideType = 'freelancer' | 'employed';
@@ -31,7 +31,7 @@ interface UserProfile {
   status: string;
   userType: UserRole;
   provider?: string;
-  isVerified: boolean;
+  isVerified?: boolean;
   tourGuideType?: TourGuideType;
   createdAt: string;
   updatedAt: string;
@@ -70,8 +70,9 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [userSession, setUserSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [lastNotificationCheck, setLastNotificationCheck] = useState<Date>(new Date());
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -80,87 +81,64 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [balance, setBalance] = useState<number>(0);
   const [messagesCount, setMessagesCount] = useState<number>(0);
 
-  const [urlParams, setUrlParams] = useState<URLSearchParams | null>(null);
-
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      setUrlParams(params);
-    }
-  }, []);
-
-  const getUrlToken = (): string | null => {
-    if (typeof window === 'undefined' || !urlParams) return null;
-    return urlParams.get('token');
-  };
-
-    const getUrlRefreshToken = (): string | null => {
-    if (typeof window === 'undefined' || !urlParams) return null;
-    return urlParams.get('refresh_token');
-  };
-
-  const cleanUrlParams = () => {
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('token');
-      window.history.replaceState({}, '', url.toString());
-    }
-  };
-
   const fetchUserSession = async () => {
+    if (authInitialized) return; // Prevent multiple calls
+    
     try {
       setIsLoading(true);
+      setAuthInitialized(true);
       
-      const urlToken = getUrlToken();
+      // Get token from localStorage or URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      const urlRefreshToken = urlParams.get('refresh_token');
+      
       let authToken: string | null = null;
 
       if (urlToken) {
         authToken = urlToken;
-        
-        // Store refreshtoken in localStorage immediately
         localStorage.setItem('authToken', urlToken);
-        const urlRefreshToken: any = getUrlRefreshToken();
-        localStorage.setItem('refreshToken', urlRefreshToken);
+        localStorage.setItem('refreshToken', urlRefreshToken || '');
         
-        // Clean URL after storing token
-        cleanUrlParams();
-        console.log('Token retrieved from URL and stored in localStorage');
+        // Clean URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('token');
+        url.searchParams.delete('refresh_token');
+        window.history.replaceState({}, '', url.toString());
+        
+        console.log('Token retrieved from URL and stored');
       } else {
         authToken = localStorage.getItem('authToken');
       }
 
       if (!authToken) {
-        console.log('No token found, redirecting to login');
-        handleLogout();
+        console.log('No token found');
+        setIsAuthenticated(false);
+        setIsLoading(false);
         return;
       }
 
       // Set auth token in the API service
       api.setAuth(authToken);
       
-      // Call the /auth/me endpoint using your API service
+      // Call the /auth/me endpoint
       const response = await api.get('auth/me');
       
-      // Debug: Log the complete API response structure
-      console.log('=== TOPBAR DEBUG: Complete API Response ===', response);
-      console.log('=== TOPBAR DEBUG: Response.data ===', response.data);
+      console.log('=== TOPBAR DEBUG: API Response ===', response);
 
-      // FIXED: Check if response contains user data directly
+      // FIXED: Check the actual API response structure from your logs
       if (response.data && response.data.id) {
-        // FIXED: User data is directly in response.data
         const userData: UserProfile = {
           ...response.data,
-          id: response.data.id.toString() // Ensure ID is string
+          id: response.data.id.toString()
         };
         
-        console.log('=== TOPBAR DEBUG: Processed User Data ===', userData);
-        console.log('=== TOPBAR DEBUG: User Type ===', userData.userType);
-        console.log('=== TOPBAR DEBUG: Tour Guide Type ===', userData.tourGuideType);
+        console.log('=== TOPBAR DEBUG: User Data ===', userData);
         
         const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
         if (!validRoles.includes(userData.userType)) {
@@ -169,18 +147,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           return;
         }
 
-        // Check if verified agent needs to take assessment (first login - kycStatus is null)
-        if (userData.isVerified && userData.userType === "agent" && userData.kycStatus === null) {
-          console.log('Agent needs to take assessment (first login), redirecting to assessment');
-          router.push('/all/assessment');
-          return;
-        }
-
-        // Check KYC status for verified agents who have taken assessment - redirect to KYC if not completed
-        if (userData.isVerified && userData.userType === "agent" && userData.kycStatus !== null && !userData.kycCompleted) {
-          console.log('Agent assessment completed but KYC not completed, redirecting to KYC');
-          router.push('/all/kyc');
-          return;
+        // FIXED: Remove problematic KYC redirect that was preventing authentication
+        // Just log KYC status but don't redirect - let user access dashboard
+        if ((userData.userType === 'host' || userData.userType === 'tourguide' || userData.userType === 'agent') && !userData.kycCompleted) {
+          console.log('User KYC not completed, but allowing dashboard access');
+          // You can show a banner or notification instead of redirecting
         }
 
         // Create user session
@@ -194,16 +165,16 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setUser(userData);
         setIsAuthenticated(true);
         await fetchUserData(authToken);
-        console.log('TopBar User session established successfully');
+        console.log('✅ TopBar User session established successfully');
 
       } else {
-        console.log('Invalid token or no user data, logging out');
-        console.log('Response structure:', response);
-        handleLogout();
+        console.log('Invalid response structure:', response.data);
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Failed to fetch user session:', error);
-      handleLogout();
+      // Don't logout on network errors, just show unauthenticated state
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
@@ -213,7 +184,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     try {
       await fetchNotifications();
     } catch (error) {
-      console.error('Failed to fetch user data:', error);
+      console.error('Failed to fetch notifications:', error);
     }
 
     try {
@@ -243,7 +214,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     try {
       setNotificationsLoading(true);
       
-      // Assuming api.getNotifications exists and is typed. If not, you might need to adjust.
       const response = await api.get('/notifications', { params: {
         limit: 10,
         sortField: 'timestamp',
@@ -256,7 +226,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           timestamp: new Date(notification.timestamp)
         }));
         setNotifications(transformedNotifications);
-        setLastNotificationCheck(new Date());
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
@@ -357,6 +326,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const handleLogout = async () => {
     try {
+      setIsRedirecting(true);
       if (isAuthenticated) {
         await api.logout();
       }
@@ -365,23 +335,28 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
 
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userSession');
     setUser(null);
     setUserSession(null);
     setIsAuthenticated(false);
     setNotifications([]);
     setBalance(0);
     setMessagesCount(0);
+    setAuthInitialized(false);
     
     console.log('Logging out and redirecting to login');
-    // Example redirect, adjust as needed
-     router.push('https://jambolush.com/all/login');
+    setTimeout(() => {
+      window.location.href = 'https://jambolush.com/all/login';
+    }, 100);
   };
 
+  // Initialize authentication on component mount
   useEffect(() => {
-    if (urlParams !== null) {
+    if (typeof window !== 'undefined') {
       fetchUserSession();
     }
-  }, [urlParams]);
+  }, []);
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -481,18 +456,9 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   const getRoleDisplayName = (role: UserRole, tourGuideType?: TourGuideType): string => {
-    console.log('=== TOPBAR DEBUG: getRoleDisplayName called ===');
-    console.log('Role:', role);
-    console.log('TourGuideType:', tourGuideType);
-    
     if (role === 'tourguide' && tourGuideType) {
-      if (tourGuideType === 'freelancer') {
-        console.log('=== TOPBAR DEBUG: Returning Freelancer ===');
-        return 'Freelancer';
-      } else if (tourGuideType === 'employed') {
-        console.log('=== TOPBAR DEBUG: Returning Company ===');
-        return 'Company';
-      }
+      if (tourGuideType === 'freelancer') return 'Freelancer';
+      if (tourGuideType === 'employed') return 'Company';
     }
     
     const roleNames: Record<UserRole, string> = {
@@ -502,42 +468,15 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       tourguide: 'Tour Guide'
     };
     
-    const result = roleNames[role] || 'Guest';
-    console.log('=== TOPBAR DEBUG: Returning default role ===', result);
-    return result;
+    return roleNames[role] || 'Guest';
   };
 
-  // Loading state
-
-  if (isLoading) {
-    return (
-      <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onMenuButtonClick}
-            className="lg:hidden p-2 text-gray-600 rounded-md hover:text-[#083A85] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
-          >
-            <i className="bi bi-list text-2xl"></i>
-          </button>
-          <h1 className="text-xl font-bold text-gray-900 tracking-wide sm:text-2xl">Dashboard</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="w-8 h-8 bg-gray-300 rounded-full animate-pulse"></div>
-          <div className="w-20 h-4 bg-gray-300 rounded animate-pulse"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user || !userSession) {
-    return null;
-  }
-
-  // Final debug log before rendering
-  console.log('=== TOPBAR DEBUG: About to render ===');
-  console.log('User:', user);
-  console.log('User role:', user.userType);
-  console.log('Tour guide type:', user.tourGuideType);
+  // Get current page title
+  const getPageTitle = () => {
+    if (isLoading || isRedirecting) return isRedirecting ? 'Redirecting...' : 'Loading...';
+    if (!isAuthenticated) return 'Welcome to Jambolush';
+    return 'Dashboard';
+  };
 
   return (
     <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
@@ -549,201 +488,244 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           <i className="bi bi-list text-2xl"></i>
         </button>
         <h1 className="text-xl font-bold text-gray-900 tracking-wide sm:text-2xl">
-          Dashboard
+          {getPageTitle()}
         </h1>
       </div>
 
       <div className="flex items-center gap-x-4 sm:gap-x-6">
-        <div className="relative cursor-pointer hidden sm:block">
-          <i className="bi bi-chat-left-text text-2xl text-gray-600 hover:text-[#083A85]"></i>
-          {messagesCount > 0 && (
-            <span className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full bg-red-500">
-              {messagesCount > 99 ? '99+' : messagesCount}
-            </span>
-          )}
-        </div>
-
-        <div className="relative" ref={notificationsRef}>
-          <div 
-            className="relative cursor-pointer" 
-            onClick={() => {
-              setIsNotificationsOpen(!isNotificationsOpen);
-              setIsProfileOpen(false);
-            }}
-          >
-            <i className="bi bi-bell text-2xl text-gray-600 hover:text-[#083A85]"></i>
-            {unreadCount > 0 && (
-              <span
-                className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
-                style={{ backgroundColor: "#F20C8F" }}
-              >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
+        {/* Show loading state */}
+        {(isLoading || isRedirecting) && (
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-gray-300 rounded-full animate-pulse"></div>
+            <div className="w-20 h-4 bg-gray-300 rounded animate-pulse"></div>
           </div>
+        )}
 
-          {isNotificationsOpen && (
-            <div className="absolute right-0 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
-              <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
-                <h6 className="font-semibold text-gray-800">Notifications</h6>
-                {notificationsLoading && (
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                )}
-              </div>
-              <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-gray-500">
-                    <i className="bi bi-bell-slash text-2xl mb-2"></i>
-                    <p>No notifications yet</p>
-                  </div>
-                ) : (
-                  notifications.map(notification => (
-                    <div 
-                      key={notification.id} 
-                      className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''}`}
-                      onClick={() => {
-                        markNotificationAsRead(notification.id);
-                        if (notification.actionUrl) {
-                          router.push(notification.actionUrl);
-                        }
-                      }}
-                    >
-                      <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-                        !notification.isRead ? 'bg-blue-500/20' : 'bg-gray-200'
-                      }`}>
-                        <i className={`bi ${getNotificationIcon(notification.type)} text-lg ${
-                          !notification.isRead ? getNotificationColor(notification.type) : 'text-gray-600'
-                        }`}></i>
-                      </div>
-                      <div className="flex-grow">
-                        <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
-                          {notification.title}
-                        </p>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-xs text-gray-500">{timeAgo(notification.timestamp)}</p>
-                          {notification.priority === 'urgent' && (
-                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
-                              Urgent
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {!notification.isRead && (
-                        <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-              {notifications.length > 0 && (
-                <a 
-                  href="/all/notifications" 
-                  className="block text-center p-2 text-sm font-medium text-blue-600 hover:bg-gray-100 transition-colors"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push('/all/notifications');
-                    setIsNotificationsOpen(false);
-                  }}
-                >
-                  View All Notifications
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="relative" ref={profileRef}>
-          <div 
-            className="flex items-center gap-3 cursor-pointer" 
-            onClick={() => {
-              setIsProfileOpen(!isProfileOpen);
-              setIsNotificationsOpen(false);
-            }}
-          >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] to-[#F20C8F] border-2 border-gray-300">
-              {user.profile ? (
-                <img
-                  src={user.profile}
-                  alt="Profile"
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <span className="text-white font-semibold text-sm">{getUserAvatar()}</span>
-              )}
-            </div>
-
-            {/* FIXED: Pass tour guide type to getRoleDisplayName */}
-            <div className="hidden sm:flex flex-col leading-tight">
-              <span className="font-semibold" style={{ color: "#083A85" }}>
-                {getUserDisplayName()}
-              </span>
-              <span className="text-sm text-gray-500">
-                {userSession.role === 'host' || userSession.role === 'agent' 
-                  ? `$${balance.toFixed(2)}` 
-                  : getRoleDisplayName(userSession.role, user.tourGuideType)
-                }
-              </span>
-            </div>
-
-            <i className={`bi bi-chevron-down text-gray-500 transition-transform duration-200 ${
-              isProfileOpen ? 'rotate-180' : ''
-            }`}></i>
-          </div>
-
-          {isProfileOpen && (
-            <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-              {/* FIXED: Pass tour guide type to getRoleDisplayName */}
-              <div className="p-3 border-b">
-                <p className="font-bold text-gray-800">{getUserDisplayName()}</p>
-                <p className="text-sm text-gray-700">
-                  {getRoleDisplayName(userSession.role, user.tourGuideType)} Account
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{user.email}</p>
-              </div>
-              <div className="py-2">
-                <a 
-                  href="/all/profile" 
-                  className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                  onClick={(e) => { e.preventDefault(); router.push('/all/profile'); setIsProfileOpen(false); }}
-                >
-                  <i className="bi bi-person-circle w-5 text-black"></i>
-                  <span>Profile</span>
-                </a>
-                {(userSession.role === 'host' || userSession.role === 'agent') && (
-                  <a 
-                    href="/all/earnings" 
-                    className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                    onClick={(e) => { e.preventDefault(); router.push('/all/earnings'); setIsProfileOpen(false); }}
-                  >
-                    <i className="bi bi-wallet2 w-5 text-black"></i>
-                    <span>Balance & Payments</span>
-                  </a>
-                )}
-                <a 
-                  href="/all/settings" 
-                  className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                  onClick={(e) => { e.preventDefault(); router.push('/all/settings'); setIsProfileOpen(false); }}
-                >
-                  <i className="bi bi-gear w-5 text-black"></i>
-                  <span>Settings</span>
-                </a>
-              </div>
-              <div className="border-t p-2">
+        {/* Show authenticated user features only if logged in */}
+        {!isLoading && !isRedirecting && isAuthenticated && user && userSession ? (
+          <>
+            {/* KYC Notice in TopBar */}
+            {user && !user.kycCompleted && (user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
+              <div className="hidden md:flex items-center bg-yellow-50 text-yellow-800 px-3 py-1 rounded-full text-sm">
+                <i className="bi bi-exclamation-triangle mr-1"></i>
+                <span>Complete KYC</span>
                 <button
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    handleLogout();
-                  }}
-                  className="flex items-center gap-3 px-4 py-2 text-base text-red-600 hover:bg-red-50 rounded-md transition-colors w-full text-left"
+                  onClick={() => router.push('/all/kyc')}
+                  className="ml-2 text-yellow-700 hover:text-yellow-900 underline"
                 >
-                  <i className="bi bi-box-arrow-right w-5"></i>
-                  <span>Logout</span>
+                  →
                 </button>
               </div>
+            )}
+
+            <div className="relative cursor-pointer hidden sm:block">
+              <i className="bi bi-chat-left-text text-2xl text-gray-600 hover:text-[#083A85]"></i>
+              {messagesCount > 0 && (
+                <span className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full bg-red-500">
+                  {messagesCount > 99 ? '99+' : messagesCount}
+                </span>
+              )}
             </div>
-          )}
-        </div>
+
+            <div className="relative" ref={notificationsRef}>
+              <div 
+                className="relative cursor-pointer" 
+                onClick={() => {
+                  setIsNotificationsOpen(!isNotificationsOpen);
+                  setIsProfileOpen(false);
+                }}
+              >
+                <i className="bi bi-bell text-2xl text-gray-600 hover:text-[#083A85]"></i>
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
+                    style={{ backgroundColor: "#F20C8F" }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
+
+              {isNotificationsOpen && (
+                <div className="absolute right-0 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
+                    <h6 className="font-semibold text-gray-800">Notifications</h6>
+                    {notificationsLoading && (
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                  </div>
+                  <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        <i className="bi bi-bell-slash text-2xl mb-2"></i>
+                        <p>No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.map(notification => (
+                        <div 
+                          key={notification.id} 
+                          className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''}`}
+                          onClick={() => {
+                            markNotificationAsRead(notification.id);
+                            if (notification.actionUrl) {
+                              router.push(notification.actionUrl);
+                            }
+                          }}
+                        >
+                          <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
+                            !notification.isRead ? 'bg-blue-500/20' : 'bg-gray-200'
+                          }`}>
+                            <i className={`bi ${getNotificationIcon(notification.type)} text-lg ${
+                              !notification.isRead ? getNotificationColor(notification.type) : 'text-gray-600'
+                            }`}></i>
+                          </div>
+                          <div className="flex-grow">
+                            <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                              {notification.title}
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                            <div className="flex items-center justify-between mt-2">
+                              <p className="text-xs text-gray-500">{timeAgo(notification.timestamp)}</p>
+                              {notification.priority === 'urgent' && (
+                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                                  Urgent
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {notifications.length > 0 && (
+                    <a 
+                      href="/all/notifications" 
+                      className="block text-center p-2 text-sm font-medium text-blue-600 hover:bg-gray-100 transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        router.push('/all/notifications');
+                        setIsNotificationsOpen(false);
+                      }}
+                    >
+                      View All Notifications
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="relative" ref={profileRef}>
+              <div 
+                className="flex items-center gap-3 cursor-pointer" 
+                onClick={() => {
+                  setIsProfileOpen(!isProfileOpen);
+                  setIsNotificationsOpen(false);
+                }}
+              >
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] to-[#F20C8F] border-2 border-gray-300">
+                  {user.profile ? (
+                    <img
+                      src={user.profile}
+                      alt="Profile"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <span className="text-white font-semibold text-sm">{getUserAvatar()}</span>
+                  )}
+                </div>
+
+                <div className="hidden sm:flex flex-col leading-tight">
+                  <span className="font-semibold" style={{ color: "#083A85" }}>
+                    {getUserDisplayName()}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {userSession.role === 'host' || userSession.role === 'agent' 
+                      ? `$${balance.toFixed(2)}` 
+                      : getRoleDisplayName(userSession.role, user.tourGuideType)
+                    }
+                  </span>
+                </div>
+
+                <i className={`bi bi-chevron-down text-gray-500 transition-transform duration-200 ${
+                  isProfileOpen ? 'rotate-180' : ''
+                }`}></i>
+              </div>
+
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-3 border-b">
+                    <p className="font-bold text-gray-800">{getUserDisplayName()}</p>
+                    <p className="text-sm text-gray-700">
+                      {getRoleDisplayName(userSession.role, user.tourGuideType)} Account
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                  </div>
+                  <div className="py-2">
+                    <a 
+                      href="/all/profile" 
+                      className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                      onClick={(e) => { e.preventDefault(); router.push('/all/profile'); setIsProfileOpen(false); }}
+                    >
+                      <i className="bi bi-person-circle w-5 text-black"></i>
+                      <span>Profile</span>
+                    </a>
+                    {(userSession.role === 'host' || userSession.role === 'agent') && (
+                      <a 
+                        href="/all/earnings" 
+                        className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                        onClick={(e) => { e.preventDefault(); router.push('/all/earnings'); setIsProfileOpen(false); }}
+                      >
+                        <i className="bi bi-wallet2 w-5 text-black"></i>
+                        <span>Balance & Payments</span>
+                      </a>
+                    )}
+                    <a 
+                      href="/all/settings" 
+                      className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                      onClick={(e) => { e.preventDefault(); router.push('/all/settings'); setIsProfileOpen(false); }}
+                    >
+                      <i className="bi bi-gear w-5 text-black"></i>
+                      <span>Settings</span>
+                    </a>
+                  </div>
+                  <div className="border-t p-2">
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-3 px-4 py-2 text-base text-red-600 hover:bg-red-50 rounded-md transition-colors w-full text-left"
+                    >
+                      <i className="bi bi-box-arrow-right w-5"></i>
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Show basic actions for unauthenticated users */
+          !isLoading && !isRedirecting && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/all/login')}
+                className="px-4 py-2 text-sm font-medium text-[#083A85] hover:text-[#062a63] transition-colors"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => router.push('/all/signup')}
+                className="px-4 py-2 text-sm font-medium bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
+              >
+                Sign Up
+              </button>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
