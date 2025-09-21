@@ -374,7 +374,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     
     console.log('Logging out and redirecting to login');
     // Example redirect, adjust as needed
-    // router.push('/all/login');
+     router.push('https://jambolush.com/all/login');
   };
 
   useEffect(() => {
