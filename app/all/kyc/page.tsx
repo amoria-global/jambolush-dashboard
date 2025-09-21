@@ -159,7 +159,7 @@ const KYCUploadPage: React.FC = () => {
     'Denmark', 'Egypt', 'Finland', 'France', 'Germany', 'Ghana',
     'India', 'Indonesia', 'Italy', 'Japan', 'Kenya', 'Malaysia',
     'Mexico', 'Netherlands', 'Nigeria', 'Norway', 'Pakistan', 'Philippines',
-    'Poland', 'Portugal', 'Russia', 'Saudi Arabia', 'South Africa', 'Spain',
+    'Poland', 'Portugal', 'Russia', 'Rwanda', 'Saudi Arabia', 'South Africa', 'Spain',
     'Sweden', 'Switzerland', 'Thailand', 'Turkey', 'Ukraine', 'United Kingdom',
     'United States', 'Vietnam'
   ].sort();
