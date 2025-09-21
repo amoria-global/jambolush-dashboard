@@ -271,8 +271,9 @@ const AgentClientsPage: React.FC = () => {
       // Make API call with query parameters
       const response = await api.get(`/properties/agent/guests?${queryParams.toString()}`);
 
-      if (response.data && response.data.success) {
-        const guestsData: GuestProfile[] = response.data.data || [];
+      if (response.ok) {
+        const responseData = response.data.data || response.data || [];
+        const guestsData: GuestProfile[] = Array.isArray(responseData) ? responseData : [];
         
         // Fetch booking details for each guest to get latest booking info
         const clientsPromises = guestsData.map(async (guest) => {
@@ -337,6 +338,21 @@ const AgentClientsPage: React.FC = () => {
     return result;
   }, [clients, activeTab, propertyFilter]);
 
+  // Calculate summary stats (like host-guests page)
+  const summaryStats = useMemo(() => {
+    const today = new Date();
+    const thisWeek = new Date(today);
+    thisWeek.setDate(today.getDate() + 7);
+    
+    return {
+      total: clients.length,
+      confirmed: clients.filter(c => c.verificationStatus === 'verified').length,
+      pending: clients.filter(c => c.verificationStatus === 'pending').length,
+      checkedIn: clients.filter(c => c.status === 'Checked In').length,
+      revenue: clients.reduce((sum, c) => sum + c.housePayment, 0)
+    };
+  }, [clients]);
+
   const totalClients = filteredAndSortedClients.length;
   const totalPages = Math.max(apiTotalPages, Math.ceil(totalClients / pageSize));
   const paginatedClients = filteredAndSortedClients;
@@ -385,7 +401,7 @@ const AgentClientsPage: React.FC = () => {
   };
 
   const ClientCard: React.FC<{ client: Client }> = ({ client }) => (
-    <div className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
       <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 h-20">
         <span className={`absolute top-3 left-3 px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
           {client.status}
@@ -473,7 +489,7 @@ const AgentClientsPage: React.FC = () => {
             <p className="text-gray-600 mt-2">{error}</p>
             <button 
               onClick={fetchAgentGuests}
-              className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-blue-800 transition-colors"
+              className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-blue-800 transition-colors cursor-pointer"
             >
               Try Again
             </button>
@@ -492,8 +508,61 @@ const AgentClientsPage: React.FC = () => {
           <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
         </div>
 
+        {/* Summary Stats - matching host-guests styling */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm sm:text-base text-gray-600">Total Clients</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{summaryStats.total}</p>
+              </div>
+              <i className="bi bi-people-fill text-2xl text-gray-400"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm sm:text-base text-gray-600">Verified</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{summaryStats.confirmed}</p>
+              </div>
+              <i className="bi bi-check-circle text-2xl text-green-500"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm sm:text-base text-gray-600">Pending</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{summaryStats.pending}</p>
+              </div>
+              <i className="bi bi-clock text-2xl text-yellow-500"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm sm:text-base text-gray-600">Checked In</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{summaryStats.checkedIn}</p>
+              </div>
+              <i className="bi bi-calendar-week text-2xl text-blue-500"></i>
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm sm:text-base text-gray-600">Revenue</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">${summaryStats.revenue.toLocaleString()}</p>
+              </div>
+              <i className="bi bi-cash-stack text-2xl text-green-500"></i>
+            </div>
+          </div>
+        </div>
+
         {/* Filters Section */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-base font-medium text-gray-700 mb-2">Search</label>
@@ -591,7 +660,7 @@ const AgentClientsPage: React.FC = () => {
 
         {/* Content */}
         {totalClients === 0 && !isLoading && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-12 text-center">
             <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
@@ -606,7 +675,7 @@ const AgentClientsPage: React.FC = () => {
               {paginatedClients.map(client => <ClientCard key={client.id} client={client} />)}
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+            <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg overflow-hidden mb-6">
               {/* Mobile List View */}
               <div className="block sm:hidden">
                 <div className="divide-y divide-gray-200">

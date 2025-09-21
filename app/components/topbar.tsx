@@ -510,6 +510,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                 <i className="bi bi-exclamation-triangle mr-1"></i>
                 <span>Complete KYC</span>
                 <button
+
                   onClick={() => router.push('/all/kyc')}
                   className="ml-2 text-yellow-700 hover:text-yellow-900 underline"
                 >

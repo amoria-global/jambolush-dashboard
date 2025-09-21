@@ -281,8 +281,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-
-
     const getTimeBasedGreeting = () => {
         const hour = new Date().getHours();
         if (hour < 12) return 'Good morning';
@@ -290,8 +288,6 @@ const Dashboard: React.FC = () => {
         if (hour < 21) return 'Good evening';
         return 'Good night';
     };
-
-
 
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -337,7 +333,7 @@ const Dashboard: React.FC = () => {
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={fetchDashboardData}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
             >
               Try Again
             </button>
@@ -386,7 +382,7 @@ const Dashboard: React.FC = () => {
                 <button
                   key={range}
                   onClick={() => setSelectedTimeRange(range)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     selectedTimeRange === range
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -417,7 +413,7 @@ const Dashboard: React.FC = () => {
                   {alert.action && (
                     <button
                       onClick={() => alert.actionUrl && router.push(alert.actionUrl)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors cursor-pointer"
                     >
                       {alert.action}
                     </button>
@@ -430,11 +426,11 @@ const Dashboard: React.FC = () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-sm p-4 border">
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Today's Check-ins</p>
-                <p className="text-2xl font-bold text-blue-600">{quickStats.todayCheckIns}</p>
+                <p className="text-sm sm:text-base text-gray-600">Today's Check-ins</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{quickStats.todayCheckIns}</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
                 <i className="bi bi-box-arrow-in-right text-xl text-blue-600"></i>
@@ -442,11 +438,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-sm p-4 border">
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Today's Check-outs</p>
-                <p className="text-2xl font-bold text-green-600">{quickStats.todayCheckOuts}</p>
+                <p className="text-sm sm:text-base text-gray-600">Today's Check-outs</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{quickStats.todayCheckOuts}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
                 <i className="bi bi-box-arrow-right text-xl text-green-600"></i>
@@ -454,11 +450,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-sm p-4 border">
+          <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Occupied Properties</p>
-                <p className="text-2xl font-bold text-purple-600">{quickStats.occupiedProperties}</p>
+                <p className="text-sm sm:text-base text-gray-600">Occupied Properties</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{quickStats.occupiedProperties}</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
                 <i className="bi bi-house-check text-xl text-purple-600"></i>
@@ -466,11 +462,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-50 to-white rounded-lg shadow-sm p-4 border">
+          <div className="bg-gradient-to-br from-orange-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Pending Actions</p>
-                <p className="text-2xl font-bold text-orange-600">{quickStats.pendingActions}</p>
+                <p className="text-sm sm:text-base text-gray-600">Pending Actions</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600">{quickStats.pendingActions}</p>
               </div>
               <div className="p-3 bg-orange-100 rounded-lg">
                 <i className="bi bi-exclamation-triangle text-xl text-orange-600"></i>
@@ -481,11 +477,11 @@ const Dashboard: React.FC = () => {
 
         {/* Main KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Earnings</p>
-                <p className="text-3xl font-bold text-gray-900">{formatCurrency(earningsData?.totalEarnings || dashboardData.totalRevenue || 0)}</p>
+                <p className="text-sm sm:text-base text-gray-600">Total Earnings</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(earningsData?.totalEarnings || dashboardData.totalRevenue || 0)}</p>
                 {earningsData?.revenueGrowth && (
                   <p className="text-sm text-green-600 mt-1">+{earningsData.revenueGrowth}% growth</p>
                 )}
@@ -496,11 +492,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Properties</p>
-                <p className="text-3xl font-bold text-gray-900">{dashboardData.totalProperties || 0}</p>
+                <p className="text-sm sm:text-base text-gray-600">Total Properties</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{dashboardData.totalProperties || 0}</p>
                 <p className="text-sm text-blue-600 mt-1">{dashboardData.activeProperties || 0} active</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -509,11 +505,11 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Bookings</p>
-                <p className="text-3xl font-bold text-gray-900">{dashboardData.totalBookings || 0}</p>
+                <p className="text-sm sm:text-base text-gray-600">Total Bookings</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{dashboardData.totalBookings || 0}</p>
                 <p className="text-sm text-purple-600 mt-1">This {selectedTimeRange}</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -522,18 +518,18 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Average Rating</p>
-                <p className="text-3xl font-bold text-gray-900">{(dashboardData.averageRating || 0)}</p>
+                <p className="text-sm sm:text-base text-gray-600">Average Rating</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{(dashboardData.averageRating || 0)}</p>
                 <div className="flex items-center mt-1">
                   <div className="flex text-yellow-400 mr-2">
                     {[...Array(5)].map((_, i) => (
                       <i key={i} className="bi bi-star-fill text-xs"></i>
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600">{dashboardData.pendingReviews || 0} pending</span>
+                  <span className="text-sm text-yellow-600">{dashboardData.pendingReviews || 0} pending</span>
                 </div>
               </div>
               <div className="p-3 bg-yellow-100 rounded-lg">
@@ -546,7 +542,7 @@ const Dashboard: React.FC = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
           {/* Earnings Chart */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-graph-up mr-2 text-green-600"></i>
@@ -554,7 +550,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/analytics')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 View Details
               </button>
@@ -580,7 +576,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Bookings Chart */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-bar-chart mr-2 text-blue-600"></i>
@@ -588,7 +584,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/bookings')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 View All
               </button>
@@ -610,7 +606,7 @@ const Dashboard: React.FC = () => {
         {/* Property Performance & Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Property Performance */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-house mr-2 text-purple-600"></i>
@@ -618,7 +614,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/properties')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 Manage Properties
               </button>
@@ -652,7 +648,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-clock-history mr-2 text-orange-600"></i>
@@ -660,7 +656,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/activity')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 View All
               </button>
@@ -693,7 +689,7 @@ const Dashboard: React.FC = () => {
         {/* Recent Bookings & Upcoming Check-ins */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Recent Bookings */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-calendar-plus mr-2 text-green-600"></i>
@@ -701,7 +697,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/bookings')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 View All
               </button>
@@ -737,7 +733,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Upcoming Check-ins */}
-          <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-calendar-event mr-2 text-blue-600"></i>
@@ -745,7 +741,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/calendar')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 View Calendar
               </button>
@@ -775,7 +771,7 @@ const Dashboard: React.FC = () => {
 
         {/* Earnings Overview */}
         {earningsData && (
-          <div className="bg-white rounded-lg p-6 shadow-sm border mb-8">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 mb-8">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">
                 <i className="bi bi-graph-up-arrow mr-2 text-green-600"></i>
@@ -783,30 +779,30 @@ const Dashboard: React.FC = () => {
               </h3>
               <button
                 onClick={() => router.push('/host/earnings')}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
               >
                 View Details
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Monthly Earnings</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(earningsData.monthlyEarnings)}</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-1">Monthly Earnings</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(earningsData.monthlyEarnings)}</p>
                 <p className="text-xs text-gray-500">vs last month</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Avg. Nightly Rate</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(earningsData.averageNightlyRate)}</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-1">Avg. Nightly Rate</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{formatCurrency(earningsData.averageNightlyRate)}</p>
                 <p className="text-xs text-gray-500">per night</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Occupancy Rate</p>
-                <p className="text-2xl font-bold text-purple-600">{earningsData.occupancyRate}%</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-1">Occupancy Rate</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{earningsData.occupancyRate}%</p>
                 <p className="text-xs text-gray-500">of available nights</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-1">Revenue Growth</p>
-                <p className={`text-2xl font-bold ${earningsData.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className="text-sm sm:text-base text-gray-600 mb-1">Revenue Growth</p>
+                <p className={`text-xl sm:text-2xl font-bold ${earningsData.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {earningsData.revenueGrowth >= 0 ? '+' : ''}{earningsData.revenueGrowth}%
                 </p>
                 <p className="text-xs text-gray-500">this month</p>
@@ -816,7 +812,7 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg p-6 shadow-sm border">
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">
             <i className="bi bi-lightning mr-2 text-yellow-600"></i>
             Quick Actions
@@ -824,28 +820,28 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button
               onClick={() => router.push('/host/properties/add')}
-              className="p-4 text-center bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group"
+              className="p-4 text-center bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group cursor-pointer"
             >
               <i className="bi bi-plus-circle text-2xl text-blue-600 mb-2 group-hover:scale-110 transition-transform"></i>
               <p className="text-sm font-medium text-gray-900">Add Property</p>
             </button>
             <button
               onClick={() => router.push('/host/guests')}
-              className="p-4 text-center bg-green-50 hover:bg-green-100 rounded-lg transition-colors group"
+              className="p-4 text-center bg-green-50 hover:bg-green-100 rounded-lg transition-colors group cursor-pointer"
             >
               <i className="bi bi-people text-2xl text-green-600 mb-2 group-hover:scale-110 transition-transform"></i>
               <p className="text-sm font-medium text-gray-900">Manage Guests</p>
             </button>
             <button
               onClick={() => router.push('/host/calendar')}
-              className="p-4 text-center bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
+              className="p-4 text-center bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group cursor-pointer"
             >
               <i className="bi bi-calendar text-2xl text-purple-600 mb-2 group-hover:scale-110 transition-transform"></i>
               <p className="text-sm font-medium text-gray-900">View Calendar</p>
             </button>
             <button
               onClick={() => router.push('/host/analytics')}
-              className="p-4 text-center bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors group"
+              className="p-4 text-center bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors group cursor-pointer"
             >
               <i className="bi bi-bar-chart text-2xl text-orange-600 mb-2 group-hover:scale-110 transition-transform"></i>
               <p className="text-sm font-medium text-gray-900">View Analytics</p>
