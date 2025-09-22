@@ -92,29 +92,107 @@ const AgentDashboard = () => {
                     setUserName(user.name);
                 }
 
+                // Set authentication token
+                const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+                api.setAuth(token || '');
+
                 // Fetch all required data concurrently
-                const [dashboardResponse, propertiesResponse, earningsResponse]: any = await Promise.all([
+                const [dashboardResponse, propertiesResponse, earningsResponse] = await Promise.all([
                     api.get('/properties/agent/dashboard'),
-                    api.get('/properties/agent/properties'),
-                    api.get('/properties/agent/earnings'),
-                    fetchUserData()
+                    api.get('/properties/agent/properties'),  
+                    api.get('/properties/agent/earnings')
                 ]);
 
-                if (dashboardResponse.success) {
-                    setDashboardData(dashboardResponse.data);
+                console.log('Dashboard Response:', dashboardResponse);
+                console.log('Properties Response:', propertiesResponse);
+                console.log('Earnings Response:', earningsResponse);
+
+                // Process dashboard data with fallbacks
+                if (dashboardResponse.ok || dashboardResponse.ok) {
+                    const dashboardData = dashboardResponse.data?.data || dashboardResponse.data || {};
+                    
+                    // Process real backend data only
+                    const processedDashboardData = {
+                        ...dashboardData,
+                        activeClients: dashboardData.activeClients || dashboardData.totalClients || 0,
+                        totalCommissions: dashboardData.totalCommissions || dashboardData.totalEarnings || 0,
+                        pendingCommissions: dashboardData.pendingCommissions || 0,
+                        avgCommissionPerBooking: dashboardData.avgCommissionPerBooking || 
+                            (dashboardData.totalCommissions > 0 && dashboardData.totalBookings > 0 ? 
+                                dashboardData.totalCommissions / dashboardData.totalBookings : 0),
+                        monthlyCommissions: dashboardData.monthlyCommissions || [],
+                        recentBookings: dashboardData.recentBookings || []
+                    };
+                    
+                    setDashboardData(processedDashboardData);
+                } else {
+                    // Set empty data if API isn't available
+                    setDashboardData({
+                        activeClients: 0,
+                        totalClients: 0,
+                        totalCommissions: 0,
+                        pendingCommissions: 0,
+                        avgCommissionPerBooking: 0,
+                        monthlyCommissions: [],
+                        recentBookings: []
+                    });
                 }
 
-                if (propertiesResponse.success) {
-                    setPropertiesData(propertiesResponse.data);
+                // Process properties data with fallbacks
+                if (propertiesResponse.ok || propertiesResponse.ok) {
+                    const propertiesData = propertiesResponse.data?.data || propertiesResponse.data || {};
+                    const processedPropertiesData = {
+                        total: propertiesData.totalProperties || (propertiesData.properties?.length || 0),
+                        properties: Array.isArray(propertiesData.properties) ? propertiesData.properties : 
+                                   Array.isArray(propertiesData) ? propertiesData : []
+                    };
+                    setPropertiesData(processedPropertiesData);
+                } else {
+                    setPropertiesData({
+                        total: 0,
+                        properties: []
+                    });
                 }
 
-                if (earningsResponse.success) {
-                    setEarningsData(earningsResponse.data);
+                // Process earnings data with fallbacks  
+                if (earningsResponse.ok || earningsResponse.ok) {
+                    const earningsData = earningsResponse.data?.data || earningsResponse.data || {};
+                    setEarningsData({
+                        totalEarnings: earningsData.totalEarnings || earningsData.totalCommissions || 0,
+                        totalBookings: earningsData.totalBookings || 0,
+                        ...earningsData
+                    });
+                } else {
+                    setEarningsData({
+                        totalEarnings: 0,
+                        totalBookings: 0
+                    });
                 }
+
+                await fetchUserData();
 
             } catch (err: Error | any) {
                 console.error('Error loading dashboard data:', err);
                 setError(err.message || 'Failed to load dashboard data');
+                
+                // Set empty data on error
+                setDashboardData({
+                    activeClients: 0,
+                    totalClients: 0,
+                    totalCommissions: 0,
+                    pendingCommissions: 0,
+                    avgCommissionPerBooking: 0,
+                    monthlyCommissions: [],
+                    recentBookings: []
+                });
+                setPropertiesData({
+                    total: 0,
+                    properties: []
+                });
+                setEarningsData({
+                    totalEarnings: 0,
+                    totalBookings: 0
+                });
             } finally {
                 setLoading(false);
             }
@@ -162,6 +240,8 @@ const AgentDashboard = () => {
                 change: `${dashboardData.totalClients || 0} total clients`,
                 icon: 'people',
                 iconBg: '#F20C8F',
+                bgGradient: 'from-pink-50 to-white',
+                textColor: 'text-pink-600'
             },
             {
                 title: 'Total Earnings',
@@ -169,6 +249,8 @@ const AgentDashboard = () => {
                 change: `$${dashboardData.pendingCommissions?.toLocaleString() || '0'} pending`,
                 icon: 'currency-dollar',
                 iconBg: '#083A85',
+                bgGradient: 'from-blue-50 to-white',
+                textColor: 'text-blue-600'
             },
             {
                 title: 'Properties Managed',
@@ -176,6 +258,8 @@ const AgentDashboard = () => {
                 change: `${propertiesData?.properties?.length || 0} active listings`,
                 icon: 'house-door',
                 iconBg: '#10B981',
+                bgGradient: 'from-green-50 to-white',
+                textColor: 'text-green-600'
             },
             {
                 title: 'Avg Commission',
@@ -183,6 +267,8 @@ const AgentDashboard = () => {
                 change: 'per booking',
                 icon: 'graph-up-arrow',
                 iconBg: '#F59E0B',
+                bgGradient: 'from-yellow-50 to-white',
+                textColor: 'text-yellow-600'
             },
         ];
     };
@@ -294,7 +380,7 @@ const AgentDashboard = () => {
                                 <p className="text-red-600 mt-1">{error}</p>
                                 <button 
                                     onClick={() => window.location.reload()} 
-                                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors cursor-pointer"
                                 >
                                     Retry
                                 </button>
@@ -329,7 +415,7 @@ const AgentDashboard = () => {
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
                     {summaryCards.map((card, index) => (
-                        <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                        <div key={index} className={`bg-gradient-to-br ${card.bgGradient} rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 relative overflow-hidden`}>
                             <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
                                 <i className={`bi bi-${card.icon}`} />
                             </div>
@@ -340,10 +426,10 @@ const AgentDashboard = () => {
                                 >
                                     <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
                                 </div>
-                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
+                                <span className="text-sm sm:text-base text-gray-600 font-medium">{card.title}</span>
                             </div>
-                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
+                            <div className={`text-xl sm:text-2xl lg:text-3xl font-bold mb-1 ${card.textColor}`}>{card.value}</div>
+                            <div className={`text-sm sm:text-base ${card.textColor} flex items-center font-medium`}>
                                 <i className="bi bi-arrow-up mr-1" />
                                 {card.change}
                             </div>
@@ -354,7 +440,7 @@ const AgentDashboard = () => {
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
                     {/* Earnings Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-graph-up mr-2 text-pink-500" />
@@ -409,7 +495,7 @@ const AgentDashboard = () => {
                     </div>
 
                     {/* Client Acquisition Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-bar-chart mr-2 text-blue-800" />
@@ -452,13 +538,13 @@ const AgentDashboard = () => {
                 {/* Appointments & Properties */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
                     {/* Upcoming Appointments */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-calendar-event mr-2 text-blue-600" />
                                 Recent Bookings
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => {router.push('/agent/schedule')}}>
                                 View Calendar
                             </button>
                         </div>
@@ -491,13 +577,13 @@ const AgentDashboard = () => {
                     </div>
 
                     {/* Top Properties */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-trophy mr-2 text-amber-500" />
                                 Top Performing Properties
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/agent/properties')}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => router.push('/agent/properties')}>
                                 View All
                             </button>
                         </div>
@@ -532,7 +618,7 @@ const AgentDashboard = () => {
                 {/* Bottom Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
                     {/* Property Categories */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-pie-chart mr-2 text-gray-600" />
@@ -584,13 +670,13 @@ const AgentDashboard = () => {
                     </div>
 
                     {/* Recent Activity */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 lg:col-span-2">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-clock-history mr-2 text-gray-800" />
                                 Recent Activity
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => router.push('/agent/logs')}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => router.push('/agent/logs')}>
                                 View All
                             </button>
                         </div>
@@ -614,7 +700,7 @@ const AgentDashboard = () => {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mt-6 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                     <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Metrics</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
                         {quickStats.map((stat, index) => (

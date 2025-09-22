@@ -219,7 +219,7 @@ const HostAnalyticsPage: React.FC = () => {
             <p className="text-red-600 mb-4">{error}</p>
             <button
               onClick={fetchAnalytics}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
             >
               Try Again
             </button>
@@ -238,7 +238,7 @@ const HostAnalyticsPage: React.FC = () => {
             <p className="text-gray-600">No analytics data available</p>
             <button
               onClick={fetchAnalytics}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
             >
               Refresh Data
             </button>
@@ -261,7 +261,7 @@ const HostAnalyticsPage: React.FC = () => {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+              <h1 className="text-3xl font-bold text-[#083A85]">Analytics Dashboard</h1>
               <p className="text-gray-600 mt-2">Detailed insights into your property performance</p>
             </div>
             
@@ -271,7 +271,7 @@ const HostAnalyticsPage: React.FC = () => {
                 <button
                   key={range}
                   onClick={() => setTimeRange(range)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     timeRange === range
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -286,11 +286,11 @@ const HostAnalyticsPage: React.FC = () => {
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900">${(overview.totalRevenue || 0).toLocaleString()}</p>
+                <p className="text-sm sm:text-base text-gray-600">Total Revenue</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">${(overview.totalRevenue || 0).toLocaleString()}</p>
                 <p className="text-sm text-green-600 mt-1">+12.5% vs last period</p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -299,11 +299,11 @@ const HostAnalyticsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Total Bookings</p>
-                <p className="text-3xl font-bold text-gray-900">{overview.totalBookings || 0}</p>
+                <p className="text-sm sm:text-base text-gray-600">Total Bookings</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{overview.totalBookings || 0}</p>
                 <p className="text-sm text-blue-600 mt-1">+8.3% vs last period</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -312,11 +312,11 @@ const HostAnalyticsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Occupancy Rate</p>
-                <p className="text-3xl font-bold text-gray-900">{(overview.occupancyRate || 0).toFixed(1)}%</p>
+                <p className="text-sm sm:text-base text-gray-600">Occupancy Rate</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600">{(overview.occupancyRate || 0).toFixed(1)}%</p>
                 <p className="text-sm text-purple-600 mt-1">+5.2% vs last period</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -325,11 +325,11 @@ const HostAnalyticsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-medium">Average Rating</p>
-                <p className="text-3xl font-bold text-gray-900">{(overview.averageRating || 0).toFixed(1)}</p>
+                <p className="text-sm sm:text-base text-gray-600">Average Rating</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-600">{(overview.averageRating || 0).toFixed(1)}</p>
                 <p className="text-sm text-yellow-600 mt-1">+0.2 vs last period</p>
               </div>
               <div className="p-3 bg-yellow-100 rounded-lg">
@@ -342,7 +342,7 @@ const HostAnalyticsPage: React.FC = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
           {/* Revenue Trends */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold text-gray-900">Revenue Trends</h3>
               <div className="flex gap-2">
@@ -350,7 +350,7 @@ const HostAnalyticsPage: React.FC = () => {
                   <button
                     key={metric}
                     onClick={() => setSelectedMetric(metric as any)}
-                    className={`px-3 py-1 rounded text-sm font-medium ${
+                    className={`px-3 py-1 rounded text-sm font-medium cursor-pointer ${
                       selectedMetric === metric
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-600 hover:text-gray-900'
@@ -382,7 +382,7 @@ const HostAnalyticsPage: React.FC = () => {
           </div>
 
           {/* Booking Trends */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Booking Performance</h3>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -400,7 +400,7 @@ const HostAnalyticsPage: React.FC = () => {
         </div>
 
         {/* Property Performance */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border mb-8">
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Property Performance</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -458,17 +458,17 @@ const HostAnalyticsPage: React.FC = () => {
         {/* Bottom Row - Guest Analytics and Revenue Breakdown */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Guest Demographics */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Guest Analytics</h3>
             
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-gray-900">{guestInsights.totalGuests || 0}</p>
-                <p className="text-sm text-gray-600">Total Guests</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{guestInsights.totalGuests || 0}</p>
+                <p className="text-sm sm:text-base text-gray-600">Total Guests</p>
               </div>
               <div className="text-center p-4 bg-gray-50 rounded-lg">
-                <p className="text-2xl font-bold text-green-600">{guestInsights.returningGuests || 0}</p>
-                <p className="text-sm text-gray-600">Returning Guests</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{guestInsights.returningGuests || 0}</p>
+                <p className="text-sm sm:text-base text-gray-600">Returning Guests</p>
               </div>
             </div>
 
@@ -488,13 +488,13 @@ const HostAnalyticsPage: React.FC = () => {
 
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Average Stay Duration</h4>
-                <p className="text-2xl font-bold text-blue-600">{(guestInsights.averageStayDuration || 0).toFixed(1)} days</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{(guestInsights.averageStayDuration || 0).toFixed(1)} days</p>
               </div>
             </div>
           </div>
 
           {/* Revenue Breakdown */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Revenue by Property</h3>
             {revenueAnalytics.revenueByProperty && revenueAnalytics.revenueByProperty.length > 0 ? (
               <>
@@ -543,22 +543,22 @@ const HostAnalyticsPage: React.FC = () => {
 
         {/* Market Comparison */}
         {marketComparison && (
-          <div className="bg-white p-6 rounded-lg shadow-sm border mt-8">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 mt-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-6">Market Comparison</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Your Average Price</p>
-                <p className="text-2xl font-bold text-blue-600">${(marketComparison.myAveragePrice || 0).toFixed(0)}</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-2">Your Average Price</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">${(marketComparison.myAveragePrice || 0).toFixed(0)}</p>
                 <p className="text-sm text-gray-500">vs ${(marketComparison.averagePrice || 0).toFixed(0)} market avg</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Your Occupancy Rate</p>
-                <p className="text-2xl font-bold text-green-600">{(marketComparison.myOccupancyRate || 0).toFixed(1)}%</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-2">Your Occupancy Rate</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{(marketComparison.myOccupancyRate || 0).toFixed(1)}%</p>
                 <p className="text-sm text-gray-500">vs {(marketComparison.occupancyRate || 0).toFixed(1)}% market avg</p>
               </div>
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">Market Position</p>
-                <p className="text-2xl font-bold text-purple-600 capitalize">{(marketComparison.marketPosition || 'mid_range').replace('_', ' ')}</p>
+                <p className="text-sm sm:text-base text-gray-600 mb-2">Market Position</p>
+                <p className="text-xl sm:text-2xl font-bold text-purple-600 capitalize">{(marketComparison.marketPosition || 'mid_range').replace('_', ' ')}</p>
                 <p className="text-sm text-gray-500">{marketComparison.competitorCount || 0} competitors nearby</p>
               </div>
             </div>

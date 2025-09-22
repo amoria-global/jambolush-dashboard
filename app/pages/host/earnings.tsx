@@ -315,13 +315,13 @@ const fetchUserData = async () => {
                 <div className="flex justify-end gap-2 mt-4">
                     <button 
                         onClick={() => setShowWithdrawModal(false)} 
-                        className="px-4 py-2 text-sm rounded-md bg-gray-200 text-black"
+                        className="px-4 py-2 text-sm rounded-md bg-gray-200 text-black cursor-pointer"
                     >
                         Cancel
                     </button>
                     <button 
                         onClick={handleConfirmWithdrawal} 
-                        className="px-4 py-2 text-sm rounded-md text-white" 
+                        className="px-4 py-2 text-sm rounded-md text-white cursor-pointer" 
                         style={{ backgroundColor: '#F20C8F' }}
                     >
                         Confirm Withdrawal
@@ -340,12 +340,12 @@ const fetchUserData = async () => {
                
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
                     {/* Balance Card */}
-                    <div className="md:col-span-1 bg-white p-4 rounded-xl shadow-md flex flex-col justify-between">
+                    <div className="md:col-span-1 bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 flex flex-col justify-between">
                         {loading.summary ? <div className="h-full bg-gray-200 animate-pulse rounded-md"></div> :
                         (<>
                             <div>
-                                <p className="text-xs text-gray-500 font-medium">Available Balance</p>
-                                <p className="text-3xl font-bold text-black">
+                                <p className="text-sm sm:text-base text-gray-600">Available Balance</p>
+                                <p className="text-xl sm:text-2xl font-bold text-blue-600">
                                     ${balance.toLocaleString('en-US', { 
                                         minimumFractionDigits: 2, 
                                         maximumFractionDigits: 2 
@@ -372,10 +372,10 @@ const fetchUserData = async () => {
                             </>
                         ) : (
                             <>
-                                <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
+                                <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-gray-500 font-medium">Total Revenue</p>
-                                        <p className="text-xl font-bold text-black">
+                                        <p className="text-sm sm:text-base text-gray-600">Total Revenue</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-green-600">
                                             ${summaryData.totalRevenue.toLocaleString()}
                                         </p>
                                     </div>
@@ -386,10 +386,10 @@ const fetchUserData = async () => {
                                         <i className="bi bi-cash-stack text-white text-xl"></i>
                                     </div>
                                 </div>
-                                <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
+                                <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-gray-500 font-medium">YTD Profit</p>
-                                        <p className="text-xl font-bold text-black">
+                                        <p className="text-sm sm:text-base text-gray-600">YTD Profit</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-purple-600">
                                             ${summaryData.ytdProfit.toLocaleString()}
                                         </p>
                                     </div>
@@ -400,10 +400,10 @@ const fetchUserData = async () => {
                                         <i className="bi bi-graph-up-arrow text-white text-xl"></i>
                                     </div>
                                 </div>
-                                <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between">
+                                <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs text-gray-500 font-medium">Occupancy Rate</p>
-                                        <p className="text-xl font-bold text-black">{summaryData.occupancyRate}%</p>
+                                        <p className="text-sm sm:text-base text-gray-600">Occupancy Rate</p>
+                                        <p className="text-xl sm:text-2xl font-bold text-gray-800">{summaryData.occupancyRate}%</p>
                                     </div>
                                     <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-800">
                                         <i className="bi bi-house-check text-white text-xl"></i>
@@ -415,7 +415,7 @@ const fetchUserData = async () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div className="lg:col-span-2 bg-white p-4 rounded-xl shadow-md">
+                    <div className="lg:col-span-2 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <h2 className="text-base font-semibold text-black mb-2">Earnings Over Time</h2>
                         {loading.charts ? <div className="h-64 bg-gray-200 animate-pulse rounded-md"></div> :
                             <div className="h-64">
@@ -470,7 +470,7 @@ const fetchUserData = async () => {
                             </div>
                         }
                     </div>
-                    <div className="bg-white p-4 rounded-xl shadow-md">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                         <h2 className="text-base font-semibold text-black mb-2">Revenue by Property</h2>
                         {loading.charts ? <div className="h-64 bg-gray-200 animate-pulse rounded-md"></div> :
                             <div className="h-64">
@@ -514,7 +514,7 @@ const fetchUserData = async () => {
                     </div>
                 </div>
                 
-                <div className="mt-4 bg-white p-4 rounded-xl shadow-md">
+                <div className="mt-4 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
                      <h2 className="text-base font-semibold text-black mb-2">Recent Payouts</h2>
                      {loading.payouts ? <div className="h-48 bg-gray-200 animate-pulse rounded-md"></div> :
                         <div className="overflow-x-auto">
