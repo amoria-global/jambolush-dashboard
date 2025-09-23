@@ -7,7 +7,7 @@ import api from '@/app/api/apiService';
 
 const EnhancedAgentDashboard = () => {
     const router = useRouter();
-    
+
     // State for dashboard data
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [enhancedData, setEnhancedData] = useState<any>(null);
@@ -53,7 +53,7 @@ const EnhancedAgentDashboard = () => {
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
-                setError('Failed to load dashboard data '+JSON.stringify(error));
+                setError('Failed to load dashboard data ' + JSON.stringify(error));
             } finally {
                 setLoading(false);
             }
@@ -75,7 +75,7 @@ const EnhancedAgentDashboard = () => {
                 { month: 'Jun', earnings: 0 },
             ];
         }
-        
+
         return monthlyCommissions.map((item: any) => ({
             month: new Date(item.month + '-01').toLocaleDateString('en-US', { month: 'short' }),
             earnings: item.commission || item.earnings || 0
@@ -96,13 +96,13 @@ const EnhancedAgentDashboard = () => {
                 { day: 'Sun', transactions: 0 },
             ];
         }
-        
+
         // Group transactions by day of week from the last 7 days
         const transactions = [
             ...(transactionBreakdown.escrowTransactions || []),
             ...(transactionBreakdown.paymentTransactions || [])
         ];
-        
+
         const dayCount: any = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
         transactions.forEach((transaction: any) => {
             const day = new Date(transaction.createdAt).toLocaleDateString('en-US', { weekday: 'short' });
@@ -130,7 +130,7 @@ const EnhancedAgentDashboard = () => {
             ...(transactionBreakdown.escrowTransactions || []),
             ...(transactionBreakdown.paymentTransactions || [])
         ];
-        
+
         allTransactions.forEach((transaction: any) => {
             const type = transaction.status || transaction.type || 'Other';
             typeCount[type] = (typeCount[type] || 0) + 1;
@@ -147,12 +147,12 @@ const EnhancedAgentDashboard = () => {
     // Transform recent transactions for messages section
     const transformRecentActivity = (transactionBreakdown: any) => {
         if (!transactionBreakdown || (!transactionBreakdown.escrowTransactions && !transactionBreakdown.paymentTransactions)) return [];
-        
+
         const allTransactions = [
             ...(transactionBreakdown.escrowTransactions || []).map((t: any) => ({ ...t, source: 'escrow' })),
             ...(transactionBreakdown.paymentTransactions || []).map((t: any) => ({ ...t, source: 'payment' }))
         ];
-        
+
         return allTransactions
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
             .slice(0, 4)
@@ -167,7 +167,7 @@ const EnhancedAgentDashboard = () => {
     // Transform upcoming appointments
     const transformUpcomingAppointments = (properties: any) => {
         if (!properties || properties.length === 0) return [];
-        
+
         return properties.slice(0, 3).map((property: any) => ({
             title: property.title || property.name,
             time: property.nextViewing ? new Date(property.nextViewing).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00',
@@ -195,8 +195,8 @@ const EnhancedAgentDashboard = () => {
                 <div className="text-center text-red-600">
                     <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
                     <p>{error}</p>
-                    <button 
-                        onClick={() => window.location.reload()} 
+                    <button
+                        onClick={() => window.location.reload()}
                         className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
                     >
                         Retry
@@ -263,163 +263,163 @@ const EnhancedAgentDashboard = () => {
 
     // Quick stats
     const quickStats = [
-        { 
-            label: 'Deals Closed', 
-            value: dashboardData?.totalDeals?.toString() || '0', 
-            icon: 'check-circle' 
+        {
+            label: 'Deals Closed',
+            value: dashboardData?.totalDeals?.toString() || '0',
+            icon: 'check-circle'
         },
-        { 
-            label: 'Response Rate', 
+        {
+            label: 'Response Rate',
             value: '98%', // This might need a separate endpoint
-            icon: 'chat-dots' 
+            icon: 'chat-dots'
         },
-        { 
-            label: 'Repeat Clients', 
+        {
+            label: 'Repeat Clients',
             value: '34%', // This might need calculation from transactions
-            icon: 'arrow-repeat' 
+            icon: 'arrow-repeat'
         },
-        { 
-            label: 'Avg Commission', 
-            value: `$${dashboardData?.avgCommissionPerBooking?.toFixed(0) || '0'}`, 
-            icon: 'cash-coin' 
+        {
+            label: 'Avg Commission',
+            value: `$${dashboardData?.avgCommissionPerBooking?.toFixed(0) || '0'}`,
+            icon: 'cash-coin'
         },
     ];
-    
-       const getTimeBasedGreeting = () => {
-    const hour = new Date().getHours();
-    
-    // Early Morning (5-7 AM)
-    const earlyMorningMessages = [
-        `🌅 <i class="bi bi-sunrise-fill text-warning"></i> Rise and shine, early bird!`,
-        `☕ <i class="bi bi-cup-hot text-danger"></i> First coffee, first victory!`,
-        `🐦 <i class="bi bi-feather text-info"></i> The world is yours this early!`,
-        `🌄 <i class="bi bi-mountain text-success"></i> Conquer mountains today!`,
-        `⏰ <i class="bi bi-alarm text-warning"></i> Early start, early success!`,
-        `🌤 <i class="bi bi-cloud-sun text-primary"></i> Dawn brings new possibilities!`,
-        `💪 <i class="bi bi-lightning-charge text-danger"></i> Power up for greatness!`,
-        `🔥 <i class="bi bi-fire text-warning"></i> Ignite your potential now!`,
-        `✨ <i class="bi bi-sparkle text-info"></i> Magic happens in the morning!`,
-        `🎯 <i class="bi bi-target text-success"></i> Aim high from the start!`
-    ];
 
-    // Morning (7-12 PM)
-    const morningMessages = [
-        `🌅 <i class="bi bi-sunrise-fill text-warning"></i> Good morning!`,
-        `☕ <i class="bi bi-cup-hot text-danger"></i> Coffee time!`,
-        `💡 <i class="bi bi-lightbulb-fill text-warning"></i> Fresh ideas start now!`,
-        `🏃 <i class="bi bi-lightning-charge-fill text-primary"></i> Start strong today!`,
-        `📅 <i class="bi bi-calendar-check text-success"></i> New goals, new wins!`,
-        `🌞 <i class="bi bi-brightness-alt-high-fill text-warning"></i> Shine bright today!`,
-        `🤝 <i class="bi bi-people-fill text-info"></i> Connect and grow!`,
-        `📈 <i class="bi bi-graph-up-arrow text-success"></i> Progress starts early!`,
-        `🎨 <i class="bi bi-palette-fill text-primary"></i> Paint your day beautiful!`,
-        `🚀 <i class="bi bi-rocket text-danger"></i> Launch into excellence!`,
-        `🌱 <i class="bi bi-seedling text-success"></i> Plant seeds of success!`,
-        `⭐ <i class="bi bi-star-half text-warning"></i> Half the day, full potential!`,
-        `🎪 <i class="bi bi-balloon-heart text-danger"></i> Make today spectacular!`,
-        `🏆 <i class="bi bi-trophy text-warning"></i> Champion mindset activated!`,
-        `🎵 <i class="bi bi-music-note text-info"></i> Start with good vibes!`
-    ];
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
 
-    // Afternoon (12-17 PM)
-    const afternoonMessages = [
-        `☀️ <i class="bi bi-brightness-high-fill text-primary"></i> Good afternoon!`,
-        `🚀 <i class="bi bi-rocket-takeoff-fill text-success"></i> Keep the momentum!`,
-        `🔥 <i class="bi bi-fire text-danger"></i> Stay on fire!`,
-        `🌱 <i class="bi bi-tree-fill text-success"></i> Keep growing strong!`,
-        `📊 <i class="bi bi-bar-chart-line-fill text-info"></i> Productivity boost!`,
-        `💪 <i class="bi bi-shield-check text-success"></i> Power through the day!`,
-        `🎯 <i class="bi bi-bullseye text-danger"></i> Focus on your targets!`,
-        `⚡ <i class="bi bi-lightning-fill text-warning"></i> Energy check—stay sharp!`,
-        `🌻 <i class="bi bi-flower1 text-warning"></i> Bloom where you're planted!`,
-        `🎪 <i class="bi bi-circus text-primary"></i> Make magic happen now!`,
-        `🏃‍♂️ <i class="bi bi-person-running text-success"></i> Sprint to your goals!`,
-        `🎨 <i class="bi bi-brush text-danger"></i> Create something amazing!`,
-        `🔮 <i class="bi bi-gem text-info"></i> Afternoon gems await you!`,
-        `🌊 <i class="bi bi-water text-primary"></i> Flow with the rhythm!`,
-        `🎭 <i class="bi bi-mask-happy text-warning"></i> Performance time!`,
-        `🏅 <i class="bi bi-award text-success"></i> Excellence is calling!`
-    ];
+        // Early Morning (5-7 AM)
+        const earlyMorningMessages = [
+            `🌅 Rise and shine, early bird!`,
+            `☕ First coffee, first victory!`,
+            `🐦 The world is yours this early!`,
+            `🌄 Conquer mountains today!`,
+            `⏰ Early start, early success!`,
+            `🌤 Dawn brings new possibilities!`,
+            `💪 Power up for greatness!`,
+            `🔥 Ignite your potential now!`,
+            `✨ Magic happens in the morning!`,
+            `🎯 Aim high from the start!`
+        ];
 
-    // Evening (17-21 PM)
-    const eveningMessages = [
-        `🌇 <i class="bi bi-moon-stars-fill text-info"></i> Good evening!`,
-        `📖 <i class="bi bi-journal-richtext text-secondary"></i> Reflect and recharge!`,
-        `🌟 <i class="bi bi-star-fill text-warning"></i> You did amazing today!`,
-        `🎶 <i class="bi bi-music-note-beamed text-primary"></i> Relax with good vibes!`,
-        `🍵 <i class="bi bi-cup-straw text-success"></i> Slow down, breathe easy!`,
-        `🙌 <i class="bi bi-emoji-smile-fill text-warning"></i> Celebrate small wins!`,
-        `🛋 <i class="bi bi-house-heart-fill text-danger"></i> Enjoy your comfort zone!`,
-        `🌌 <i class="bi bi-cloud-moon text-info"></i> Night is settling in—peace ahead!`,
-        `🍷 <i class="bi bi-cup text-danger"></i> Unwind and appreciate!`,
-        `🎨 <i class="bi bi-easel text-primary"></i> Evening creativity flows!`,
-        `🧘‍♀️ <i class="bi bi-peace text-success"></i> Find your inner calm!`,
-        `🎬 <i class="bi bi-camera-reels text-warning"></i> Enjoy life's moments!`,
-        `🌹 <i class="bi bi-flower2 text-danger"></i> Beauty in the twilight!`,
-        `📚 <i class="bi bi-book text-info"></i> Knowledge before rest!`,
-        `🕯 <i class="bi bi-candle text-warning"></i> Light up the evening!`,
-        `🎭 <i class="bi bi-drama-masks text-secondary"></i> Evening entertainment!`
-    ];
+        // Morning (7-12 PM)
+        const morningMessages = [
+            `🌅 Good morning!`,
+            `☕ Coffee time!`,
+            `💡 Fresh ideas start now!`,
+            `🏃 Start strong today!`,
+            `📅 New goals, new wins!`,
+            `🌞 Shine bright today!`,
+            `🤝 Connect and grow!`,
+            `📈 Progress starts early!`,
+            `🎨 Paint your day beautiful!`,
+            `🚀 Launch into excellence!`,
+            `🌱 Plant seeds of success!`,
+            `⭐ Half the day, full potential!`,
+            `🎪 Make today spectacular!`,
+            `🏆 Champion mindset activated!`,
+            `🎵 Start with good vibes!`
+        ];
 
-    // Night (21-24 PM)
-    const nightMessages = [
-        `🌙 <i class="bi bi-stars text-light"></i> Good night!`,
-        `🛌 <i class="bi bi-moon-fill text-info"></i> Rest well, dream big!`,
-        `✨ <i class="bi bi-magic text-warning"></i> Tomorrow holds magic!`,
-        `😴 <i class="bi bi-cloud-moon-fill text-secondary"></i> Recharge your soul!`,
-        `🔕 <i class="bi bi-bell-slash-fill text-muted"></i> Disconnect and rest!`,
-        `💤 <i class="bi bi-clouds-fill text-light"></i> Deep sleep matters!`,
-        `🌠 <i class="bi bi-star text-warning"></i> Drift into dreams!`,
-        `🛡 <i class="bi bi-shield-lock-fill text-success"></i> Safe and sound tonight!`,
-        `🌜 <i class="bi bi-moon text-info"></i> Let the moon guide your dreams!`,
-        `🎶 <i class="bi bi-music-note-list text-secondary"></i> Lullabies of the night!`,
-        `🏰 <i class="bi bi-castle text-primary"></i> Build castles in your sleep!`,
-        `🌌 <i class="bi bi-stars text-warning"></i> Cosmic dreams await!`,
-        `🛏 <i class="bi bi-house text-success"></i> Home sweet dreams!`,
-        `🔮 <i class="bi bi-crystal text-info"></i> Crystal clear rest ahead!`
-    ];
+        // Afternoon (12-17 PM)
+        const afternoonMessages = [
+            `☀️ Good afternoon!`,
+            `🚀 Keep the momentum!`,
+            `🔥 Stay on fire!`,
+            `🌱 Keep growing strong!`,
+            `📊 Productivity boost!`,
+            `💪 Power through the day!`,
+            `🎯 Focus on your targets!`,
+            `⚡ Energy check—stay sharp!`,
+            `🌻 Bloom where you're planted!`,
+            `🎪 Make magic happen now!`,
+            `🏃‍♂️ Sprint to your goals!`,
+            `🎨 Create something amazing!`,
+            `🔮 Afternoon gems await you!`,
+            `🌊 Flow with the rhythm!`,
+            `🎭 Performance time!`,
+            `🏅 Excellence is calling!`
+        ];
 
-    // Late Night/Midnight (0-5 AM)
-    const lateNightMessages = [
-        `🌃 <i class="bi bi-city text-primary"></i> Burning the midnight oil?`,
-        `🦉 <i class="bi bi-moon-stars text-info"></i> Night owl vibes!`,
-        `⭐ <i class="bi bi-stars text-warning"></i> Stars are your companions!`,
-        `🌙 <i class="bi bi-moon text-secondary"></i> Midnight magic hour!`,
-        `💻 <i class="bi bi-laptop text-primary"></i> Late night productivity!`,
-        `🎧 <i class="bi bi-headphones text-info"></i> Night sounds and focus!`,
-        `🔥 <i class="bi bi-flame text-danger"></i> Burning bright at night!`,
-        `🌌 <i class="bi bi-infinity text-warning"></i> Limitless night energy!`,
-        `☕ <i class="bi bi-cup-hot text-warning"></i> Midnight fuel running!`,
-        `🎯 <i class="bi bi-crosshair text-success"></i> Sharp focus in the dark!`,
-        `🚀 <i class="bi bi-rocket-takeoff text-primary"></i> Launch into the night!`,
-        `🎪 <i class="bi bi-tent text-danger"></i> Night circus performance!`,
-        `🔬 <i class="bi bi-microscope text-info"></i> Deep dive discoveries!`,
-        `🎨 <i class="bi bi-paint-bucket text-warning"></i> Creative night sessions!`
-    ];
+        // Evening (17-21 PM)
+        const eveningMessages = [
+            `🌇 Good evening!`,
+            `📖 Reflect and recharge!`,
+            `🌟 You did amazing today!`,
+            `🎶 Relax with good vibes!`,
+            `🍵 Slow down, breathe easy!`,
+            `🙌 Celebrate small wins!`,
+            `🛋 Enjoy your comfort zone!`,
+            `🌌 Night is settling in—peace ahead!`,
+            `🍷 Unwind and appreciate!`,
+            `🎨 Evening creativity flows!`,
+            `🧘‍♀️ Find your inner calm!`,
+            `🎬 Enjoy life's moments!`,
+            `🌹 Beauty in the twilight!`,
+            `📚 Knowledge before rest!`,
+            `🕯 Light up the evening!`,
+            `🎭 Evening entertainment!`
+        ];
 
-    const pickRandom = (messages: string[]) =>
-        messages[Math.floor(Math.random() * messages.length)];
+        // Night (21-24 PM)
+        const nightMessages = [
+            `🌙 Good night!`,
+            `🛌 Rest well, dream big!`,
+            `✨ Tomorrow holds magic!`,
+            `😴 Recharge your soul!`,
+            `🔕 Disconnect and rest!`,
+            `💤 Deep sleep matters!`,
+            `🌠 Drift into dreams!`,
+            `🛡 Safe and sound tonight!`,
+            `🌜 Let the moon guide your dreams!`,
+            `🎶 Lullabies of the night!`,
+            `🏰 Build castles in your sleep!`,
+            `🌌 Cosmic dreams await!`,
+            `🛏 Home sweet dreams!`,
+            `🔮 Crystal clear rest ahead!`
+        ];
 
-    if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
-    if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
-    if (hour >= 7 && hour < 12) return pickRandom(morningMessages);
-    if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
-    if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
-    return pickRandom(nightMessages);
+        // Late Night/Midnight (0-5 AM)
+        const lateNightMessages = [
+            `🌃 Burning the midnight oil?`,
+            `🦉 Night owl vibes!`,
+            `⭐ Stars are your companions!`,
+            `🌙 Midnight magic hour!`,
+            `💻 Late night productivity!`,
+            `🎧 Night sounds and focus!`,
+            `🔥 Burning bright at night!`,
+            `🌌 Limitless night energy!`,
+            `☕ Midnight fuel running!`,
+            `🎯 Sharp focus in the dark!`,
+            `🚀 Launch into the night!`,
+            `🎪 Night circus performance!`,
+            `🔬 Deep dive discoveries!`,
+            `🎨 Creative night sessions!`
+        ];
+
+        const pickRandom = (messages: string[]) =>
+            messages[Math.floor(Math.random() * messages.length)];
+
+        if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
+        if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
+        if (hour >= 7 && hour < 12) return pickRandom(morningMessages);
+        if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
+        if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
+        return pickRandom(nightMessages);
     };
-    
+
     return (
         <div className="mt-20">
             <div className="max-w-7xl mx-auto">
-                          
+
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
-                        {getTimeBasedGreeting()}, {userName}!
+                        {getTimeBasedGreeting()}, {userName}
                     </h1>
                     <p className="text-gray-600 text-md">Here's what's happening with your real estate business</p>
                 </div>
-               
+
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
                     {summaryCards.map((card, index) => (
@@ -428,11 +428,11 @@ const EnhancedAgentDashboard = () => {
                                 <i className={`bi bi-${card.icon}`} />
                             </div>
                             <div className="flex items-center mb-3">
-                                <div 
+                                <div
                                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
                                     style={{ backgroundColor: card.iconBg }}
                                 >
-                                    <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
+                                    <i className={`bi bi-${card.icon} text-md sm:text-base`} />
                                 </div>
                                 <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
                             </div>
@@ -464,20 +464,20 @@ const EnhancedAgentDashboard = () => {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                     <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: 'white', 
-                                            border: '1px solid #e5e7eb', 
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: 'white',
+                                            border: '1px solid #e5e7eb',
                                             borderRadius: '8px',
                                             fontSize: '12px'
-                                        }} 
+                                        }}
                                     />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="earnings" 
-                                        stroke="#F20C8F" 
-                                        strokeWidth={3} 
-                                        dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} 
+                                    <Line
+                                        type="monotone"
+                                        dataKey="earnings"
+                                        stroke="#F20C8F"
+                                        strokeWidth={3}
+                                        dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }}
                                         activeDot={{ r: 6, stroke: '#F20C8F', strokeWidth: 2 }}
                                     />
                                 </LineChart>
@@ -502,13 +502,13 @@ const EnhancedAgentDashboard = () => {
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                     <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                                     <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: 'white', 
-                                            border: '1px solid #e5e7eb', 
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: 'white',
+                                            border: '1px solid #e5e7eb',
                                             borderRadius: '8px',
                                             fontSize: '12px'
-                                        }} 
+                                        }}
                                     />
                                     <Bar dataKey="transactions" fill="#083A85" radius={[6, 6, 0, 0]} />
                                 </BarChart>
@@ -526,7 +526,7 @@ const EnhancedAgentDashboard = () => {
                                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                                 Today's Schedule
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/agent/schedule') }}>
                                 View Calendar
                             </button>
                         </div>
@@ -538,9 +538,8 @@ const EnhancedAgentDashboard = () => {
                                             <h4 className="font-medium text-gray-800 text-md">{appointment.title}</h4>
                                             <p className="text-md text-gray-600 mt-1">{appointment.location}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
-                                            appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                        }`}>
+                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
                                             {appointment.status}
                                         </span>
                                     </div>
@@ -577,10 +576,9 @@ const EnhancedAgentDashboard = () => {
                                             <h4 className="font-medium text-gray-800 text-md">{activity.client}</h4>
                                             <p className="text-md text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
-                                            activity.type === 'commission' ? 'bg-green-100 text-green-800' : 
-                                            activity.type === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
-                                        }`}>
+                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${activity.type === 'commission' ? 'bg-green-100 text-green-800' :
+                                                activity.type === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                                            }`}>
                                             {activity.type}
                                         </span>
                                     </div>
@@ -629,7 +627,7 @@ const EnhancedAgentDashboard = () => {
                         <div className="flex flex-wrap justify-center gap-3 mt-3">
                             {transactionTypes.map((type: any, index) => (
                                 <div key={index} className="flex items-center text-md font-medium">
-                                    <div 
+                                    <div
                                         className="w-3 h-3 mr-2 rounded-sm"
                                         style={{ backgroundColor: type.color }}
                                     ></div>
@@ -646,7 +644,7 @@ const EnhancedAgentDashboard = () => {
                                 <i className="bi bi-star mr-2 text-amber-500" />
                                 Recent Client Feedback
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/reviews')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/agent/reviews') }}>
                                 View All
                             </button>
                         </div>
