@@ -882,7 +882,7 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-bold mb-4">Commission Breakdown</h3>
               <div className="space-y-4">
-                {earnings.commissionBreakdown.map((item, index) => (
+                {(earnings.commissionBreakdown || []).map((item, index) => (
                   <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <div className="font-medium text-gray-900">{item.bookingType}</div>
