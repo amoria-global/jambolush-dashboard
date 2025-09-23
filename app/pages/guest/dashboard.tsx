@@ -20,13 +20,13 @@ const GuestDashboard = () => {
   });
 
   const [userName, setUserName] = useState('Valued Customer');
-  
+
   // Load guest dashboard data
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('userSession') || '{}');
-                if (user.name) {
-                    setUserName(user.name);
-                }
+    if (user.name) {
+      setUserName(user.name);
+    }
     loadDashboardData();
   }, []);
 
@@ -50,7 +50,7 @@ const GuestDashboard = () => {
       // Helper function to safely extract array data
       const extractArray = (data: any): any[] => {
         if (!data) return [];
-        
+
         // Handle nested API response structure
         if (data.data && data.data.data) {
           if (data.data.data.bookings && Array.isArray(data.data.data.bookings)) {
@@ -66,7 +66,7 @@ const GuestDashboard = () => {
             return data.data.data;
           }
         }
-        
+
         if (data.data) {
           if (data.data.bookings && Array.isArray(data.data.bookings)) {
             return data.data.bookings;
@@ -81,26 +81,26 @@ const GuestDashboard = () => {
             return data.data;
           }
         }
-        
+
         if (Array.isArray(data)) {
           return data;
         }
-        
+
         return [];
       };
 
       // Helper function to safely extract object data
       const extractObject = (data: any): any => {
         if (!data) return null;
-        
+
         if (data.data && data.data.data && typeof data.data.data === 'object' && !Array.isArray(data.data.data)) {
           return data.data.data;
         }
-        
+
         if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
           return data.data;
         }
-        
+
         return data;
       };
 
@@ -132,7 +132,7 @@ const GuestDashboard = () => {
       const response = await api.post(`/payments/${transactionId}/pay`, {
         amount: amount
       });
-      
+
       if (response.data.success) {
         // Refresh dashboard data after successful payment
         await loadDashboardData();
@@ -173,7 +173,7 @@ const GuestDashboard = () => {
             </div>
             <h2 className="text-red-800 font-semibold mb-2">Error Loading Dashboard</h2>
             <p className="text-red-600 mb-4">{error}</p>
-            <button 
+            <button
               onClick={refreshData}
               className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium"
             >
@@ -188,120 +188,120 @@ const GuestDashboard = () => {
 
   const totalBookings = (dashboardData.bookings.properties?.length || 0) + (dashboardData.bookings.tours?.length || 0);
   const pendingTransactions = dashboardData.payments.transactions?.filter((t: any) => t.status === 'pending') || [];
-     const getTimeBasedGreeting = () => {
+  const getTimeBasedGreeting = () => {
     const hour = new Date().getHours();
-    
+
     // Early Morning (5-7 AM)
     const earlyMorningMessages = [
-        `🌅 <i class="bi bi-sunrise-fill text-warning"></i> Rise and shine, early bird!`,
-        `☕ <i class="bi bi-cup-hot text-danger"></i> First coffee, first victory!`,
-        `🐦 <i class="bi bi-feather text-info"></i> The world is yours this early!`,
-        `🌄 <i class="bi bi-mountain text-success"></i> Conquer mountains today!`,
-        `⏰ <i class="bi bi-alarm text-warning"></i> Early start, early success!`,
-        `🌤 <i class="bi bi-cloud-sun text-primary"></i> Dawn brings new possibilities!`,
-        `💪 <i class="bi bi-lightning-charge text-danger"></i> Power up for greatness!`,
-        `🔥 <i class="bi bi-fire text-warning"></i> Ignite your potential now!`,
-        `✨ <i class="bi bi-sparkle text-info"></i> Magic happens in the morning!`,
-        `🎯 <i class="bi bi-target text-success"></i> Aim high from the start!`
+      `🌅 Rise and shine, early bird!`,
+      `☕ First coffee, first victory!`,
+      `🐦 The world is yours this early!`,
+      `🌄 Conquer mountains today!`,
+      `⏰ Early start, early success!`,
+      `🌤 Dawn brings new possibilities!`,
+      `💪 Power up for greatness!`,
+      `🔥 Ignite your potential now!`,
+      `✨ Magic happens in the morning!`,
+      `🎯 Aim high from the start!`
     ];
 
     // Morning (7-12 PM)
     const morningMessages = [
-        `🌅 <i class="bi bi-sunrise-fill text-warning"></i> Good morning!`,
-        `☕ <i class="bi bi-cup-hot text-danger"></i> Coffee time!`,
-        `💡 <i class="bi bi-lightbulb-fill text-warning"></i> Fresh ideas start now!`,
-        `🏃 <i class="bi bi-lightning-charge-fill text-primary"></i> Start strong today!`,
-        `📅 <i class="bi bi-calendar-check text-success"></i> New goals, new wins!`,
-        `🌞 <i class="bi bi-brightness-alt-high-fill text-warning"></i> Shine bright today!`,
-        `🤝 <i class="bi bi-people-fill text-info"></i> Connect and grow!`,
-        `📈 <i class="bi bi-graph-up-arrow text-success"></i> Progress starts early!`,
-        `🎨 <i class="bi bi-palette-fill text-primary"></i> Paint your day beautiful!`,
-        `🚀 <i class="bi bi-rocket text-danger"></i> Launch into excellence!`,
-        `🌱 <i class="bi bi-seedling text-success"></i> Plant seeds of success!`,
-        `⭐ <i class="bi bi-star-half text-warning"></i> Half the day, full potential!`,
-        `🎪 <i class="bi bi-balloon-heart text-danger"></i> Make today spectacular!`,
-        `🏆 <i class="bi bi-trophy text-warning"></i> Champion mindset activated!`,
-        `🎵 <i class="bi bi-music-note text-info"></i> Start with good vibes!`
+      `🌅 Good morning!`,
+      `☕ Coffee time!`,
+      `💡 Fresh ideas start now!`,
+      `🏃 Start strong today!`,
+      `📅 New goals, new wins!`,
+      `🌞 Shine bright today!`,
+      `🤝 Connect and grow!`,
+      `📈 Progress starts early!`,
+      `🎨 Paint your day beautiful!`,
+      `🚀 Launch into excellence!`,
+      `🌱 Plant seeds of success!`,
+      `⭐ Half the day, full potential!`,
+      `🎪 Make today spectacular!`,
+      `🏆 Champion mindset activated!`,
+      `🎵 Start with good vibes!`
     ];
 
     // Afternoon (12-17 PM)
     const afternoonMessages = [
-        `☀️ <i class="bi bi-brightness-high-fill text-primary"></i> Good afternoon!`,
-        `🚀 <i class="bi bi-rocket-takeoff-fill text-success"></i> Keep the momentum!`,
-        `🔥 <i class="bi bi-fire text-danger"></i> Stay on fire!`,
-        `🌱 <i class="bi bi-tree-fill text-success"></i> Keep growing strong!`,
-        `📊 <i class="bi bi-bar-chart-line-fill text-info"></i> Productivity boost!`,
-        `💪 <i class="bi bi-shield-check text-success"></i> Power through the day!`,
-        `🎯 <i class="bi bi-bullseye text-danger"></i> Focus on your targets!`,
-        `⚡ <i class="bi bi-lightning-fill text-warning"></i> Energy check—stay sharp!`,
-        `🌻 <i class="bi bi-flower1 text-warning"></i> Bloom where you're planted!`,
-        `🎪 <i class="bi bi-circus text-primary"></i> Make magic happen now!`,
-        `🏃‍♂️ <i class="bi bi-person-running text-success"></i> Sprint to your goals!`,
-        `🎨 <i class="bi bi-brush text-danger"></i> Create something amazing!`,
-        `🔮 <i class="bi bi-gem text-info"></i> Afternoon gems await you!`,
-        `🌊 <i class="bi bi-water text-primary"></i> Flow with the rhythm!`,
-        `🎭 <i class="bi bi-mask-happy text-warning"></i> Performance time!`,
-        `🏅 <i class="bi bi-award text-success"></i> Excellence is calling!`
+      `☀️ Good afternoon!`,
+      `🚀 Keep the momentum!`,
+      `🔥 Stay on fire!`,
+      `🌱 Keep growing strong!`,
+      `📊 Productivity boost!`,
+      `💪 Power through the day!`,
+      `🎯 Focus on your targets!`,
+      `⚡ Energy check—stay sharp!`,
+      `🌻 Bloom where you're planted!`,
+      `🎪 Make magic happen now!`,
+      `🏃‍♂️ Sprint to your goals!`,
+      `🎨 Create something amazing!`,
+      `🔮 Afternoon gems await you!`,
+      `🌊 Flow with the rhythm!`,
+      `🎭 Performance time!`,
+      `🏅 Excellence is calling!`
     ];
 
     // Evening (17-21 PM)
     const eveningMessages = [
-        `🌇 <i class="bi bi-moon-stars-fill text-info"></i> Good evening!`,
-        `📖 <i class="bi bi-journal-richtext text-secondary"></i> Reflect and recharge!`,
-        `🌟 <i class="bi bi-star-fill text-warning"></i> You did amazing today!`,
-        `🎶 <i class="bi bi-music-note-beamed text-primary"></i> Relax with good vibes!`,
-        `🍵 <i class="bi bi-cup-straw text-success"></i> Slow down, breathe easy!`,
-        `🙌 <i class="bi bi-emoji-smile-fill text-warning"></i> Celebrate small wins!`,
-        `🛋 <i class="bi bi-house-heart-fill text-danger"></i> Enjoy your comfort zone!`,
-        `🌌 <i class="bi bi-cloud-moon text-info"></i> Night is settling in—peace ahead!`,
-        `🍷 <i class="bi bi-cup text-danger"></i> Unwind and appreciate!`,
-        `🎨 <i class="bi bi-easel text-primary"></i> Evening creativity flows!`,
-        `🧘‍♀️ <i class="bi bi-peace text-success"></i> Find your inner calm!`,
-        `🎬 <i class="bi bi-camera-reels text-warning"></i> Enjoy life's moments!`,
-        `🌹 <i class="bi bi-flower2 text-danger"></i> Beauty in the twilight!`,
-        `📚 <i class="bi bi-book text-info"></i> Knowledge before rest!`,
-        `🕯 <i class="bi bi-candle text-warning"></i> Light up the evening!`,
-        `🎭 <i class="bi bi-drama-masks text-secondary"></i> Evening entertainment!`
+      `🌇 Good evening!`,
+      `📖 Reflect and recharge!`,
+      `🌟 You did amazing today!`,
+      `🎶 Relax with good vibes!`,
+      `🍵 Slow down, breathe easy!`,
+      `🙌 Celebrate small wins!`,
+      `🛋 Enjoy your comfort zone!`,
+      `🌌 Night is settling in—peace ahead!`,
+      `🍷 Unwind and appreciate!`,
+      `🎨 Evening creativity flows!`,
+      `🧘‍♀️ Find your inner calm!`,
+      `🎬 Enjoy life's moments!`,
+      `🌹 Beauty in the twilight!`,
+      `📚 Knowledge before rest!`,
+      `🕯 Light up the evening!`,
+      `🎭 Evening entertainment!`
     ];
 
     // Night (21-24 PM)
     const nightMessages = [
-        `🌙 <i class="bi bi-stars text-light"></i> Good night!`,
-        `🛌 <i class="bi bi-moon-fill text-info"></i> Rest well, dream big!`,
-        `✨ <i class="bi bi-magic text-warning"></i> Tomorrow holds magic!`,
-        `😴 <i class="bi bi-cloud-moon-fill text-secondary"></i> Recharge your soul!`,
-        `🔕 <i class="bi bi-bell-slash-fill text-muted"></i> Disconnect and rest!`,
-        `💤 <i class="bi bi-clouds-fill text-light"></i> Deep sleep matters!`,
-        `🌠 <i class="bi bi-star text-warning"></i> Drift into dreams!`,
-        `🛡 <i class="bi bi-shield-lock-fill text-success"></i> Safe and sound tonight!`,
-        `🌜 <i class="bi bi-moon text-info"></i> Let the moon guide your dreams!`,
-        `🎶 <i class="bi bi-music-note-list text-secondary"></i> Lullabies of the night!`,
-        `🏰 <i class="bi bi-castle text-primary"></i> Build castles in your sleep!`,
-        `🌌 <i class="bi bi-stars text-warning"></i> Cosmic dreams await!`,
-        `🛏 <i class="bi bi-house text-success"></i> Home sweet dreams!`,
-        `🔮 <i class="bi bi-crystal text-info"></i> Crystal clear rest ahead!`
+      `🌙 Good night!`,
+      `🛌 Rest well, dream big!`,
+      `✨ Tomorrow holds magic!`,
+      `😴 Recharge your soul!`,
+      `🔕 Disconnect and rest!`,
+      `💤 Deep sleep matters!`,
+      `🌠 Drift into dreams!`,
+      `🛡 Safe and sound tonight!`,
+      `🌜 Let the moon guide your dreams!`,
+      `🎶 Lullabies of the night!`,
+      `🏰 Build castles in your sleep!`,
+      `🌌 Cosmic dreams await!`,
+      `🛏 Home sweet dreams!`,
+      `🔮 Crystal clear rest ahead!`
     ];
 
     // Late Night/Midnight (0-5 AM)
     const lateNightMessages = [
-        `🌃 <i class="bi bi-city text-primary"></i> Burning the midnight oil?`,
-        `🦉 <i class="bi bi-moon-stars text-info"></i> Night owl vibes!`,
-        `⭐ <i class="bi bi-stars text-warning"></i> Stars are your companions!`,
-        `🌙 <i class="bi bi-moon text-secondary"></i> Midnight magic hour!`,
-        `💻 <i class="bi bi-laptop text-primary"></i> Late night productivity!`,
-        `🎧 <i class="bi bi-headphones text-info"></i> Night sounds and focus!`,
-        `🔥 <i class="bi bi-flame text-danger"></i> Burning bright at night!`,
-        `🌌 <i class="bi bi-infinity text-warning"></i> Limitless night energy!`,
-        `☕ <i class="bi bi-cup-hot text-warning"></i> Midnight fuel running!`,
-        `🎯 <i class="bi bi-crosshair text-success"></i> Sharp focus in the dark!`,
-        `🚀 <i class="bi bi-rocket-takeoff text-primary"></i> Launch into the night!`,
-        `🎪 <i class="bi bi-tent text-danger"></i> Night circus performance!`,
-        `🔬 <i class="bi bi-microscope text-info"></i> Deep dive discoveries!`,
-        `🎨 <i class="bi bi-paint-bucket text-warning"></i> Creative night sessions!`
+      `🌃 Burning the midnight oil?`,
+      `🦉 Night owl vibes!`,
+      `⭐ Stars are your companions!`,
+      `🌙 Midnight magic hour!`,
+      `💻 Late night productivity!`,
+      `🎧 Night sounds and focus!`,
+      `🔥 Burning bright at night!`,
+      `🌌 Limitless night energy!`,
+      `☕ Midnight fuel running!`,
+      `🎯 Sharp focus in the dark!`,
+      `🚀 Launch into the night!`,
+      `🎪 Night circus performance!`,
+      `🔬 Deep dive discoveries!`,
+      `🎨 Creative night sessions!`
     ];
 
     const pickRandom = (messages: string[]) =>
-        messages[Math.floor(Math.random() * messages.length)];
+      messages[Math.floor(Math.random() * messages.length)];
 
     if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
     if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
@@ -309,46 +309,46 @@ const GuestDashboard = () => {
     if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
     if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
     return pickRandom(nightMessages);
-    };
-    
+  };
+
   return (
     <div className="py-14">
       {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
-                        {getTimeBasedGreeting()}, {userName}!
-                    </h1>
-                    <p className="text-gray-600 text-md">Here's your dashboard summary</p>
-                </div>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+              {getTimeBasedGreeting()}, {userName}
+            </h1>
+            <p className="text-gray-600 text-md">Here's your dashboard summary</p>
+          </div>
         </div>
       </div>
 
       <div className="p-2">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-          <StatCard 
-            title="Total Bookings" 
+          <StatCard
+            title="Total Bookings"
             value={totalBookings}
             color="blue"
             icon="calendar-check"
           />
-          <StatCard 
-            title="Wallet Balance" 
+          <StatCard
+            title="Wallet Balance"
             value={dashboardData.payments.wallet?.balance ? `${dashboardData.payments.wallet.balance} ${dashboardData.payments.wallet.currency || 'USD'}` : '0 USD'}
             color="green"
             icon="wallet2"
           />
-          <StatCard 
-            title="Wishlist Items" 
+          <StatCard
+            title="Wishlist Items"
             value={dashboardData.bookings.wishlist?.length || 0}
             color="purple"
             icon="heart"
           />
-          <StatCard 
-            title="Pending Payments" 
+          <StatCard
+            title="Pending Payments"
             value={pendingTransactions.length}
             color="orange"
             icon="clock"
@@ -366,7 +366,7 @@ const GuestDashboard = () => {
                   You have {pendingTransactions.length} pending payment{pendingTransactions.length > 1 ? 's' : ''} that require your attention.
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => document.getElementById('transactions-section')?.scrollIntoView({ behavior: 'smooth' })}
                 className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
               >
@@ -396,8 +396,8 @@ const GuestDashboard = () => {
                 {[...dashboardData.bookings.properties, ...dashboardData.bookings.tours]
                   .slice(0, 5)
                   .map((booking, index) => (
-                  <BookingItem key={booking.id || index} booking={booking} />
-                ))}
+                    <BookingItem key={booking.id || index} booking={booking} />
+                  ))}
                 {totalBookings === 0 && (
                   <div className="text-center py-12">
                     <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full">
@@ -494,9 +494,9 @@ const GuestDashboard = () => {
                 </thead>
                 <tbody>
                   {dashboardData.payments.transactions?.map((transaction: any, index: number) => (
-                    <TransactionRow 
-                      key={transaction.id || index} 
-                      transaction={transaction} 
+                    <TransactionRow
+                      key={transaction.id || index}
+                      transaction={transaction}
                       onPayNow={handlePayNow}
                     />
                   ))}
@@ -545,11 +545,11 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
         <i className={`bi bi-${icon}`} />
       </div>
       <div className="flex items-center mb-4">
-        <div 
+        <div
           className="w-10 h-10 rounded-lg flex items-center justify-center mr-3 text-white"
           style={{ backgroundColor: config.bg }}
         >
-          <i className={`bi bi-${icon} text-base`}/>
+          <i className={`bi bi-${icon} text-base`} />
         </div>
         <span className="text-sm text-gray-600 font-medium">{title}</span>
       </div>
@@ -622,7 +622,7 @@ interface ActionButtonProps {
 }
 
 const ActionButton: React.FC<ActionButtonProps> = ({ text, icon, onClick }) => (
-  <button 
+  <button
     onClick={onClick}
     className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 hover:border-[#083A85] transition-all font-medium"
   >
