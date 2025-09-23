@@ -969,6 +969,39 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
     return this.get<BackendResponse<User>>('/auth/profile');
   }
 
+  // ADDED: Methods for the Account Activity Page
+  // ===============================================
+
+  /**
+   * Get user's active sessions and login history.
+   * Corresponds to: GET /auth/sessions
+   */
+  async getUserSessions(): Promise<APIResponse<BackendResponse<any[]>>> {
+    return this.get<BackendResponse<any[]>>('/auth/sessions');
+  }
+
+  /**
+   * Change the current user's password.
+   * Corresponds to: PUT /auth/me/password
+   */
+  async changePassword(passwordData: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.put<BackendResponse<any>>('/auth/me/password', passwordData);
+  }
+
+  /**
+   * Log the current user out from all devices.
+   * Corresponds to: POST /auth/logout-all
+   */
+  async logoutAllDevices(): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/auth/logout-all');
+  }
+  
+  // ===============================================
+
   /**
    * Update user profile
    */
