@@ -456,7 +456,7 @@ export default function UserProfileSettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userSession');
-    window.location.href = 'https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href);
+    window.location.href = process.env.FRONTEND_URL + '/all/login?redirect=' + encodeURIComponent(window.location.href);
   };
 
   // --- HELPER FUNCTIONS ---

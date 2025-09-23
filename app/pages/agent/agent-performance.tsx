@@ -1,4 +1,3 @@
-//app/pages/agent/agent-performance.tsx
 import React, { useEffect, useState } from 'react';
 import api from '@/app/api/apiService';
 
@@ -343,13 +342,37 @@ const PerformanceChart = ({ data, type = 'line' }: { data: MonthlyCommissionData
 };
 
 const ClientSegmentationChart = ({ data }: { data: any }) => {
-  const total = data.newClients + data.repeatClients + data.vipClients + data.inactiveClients;
+  if (!data) {
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-bold mb-4">Client Segmentation</h3>
+        <div className="text-center py-8 text-gray-500">
+          <i className="bi bi-people text-4xl mb-2"></i>
+          <p>No client segmentation data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const total = (data.newClients || 0) + (data.repeatClients || 0) + (data.vipClients || 0) + (data.inactiveClients || 0);
+  
+  if (total === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-bold mb-4">Client Segmentation</h3>
+        <div className="text-center py-8 text-gray-500">
+          <i className="bi bi-people text-4xl mb-2"></i>
+          <p>No client data available</p>
+        </div>
+      </div>
+    );
+  }
   
   const segments = [
-    { label: 'New Clients', value: data.newClients, color: '#10b981', percentage: (data.newClients / total) * 100 },
-    { label: 'Repeat Clients', value: data.repeatClients, color: '#083A85', percentage: (data.repeatClients / total) * 100 },
-    { label: 'VIP Clients', value: data.vipClients, color: '#f59e0b', percentage: (data.vipClients / total) * 100 },
-    { label: 'Inactive Clients', value: data.inactiveClients, color: '#ef4444', percentage: (data.inactiveClients / total) * 100 }
+    { label: 'New Clients', value: data.newClients || 0, color: '#10b981', percentage: ((data.newClients || 0) / total) * 100 },
+    { label: 'Repeat Clients', value: data.repeatClients || 0, color: '#083A85', percentage: ((data.repeatClients || 0) / total) * 100 },
+    { label: 'VIP Clients', value: data.vipClients || 0, color: '#f59e0b', percentage: ((data.vipClients || 0) / total) * 100 },
+    { label: 'Inactive Clients', value: data.inactiveClients || 0, color: '#ef4444', percentage: ((data.inactiveClients || 0) / total) * 100 }
   ];
 
   return (
@@ -396,13 +419,13 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
   // Fetch enhanced agent dashboard data
   const fetchEnhancedDashboard = async () => {
     try {
-      const response = await api.get('/properties/agent/enhanced-dashboard');
+      const response = await api.get('/properties/agent/dashboard/enhanced');
       if (response.data && response.data.success) {
         setDashboard(response.data.data);
       }
     } catch (err: any) {
       console.error('Error fetching enhanced dashboard:', err);
-      setError(err.response?.data?.message || 'Failed to fetch dashboard data');
+      setError(err.response?.data?.message || 'Failed to fetch dashboard data '+err);
     }
   };
 
@@ -562,15 +585,17 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Clients</span>
-                    <span className="font-bold text-gray-900">{dashboard.totalClients}</span>
+                    <span className="font-bold text-gray-900">{dashboard.totalClients || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Active Clients</span>
-                    <span className="font-bold text-gray-900">{dashboard.activeClients}</span>
+                    <span className="font-bold text-gray-900">{dashboard.activeClients || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Market Ranking</span>
-                    <span className="font-bold text-gray-900">#{dashboard.competitiveMetrics.marketRanking}</span>
+                    <span className="font-bold text-gray-900">
+                      #{dashboard.competitiveMetrics?.marketRanking || 'N/A'}
+                    </span>
                   </div>
                 </div>
 
@@ -578,13 +603,13 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
                   <h3 className="text-lg font-bold text-center mb-4">Total Commissions</h3>
                   <div className="flex justify-center">
                     <RadialProgress 
-                      value={dashboard.totalCommissions} 
+                      value={dashboard.totalCommissions || 0} 
                       max={50000} 
                       label="USD"
                     />
                   </div>
                   <p className="text-center text-gray-600 mt-2">
-                    ${dashboard.totalCommissions.toLocaleString()} earned
+                    ${(dashboard.totalCommissions || 0).toLocaleString()} earned
                   </p>
                 </div>
               </div>
@@ -599,28 +624,28 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                   title="Total Commissions"
-                  value={dashboard.totalCommissions}
+                  value={dashboard.totalCommissions || 0}
                   unit=""
                   icon={<i className="bi bi-currency-dollar text-xl"></i>}
                   color="blue"
                 />
                 <KPICard
                   title="Conversion Rate"
-                  value={dashboard.additionalKPIs.conversionRate}
+                  value={dashboard.additionalKPIs?.conversionRate || 0}
                   unit="%"
                   icon={<i className="bi bi-graph-up-arrow text-xl"></i>}
                   color="green"
                 />
                 <KPICard
                   title="Client Satisfaction"
-                  value={dashboard.additionalKPIs.clientSatisfactionScore}
+                  value={dashboard.additionalKPIs?.clientSatisfactionScore || 0}
                   unit="/5"
                   icon={<i className="bi bi-star-fill text-xl"></i>}
                   color="orange"
                 />
                 <KPICard
                   title="Market Share"
-                  value={dashboard.competitiveMetrics.marketSharePercentage}
+                  value={dashboard.competitiveMetrics?.marketSharePercentage || 0}
                   unit="%"
                   icon={<i className="bi bi-pie-chart text-xl"></i>}
                   color="purple"
@@ -629,13 +654,13 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
 
               {/* Commission Trend Chart */}
               <div className="bg-white rounded-2xl shadow-lg p-6">
-                <PerformanceChart data={dashboard.monthlyCommissions} />
+                <PerformanceChart data={dashboard.monthlyCommissions || []} />
               </div>
 
               {/* Recent Bookings */}
               <div className="bg-white rounded-2xl shadow-lg p-6">
                 <h3 className="text-lg font-bold mb-4">Recent Bookings</h3>
-                {dashboard.recentBookings.length > 0 ? (
+                {dashboard.recentBookings && dashboard.recentBookings.length > 0 ? (
                   <div className="space-y-3">
                     {dashboard.recentBookings.slice(0, 5).map((booking) => (
                       <div key={booking.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -673,28 +698,28 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                   title="Conversion Rate"
-                  value={dashboard.additionalKPIs.conversionRate}
+                  value={dashboard.additionalKPIs?.conversionRate || 0}
                   unit="%"
                   icon={<i className="bi bi-graph-up-arrow text-xl"></i>}
                   color="green"
                 />
                 <KPICard
                   title="Response Time"
-                  value={dashboard.additionalKPIs.averageResponseTime}
+                  value={dashboard.additionalKPIs?.averageResponseTime || 0}
                   unit="h"
                   icon={<i className="bi bi-clock text-xl"></i>}
                   color="blue"
                 />
                 <KPICard
                   title="Retention Rate"
-                  value={dashboard.additionalKPIs.customerRetentionRate}
+                  value={dashboard.additionalKPIs?.customerRetentionRate || 0}
                   unit="%"
                   icon={<i className="bi bi-people text-xl"></i>}
                   color="purple"
                 />
                 <KPICard
                   title="Success Rate"
-                  value={dashboard.additionalKPIs.bookingSuccessRate}
+                  value={dashboard.additionalKPIs?.bookingSuccessRate || 0}
                   unit="%"
                   icon={<i className="bi bi-check-circle text-xl"></i>}
                   color="green"
@@ -708,28 +733,28 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                   title="Portfolio Growth"
-                  value={dashboard.additionalKPIs.portfolioGrowthRate}
+                  value={dashboard.additionalKPIs?.portfolioGrowthRate || 0}
                   unit="%"
                   icon={<i className="bi bi-house text-xl"></i>}
                   color="indigo"
                 />
                 <KPICard
                   title="Commission Growth"
-                  value={dashboard.additionalKPIs.commissionGrowthRate}
+                  value={dashboard.additionalKPIs?.commissionGrowthRate || 0}
                   unit="%"
                   icon={<i className="bi bi-graph-up text-xl"></i>}
                   color="green"
                 />
                 <KPICard
                   title="Lead Generation"
-                  value={dashboard.additionalKPIs.leadGenerationRate}
+                  value={dashboard.additionalKPIs?.leadGenerationRate || 0}
                   unit="/mo"
                   icon={<i className="bi bi-person-plus text-xl"></i>}
                   color="orange"
                 />
                 <KPICard
                   title="Cross-Selling"
-                  value={dashboard.additionalKPIs.crossSellingSuccess}
+                  value={dashboard.additionalKPIs?.crossSellingSuccess || 0}
                   unit="%"
                   icon={<i className="bi bi-arrow-repeat text-xl"></i>}
                   color="purple"
@@ -743,28 +768,28 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KPICard
                   title="Market Penetration"
-                  value={dashboard.additionalKPIs.marketPenetration}
+                  value={dashboard.additionalKPIs?.marketPenetration || 0}
                   unit="%"
                   icon={<i className="bi bi-geo text-xl"></i>}
                   color="red"
                 />
                 <KPICard
                   title="Days on Market"
-                  value={dashboard.additionalKPIs.averageDaysOnMarket}
+                  value={dashboard.additionalKPIs?.averageDaysOnMarket || 0}
                   unit="days"
                   icon={<i className="bi bi-calendar-week text-xl"></i>}
                   color="blue"
                 />
                 <KPICard
                   title="Views to Booking"
-                  value={dashboard.additionalKPIs.propertyViewsToBookingRatio}
+                  value={dashboard.additionalKPIs?.propertyViewsToBookingRatio || 0}
                   unit="%"
                   icon={<i className="bi bi-eye text-xl"></i>}
                   color="indigo"
                 />
                 <KPICard
                   title="Utilization Rate"
-                  value={dashboard.additionalKPIs.propertyUtilizationRate}
+                  value={dashboard.additionalKPIs?.propertyUtilizationRate || 0}
                   unit="%"
                   icon={<i className="bi bi-bar-chart text-xl"></i>}
                   color="green"
@@ -773,35 +798,37 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
             </div>
 
             {/* Competitive Analysis */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-lg font-bold mb-4">Competitive Position</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-[#083A85] mb-2">
-                    #{dashboard.competitiveMetrics.marketRanking}
+            {dashboard.competitiveMetrics && (
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <h3 className="text-lg font-bold mb-4">Competitive Position</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-[#083A85] mb-2">
+                      #{dashboard.competitiveMetrics.marketRanking || 'N/A'}
+                    </div>
+                    <div className="text-sm text-gray-600">Market Ranking</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Out of {dashboard.competitiveMetrics.totalAgentsInMarket || 0} agents
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Market Ranking</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Out of {dashboard.competitiveMetrics.totalAgentsInMarket} agents
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-600 mb-2">
+                      {(dashboard.competitiveMetrics.marketSharePercentage || 0).toFixed(2)}%
+                    </div>
+                    <div className="text-sm text-gray-600">Market Share</div>
                   </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-2">
-                    {dashboard.competitiveMetrics.marketSharePercentage.toFixed(2)}%
-                  </div>
-                  <div className="text-sm text-gray-600">Market Share</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">
-                    ${dashboard.additionalKPIs.revenuePerClient.toFixed(0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Revenue per Client</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    vs ${dashboard.competitiveMetrics.competitorComparison.averageCommission.toFixed(0)} market avg
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-purple-600 mb-2">
+                      ${(dashboard.additionalKPIs?.revenuePerClient || 0).toFixed(0)}
+                    </div>
+                    <div className="text-sm text-gray-600">Revenue per Client</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      vs ${(dashboard.competitiveMetrics.competitorComparison?.averageCommission || 0).toFixed(0)} market avg
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 

@@ -11,6 +11,7 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '@/app/api/apiService';
+import { set } from 'date-fns';
 
 // Types remain the same
 interface AgentBookingInfo {
@@ -135,7 +136,7 @@ const AgentBookingsPage: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+        setError('Failed to fetch user data');
     }
   };
 
@@ -193,10 +194,9 @@ const AgentBookingsPage: React.FC = () => {
                 }));
                 
                 setProperties(propertyList);
-                console.log('Fetched properties:', propertyList);
             }
-        } catch (err) {
-            console.error('Error fetching properties:', err);
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to fetch properties');
             setProperties([]);
             setError('Failed to fetch properties');
         } finally {
@@ -232,7 +232,7 @@ const AgentBookingsPage: React.FC = () => {
                     }
                     return { success: false, propertyId: property.id, error: 'No data' };
                 } catch (error) {
-                    console.error(`Error fetching bookings for property ${property.id}:`, error);
+                    setError(`Failed to fetch bookings for property`);
                     return { success: false, propertyId: property.id, error };
                 }
             });
@@ -263,13 +263,10 @@ const AgentBookingsPage: React.FC = () => {
             setBookings(allBookings);
             
             if (failedProperties > 0) {
-                console.warn(`Failed to fetch bookings for ${failedProperties} properties`);
+                setError(`${failedProperties} properties failed to load bookings.`);
             }
             
-            console.log(`Successfully fetched ${allBookings.length} total bookings from ${properties.length - failedProperties} properties`);
-
         } catch (err: any) {
-            console.error('Error in parallel booking fetch:', err);
             setError(err.response?.data?.message || 'Failed to fetch bookings');
             setBookings([]);
         } finally {
@@ -429,7 +426,6 @@ const AgentBookingsPage: React.FC = () => {
             setShowEditModal(false);
             alert('Booking updated successfully!');
         } catch (error: any) {
-            console.error('Error updating booking:', error);
             alert(error.response?.data?.message || 'Failed to update booking');
         }
     }, [selectedBooking, editNotes, fetchBookings]);

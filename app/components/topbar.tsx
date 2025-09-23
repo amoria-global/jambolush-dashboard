@@ -86,6 +86,90 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const router = useRouter();
 
+  const [frontend_url, setFrontEnd] = useState<string>('https://jambolush.com');
+
+  // Expose test function for debugging (remove in production)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).testLogout = () => {
+        console.log('🧪 Testing logout function...');
+        handleLogout();
+      };
+      
+      (window as any).test401 = () => {
+        console.log('🧪 Testing 401 detection...');
+        const fakeError = { response: { status: 401 } };
+        handleApiCall(() => Promise.reject(fakeError)).catch(() => {});
+      };
+    }
+  }, []);
+
+  useEffect(() => { 
+    if (process.env.FRONTEND_URL) {
+      setFrontEnd(process.env.FRONTEND_URL);
+    }
+  }, []);
+
+  // Add global error handler as backup
+  useEffect(() => {
+    const handleGlobalError = (event: any) => {
+      const error = event.detail || event.error || event;
+      console.log('Global error caught:', error);
+      
+      if (error?.response?.status === 401 || error?.status === 401) {
+        console.log('🚨 Global 401 error detected - redirecting to login');
+        handleLogout();
+      }
+    };
+
+    // Listen for unhandled promise rejections that might contain 401s
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      console.log('Unhandled rejection:', error);
+      
+      if (error?.response?.status === 401 || error?.status === 401) {
+        console.log('🚨 Unhandled 401 rejection detected - redirecting to login');
+        handleLogout();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleGlobalError);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleGlobalError);
+    };
+  }, []);
+
+  // Add 401 error handling to API calls
+  const handleApiCall = async <T,>(apiCall: () => Promise<T>): Promise<T> => {
+    try {
+      return await apiCall();
+    } catch (error: any) {
+      console.log('API Error caught:', error);
+      console.log('Error response:', error?.response);
+      console.log('Error status:', error?.response?.status);
+      console.log('Direct error status:', error?.status);
+      
+      // Check multiple possible error structures
+      const isUnauthorized = 
+        error?.response?.status === 401 ||
+        error?.status === 401 ||
+        error?.response?.statusCode === 401 ||
+        error?.statusCode === 401 ||
+        (error?.message && error.message.includes('401')) ||
+        (error?.response?.data && error.response.data.statusCode === 401);
+      
+      if (isUnauthorized) {
+        console.log('🚨 401 Unauthorized detected - redirecting to login');
+        handleLogout();
+        return Promise.reject(error); // Don't continue processing
+      }
+      throw error;
+    }
+  };
+
   const fetchUserSession = async () => {
     if (authInitialized) return; // Prevent multiple calls
     
@@ -126,8 +210,9 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       // Set auth token in the API service
       api.setAuth(authToken);
       
-      // Call the /auth/me endpoint
-      const response = await api.get('auth/me');
+      // Call the /auth/me endpoint with 401 handling
+      console.log('📡 Calling /auth/me endpoint...');
+      const response = await handleApiCall(() => api.get('auth/me'));
       
       console.log('=== TOPBAR DEBUG: API Response ===', response);
 
@@ -171,8 +256,27 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         console.log('Invalid response structure:', response.data);
         setIsAuthenticated(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch user session:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to fetch user session:', error);
+      console.log('Error details:', {
+        status: error?.response?.status || error?.status,
+        statusCode: error?.response?.statusCode || error?.statusCode,
+        message: error?.message
+      });
+      
+      // Check if this is a 401 error that wasn't caught by handleApiCall
+      const isUnauthorized = 
+        error?.response?.status === 401 ||
+        error?.status === 401 ||
+        error?.response?.statusCode === 401 ||
+        error?.statusCode === 401;
+        
+      if (isUnauthorized) {
+        console.log('🚨 401 detected in fetchUserSession catch block');
+        handleLogout();
+        return;
+      }
+      
       // Don't logout on network errors, just show unauthenticated state
       setIsAuthenticated(false);
     } finally {
@@ -189,7 +293,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
     try {
       if (userSession?.role === 'host' || userSession?.role === 'agent') {
-        const balanceResponse = await api.get('user/balance');
+        const balanceResponse = await handleApiCall(() => api.get('user/balance'));
         if (balanceResponse.data && balanceResponse.data.balance !== undefined) {
           setBalance(balanceResponse.data.balance);
         }
@@ -200,7 +304,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
 
     try {
-      const messagesResponse = await api.get('user/messages/unread-count');
+      const messagesResponse = await handleApiCall(() => api.get('user/messages/unread-count'));
       if (messagesResponse.data && messagesResponse.data.count !== undefined) {
         setMessagesCount(messagesResponse.data.count);
       }
@@ -214,11 +318,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     try {
       setNotificationsLoading(true);
       
-      const response = await api.get('/notifications', { params: {
+      const response = await handleApiCall(() => api.get('/notifications', { params: {
         limit: 10,
         sortField: 'timestamp',
         sortOrder: 'desc'
-      }});
+      }}));
 
       if (response.data && response.data.data) {
         const transformedNotifications = response.data.data.map((notification: any) => ({
@@ -237,7 +341,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const markNotificationAsRead = async (notificationId: string) => {
     try {
-      await api.markNotificationAsRead(notificationId);
+      await handleApiCall(() => api.markNotificationAsRead(notificationId));
       
       setNotifications(notifications.map(n => 
         n.id === notificationId ? { ...n, isRead: true } : n
@@ -325,15 +429,21 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   const handleLogout = async () => {
+    console.log('🔄 Starting logout process...');
+    
     try {
       setIsRedirecting(true);
       if (isAuthenticated) {
+        console.log('📡 Calling logout API...');
         await api.logout();
+        console.log('✅ Logout API call successful');
       }
     } catch (error) {
-      console.error('Logout API call failed:', error);
+      console.error('❌ Logout API call failed:', error);
+      // Continue with local cleanup even if API fails
     }
 
+    console.log('🧹 Cleaning up local storage and state...');
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userSession');
@@ -345,10 +455,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     setMessagesCount(0);
     setAuthInitialized(false);
     
-    console.log('Logging out and redirecting to login');
-    setTimeout(() => {
-      window.location.href = 'https://jambolush.com/all/login';
-    }, 100);
+    const redirectUrl = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
+    console.log('🚀 Redirecting to:', redirectUrl);
+    
+    // Immediate redirect without setTimeout
+    window.location.href = redirectUrl;
   };
 
   // Initialize authentication on component mount
@@ -675,9 +786,9 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                     </a>
                     {(userSession.role === 'host' || userSession.role === 'agent') && (
                       <a 
-                        href="/all/earnings" 
+                        href={`/all/${userSession.role}/earnings`}
                         className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
-                        onClick={(e) => { e.preventDefault(); router.push('/all/earnings'); setIsProfileOpen(false); }}
+                        onClick={(e) => { e.preventDefault(); router.push(`/all/${userSession.role}/earnings`); setIsProfileOpen(false); }}
                       >
                         <i className="bi bi-wallet2 w-5 text-black"></i>
                         <span>Balance & Payments</span>
@@ -713,13 +824,13 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           !isLoading && !isRedirecting && (
             <div className="flex items-center gap-3">
               <button
-                onClick={() => router.push('/all/login')}
+                onClick={() => router.push(frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href))}
                 className="px-4 py-2 text-sm font-medium text-[#083A85] hover:text-[#062a63] transition-colors"
               >
                 Login
               </button>
               <button
-                onClick={() => router.push('/all/signup')}
+                onClick={() => router.push(frontend_url + `/all/signup`)}
                 className="px-4 py-2 text-sm font-medium bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
               >
                 Sign Up
