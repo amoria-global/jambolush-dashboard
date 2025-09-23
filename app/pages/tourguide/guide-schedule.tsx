@@ -6,17 +6,21 @@ import api from '@/app/api/apiService';
 // Types
 interface TourSchedule {
   id: string;
-  tourId: string; // Added tourId field
-  tourTitle: string;
+  scheduleId?: string;
+  tourId: string;
+  title: string;
+  tourTitle?: string;
   tourType: 'city' | 'nature' | 'cultural' | 'adventure' | 'food' | 'historical';
   date: Date;
   startTime: string;
   endTime: string;
-  duration: number; // in hours
+  duration: number;
   location: string;
   meetingPoint: string;
   maxGuests: number;
+  totalSlots?: number;
   currentGuests: number;
+  bookedSlots?: number;
   status: 'available' | 'confirmed' | 'pending' | 'cancelled' | 'completed';
   price: number;
   pricePerPerson: boolean;
@@ -127,6 +131,38 @@ const TourGuideSchedulePage: React.FC = () => {
     return amount.toLocaleString('en-US');
   };
 
+  // Helper function to normalize tour data from API
+  const normalizeTourData = (tour: any): TourSchedule => {
+    return {
+      id: tour.id || tour.scheduleId || `schedule-${Date.now()}`,
+      scheduleId: tour.scheduleId,
+      tourId: tour.tourId || tour.id,
+      title: tour.title || tour.tourTitle || 'Untitled Tour',
+      tourTitle: tour.title || tour.tourTitle || 'Untitled Tour',
+      tourType: tour.tourType || 'city',
+      date: new Date(tour.date),
+      startTime: tour.startTime || '09:00',
+      endTime: tour.endTime || '17:00',
+      duration: tour.duration || 8,
+      location: tour.location || '',
+      meetingPoint: tour.meetingPoint || '',
+      maxGuests: tour.maxGuests || tour.totalSlots || 10,
+      totalSlots: tour.totalSlots,
+      currentGuests: tour.currentGuests || tour.bookedSlots || 0,
+      bookedSlots: tour.bookedSlots,
+      status: tour.status || 'available',
+      price: tour.price || 0,
+      pricePerPerson: tour.pricePerPerson !== false,
+      language: tour.language || ['English'],
+      description: tour.description,
+      specialInstructions: tour.specialInstructions,
+      guestNotes: tour.guestNotes,
+      bookings: tour.bookings,
+      createdAt: new Date(tour.createdAt || tour.date),
+      lastModified: new Date(tour.lastModified || tour.date)
+    };
+  };
+
   // States
   const [schedules, setSchedules] = useState<TourSchedule[]>([]);
   const [filteredSchedules, setFilteredSchedules] = useState<TourSchedule[]>([]);
@@ -152,27 +188,27 @@ const TourGuideSchedulePage: React.FC = () => {
   const [showKYCModal, setShowKYCModal] = useState(false);
 
   const checkKYCStatus = (): boolean => {
-  if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
-    setShowKYCModal(true);
-    return false;
-  }
-  return true;
-};
-
-const fetchUserData = async () => {
-  try {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      api.setAuth(token);
-      const response = await api.get('/auth/me');
-      if (response.data) {
-        setUser(response.data);
-      }
+    if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
+      setShowKYCModal(true);
+      return false;
     }
-  } catch (error) {
-    console.error('Error fetching user data:', error);
-  }
-};
+    return true;
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+        const response = await api.get('/auth/me');
+        if (response.data) {
+          setUser(response.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
 
   // API Functions
   const fetchAvailableTours = async () => {
@@ -191,14 +227,11 @@ const fetchUserData = async () => {
       setLoading(true);
       setError(null);
       
-      // Fetch a wider date range to get all schedules using calendar endpoint
-      // Start from 6 months ago to 12 months in the future
       const startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 6);
       
       const allSchedules: TourSchedule[] = [];
       
-      // Fetch 18 months of data to ensure we get all schedules
       for (let i = 0; i < 18; i++) {
         const targetDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
         const year = targetDate.getFullYear();
@@ -209,20 +242,16 @@ const fetchUserData = async () => {
           
           if (response.data.success && response.data.data?.days) {
             const monthSchedules = response.data.data.days.flatMap((day: any) => 
-              day.tours?.map((tour: any) => ({
+              (day.tours || []).map((tour: any) => normalizeTourData({
                 ...tour,
-                tourId: tour.tourId || tour.id, // Ensure tourId is present
-                date: new Date(tour.date),
-                createdAt: new Date(tour.createdAt || tour.date),
-                lastModified: new Date(tour.lastModified || tour.date)
-              })) || []
+                date: day.date // Use the day's date
+              }))
             );
             
             allSchedules.push(...monthSchedules);
           }
         } catch (monthError) {
           console.warn(`Failed to fetch calendar data for ${year}-${month}:`, monthError);
-          // Continue with other months
         }
       }
       
@@ -247,13 +276,9 @@ const fetchUserData = async () => {
       if (response.data.success) {
         const calendarDays = response.data.data.days.map((day: any) => ({
           ...day,
-          date: day.date,
-          tours: day.tours.map((tour: any) => ({
+          tours: (day.tours || []).map((tour: any) => normalizeTourData({
             ...tour,
-            tourId: tour.tourId || tour.id,
-            date: new Date(tour.date),
-            createdAt: new Date(tour.createdAt || tour.date),
-            lastModified: new Date(tour.lastModified || tour.date)
+            date: day.date
           }))
         }));
         setCalendarData(calendarDays);
@@ -275,7 +300,7 @@ const fetchUserData = async () => {
       const response: any = await api.post(`/tours/${scheduleData.tourId}/schedules`, scheduleData);
       
       if (response.data.success) {
-        await fetchTourSchedules(); // Refresh data
+        await fetchTourSchedules();
         return response.data.data;
       } else {
         throw new Error(response.message || 'Failed to create schedule');
@@ -295,7 +320,7 @@ const fetchUserData = async () => {
       const response: any = await api.put(`/tours/schedules/${scheduleId}`, scheduleData);
       
       if (response.data.success) {
-        await fetchTourSchedules(); // Refresh data
+        await fetchTourSchedules();
         return response.data.data;
       } else {
         throw new Error(response.message || 'Failed to update schedule');
@@ -315,7 +340,7 @@ const fetchUserData = async () => {
       const response: any = await api.delete(`/tours/schedules/${scheduleId}`);
       
       if (response.data.success) {
-        await fetchTourSchedules(); // Refresh data
+        await fetchTourSchedules();
         return true;
       } else {
         throw new Error(response.message || 'Failed to delete schedule');
@@ -342,7 +367,7 @@ const fetchUserData = async () => {
     fetchCalendarData(year, month);
   }, [currentMonth]);
 
-  // Calculate summary stats
+  // Calculate summary stats with safe number handling
   const summaryStats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -354,6 +379,22 @@ const fetchUserData = async () => {
       return scheduleDate.getTime() === today.getTime();
     });
     
+    // Safe calculation of total guests
+    const totalGuests = schedules.reduce((sum, s) => {
+      const guests = s.currentGuests || s.bookedSlots || 0;
+      return sum + (isNaN(guests) ? 0 : guests);
+    }, 0);
+    
+    // Safe calculation of revenue
+    const revenue = schedules
+      .filter(s => s.status === 'confirmed' || s.status === 'completed')
+      .reduce((sum, s) => {
+        const guests = s.currentGuests || s.bookedSlots || 0;
+        const price = s.price || 0;
+        const scheduleRevenue = price * guests;
+        return sum + (isNaN(scheduleRevenue) ? 0 : scheduleRevenue);
+      }, 0);
+    
     return {
       total: schedules.length,
       upcoming: upcoming.length,
@@ -361,9 +402,8 @@ const fetchUserData = async () => {
       confirmed: schedules.filter(s => s.status === 'confirmed').length,
       pending: schedules.filter(s => s.status === 'pending').length,
       available: schedules.filter(s => s.status === 'available').length,
-      totalGuests: schedules.reduce((sum, s) => sum + s.currentGuests, 0),
-      revenue: schedules.filter(s => s.status === 'confirmed' || s.status === 'completed')
-                       .reduce((sum, s) => sum + (s.price * s.currentGuests), 0)
+      totalGuests: isNaN(totalGuests) ? 0 : totalGuests,
+      revenue: isNaN(revenue) ? 0 : revenue
     };
   }, [schedules]);
 
@@ -373,10 +413,12 @@ const fetchUserData = async () => {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(schedule =>
-        schedule.tourTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        schedule.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(schedule => {
+        const title = schedule.title || schedule.tourTitle || '';
+        const location = schedule.location || '';
+        return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               location.toLowerCase().includes(searchTerm.toLowerCase());
+      });
     }
 
     // Status filter
@@ -441,12 +483,25 @@ const fetchUserData = async () => {
                  scheduleDate.getFullYear() === date.getFullYear();
         });
         
+        // Safe calculation of totals
+        const totalBookings = calendarDay?.totalBookings || daySchedules.reduce((sum, s) => {
+          const guests = s.currentGuests || s.bookedSlots || 0;
+          return sum + (isNaN(guests) ? 0 : guests);
+        }, 0);
+        
+        const totalRevenue = calendarDay?.totalRevenue || daySchedules.reduce((sum, s) => {
+          const guests = s.currentGuests || s.bookedSlots || 0;
+          const price = s.price || 0;
+          const revenue = price * guests;
+          return sum + (isNaN(revenue) ? 0 : revenue);
+        }, 0);
+        
         week.push({
           date: date,
           schedules: daySchedules,
           isCurrentMonth: date.getMonth() === month,
-          totalBookings: calendarDay?.totalBookings || daySchedules.reduce((sum, s) => sum + s.currentGuests, 0),
-          totalRevenue: calendarDay?.totalRevenue || daySchedules.reduce((sum, s) => sum + (s.price * s.currentGuests), 0)
+          totalBookings: isNaN(totalBookings) ? 0 : totalBookings,
+          totalRevenue: isNaN(totalRevenue) ? 0 : totalRevenue
         });
         
         currentDate.setDate(currentDate.getDate() + 1);
@@ -476,8 +531,9 @@ const fetchUserData = async () => {
     const firstTour = availableTours[0];
     setEditingSchedule({
       tourId: firstTour.id,
+      title: firstTour.title,
       tourTitle: firstTour.title,
-      tourType: firstTour.type as any || 'city',
+      tourType: (firstTour.type as any) || 'city',
       date: tomorrow,
       startTime: '09:00',
       endTime: '12:00',
@@ -507,17 +563,14 @@ const fetchUserData = async () => {
     if (editingSchedule) {
       try {
         if (editingSchedule.id) {
-          // Update existing
           await updateTourSchedule(editingSchedule.id, editingSchedule);
         } else {
-          // Add new
           await createTourSchedule(editingSchedule);
         }
         setShowAddEditModal(false);
         setEditingSchedule(null);
         setError(null);
       } catch (err) {
-        // Error is handled in the API functions
         console.error('Error saving schedule:', err);
       }
     }
@@ -531,19 +584,17 @@ const fetchUserData = async () => {
         setShowDetailModal(false);
         setError(null);
       } catch (err) {
-        // Error is handled in the API function
         console.error('Error deleting schedule:', err);
       }
     }
   };
 
   const handleCancelTour = async (schedule: TourSchedule) => {
-    if (confirm(`Are you sure you want to cancel "${schedule.tourTitle}"? All guests will be notified.`)) {
+    if (confirm(`Are you sure you want to cancel "${schedule.title || schedule.tourTitle}"? All guests will be notified.`)) {
       try {
         await updateTourSchedule(schedule.id, { ...schedule, status: 'cancelled' });
         setError(null);
       } catch (err) {
-        // Error is handled in the API function
         console.error('Error cancelling tour:', err);
       }
     }
@@ -595,7 +646,7 @@ const fetchUserData = async () => {
         {/* Summary Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4 mb-4 sm:mb-6">
           <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4">
+            <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm text-gray-600">Today</p>
                 <p className="text-lg sm:text-2xl font-bold text-gray-900">{summaryStats.today}</p>
@@ -895,7 +946,7 @@ const fetchUserData = async () => {
                       <div className="space-y-1">
                         {day.schedules.slice(0, window.innerWidth < 640 ? 1 : 3).map((schedule, index) => (
                           <div
-                            key={schedule.id}
+                            key={`${schedule.id}-${index}`}
                             onClick={() => handleViewDetails(schedule)}
                             className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${
                               getStatusColor(schedule.status)
@@ -903,10 +954,12 @@ const fetchUserData = async () => {
                           >
                             <div className="truncate">
                               <span className="hidden sm:inline">{schedule.startTime} - </span>
-                              {schedule.tourTitle}
+                              {schedule.title || schedule.tourTitle}
                             </div>
                             <div className="flex justify-between items-center mt-1">
-                              <span className="text-xs">{schedule.currentGuests}/{schedule.maxGuests}</span>
+                              <span className="text-xs">
+                                {schedule.currentGuests || schedule.bookedSlots || 0}/{schedule.maxGuests || schedule.totalSlots || 0}
+                              </span>
                               <i className={`bi ${getTourTypeIcon(schedule.tourType)} text-xs`}></i>
                             </div>
                           </div>
@@ -939,7 +992,7 @@ const fetchUserData = async () => {
                     <div key={schedule.id} className={`p-4 ${isPast ? 'opacity-60' : ''}`}>
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900 text-sm">{schedule.tourTitle}</h3>
+                          <h3 className="font-medium text-gray-900 text-sm">{schedule.title || schedule.tourTitle}</h3>
                           <p className="text-xs text-gray-800 mt-1">
                             <i className={`bi ${getTourTypeIcon(schedule.tourType)} mr-1`}></i>
                             {schedule.tourType} • {schedule.duration}h
@@ -965,13 +1018,13 @@ const fetchUserData = async () => {
                         </div>
                         <div>
                           <i className="bi bi-people mr-1"></i>
-                          {schedule.currentGuests}/{schedule.maxGuests}
+                          {schedule.currentGuests || schedule.bookedSlots || 0}/{schedule.maxGuests || schedule.totalSlots || 0}
                         </div>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-900">
-                          ${formatCurrency(schedule.price * schedule.currentGuests)}
+                          ${formatCurrency((schedule.price || 0) * (schedule.currentGuests || schedule.bookedSlots || 0))}
                         </span>
                         <div className="flex gap-2">
                           <button
@@ -1001,7 +1054,9 @@ const fetchUserData = async () => {
                       <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
                         <div 
                           className="bg-blue-600 h-1.5 rounded-full"
-                          style={{ width: `${(schedule.currentGuests / schedule.maxGuests) * 100}%` }}
+                          style={{ 
+                            width: `${Math.min(100, ((schedule.currentGuests || schedule.bookedSlots || 0) / (schedule.maxGuests || schedule.totalSlots || 1)) * 100)}%` 
+                          }}
                         ></div>
                       </div>
                     </div>
@@ -1041,6 +1096,8 @@ const fetchUserData = async () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {paginatedSchedules.map((schedule) => {
                     const isUpcoming = schedule.date >= new Date() && schedule.status !== 'completed';
+                    const currentGuests = schedule.currentGuests || schedule.bookedSlots || 0;
+                    const maxGuests = schedule.maxGuests || schedule.totalSlots || 1;
                     
                     return (
                       <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
@@ -1058,7 +1115,7 @@ const fetchUserData = async () => {
                           <div className="flex items-center">
                             <i className={`bi ${getTourTypeIcon(schedule.tourType)} text-lg lg:text-xl mr-2 lg:mr-3 text-gray-400`}></i>
                             <div>
-                              <div className="text-sm lg:text-base font-medium text-gray-900">{schedule.tourTitle}</div>
+                              <div className="text-sm lg:text-base font-medium text-gray-900">{schedule.title || schedule.tourTitle}</div>
                               <div className="text-sm lg:text-base text-gray-500 capitalize">{schedule.tourType} • {schedule.duration}h</div>
                             </div>
                           </div>
@@ -1069,15 +1126,15 @@ const fetchUserData = async () => {
                             {schedule.location}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {schedule.language.join(', ')}
+                            {(schedule.language || ['English']).join(', ')}
                           </div>
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="text-sm lg:text-base font-medium text-gray-900">
-                              {schedule.currentGuests}/{schedule.maxGuests}
+                              {currentGuests}/{maxGuests}
                             </div>
-                            {schedule.currentGuests >= schedule.maxGuests && (
+                            {currentGuests >= maxGuests && (
                               <span className="ml-2 bg-red-100 text-red-800 text-xs sm:text-sm px-2 py-1 rounded-full">
                                 Full
                               </span>
@@ -1086,7 +1143,7 @@ const fetchUserData = async () => {
                           <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                             <div 
                               className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${(schedule.currentGuests / schedule.maxGuests) * 100}%` }}
+                              style={{ width: `${Math.min(100, (currentGuests / maxGuests) * 100)}%` }}
                             ></div>
                           </div>
                         </td>
@@ -1098,10 +1155,10 @@ const fetchUserData = async () => {
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm lg:text-base font-medium text-gray-900">
-                            ${formatCurrency(schedule.price * schedule.currentGuests)}
+                            ${formatCurrency((schedule.price || 0) * currentGuests)}
                           </div>
                           <div className="text-sm text-gray-500">
-                            ${formatCurrency(schedule.price)}/person
+                            ${formatCurrency(schedule.price || 0)}/person
                           </div>
                         </td>
                         <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm lg:text-base font-medium">
@@ -1246,8 +1303,9 @@ const fetchUserData = async () => {
                         setEditingSchedule(prev => ({
                           ...prev,
                           tourId: e.target.value,
+                          title: selectedTour?.title || '',
                           tourTitle: selectedTour?.title || '',
-                          tourType: selectedTour?.type as any || 'city',
+                          tourType: (selectedTour?.type as any) || 'city',
                           location: selectedTour?.location || '',
                           price: selectedTour?.price || 50
                         }));
@@ -1267,8 +1325,12 @@ const fetchUserData = async () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tour Title</label>
                     <input
                       type="text"
-                      value={editingSchedule.tourTitle}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, tourTitle: e.target.value }))}
+                      value={editingSchedule.title || editingSchedule.tourTitle || ''}
+                      onChange={(e) => setEditingSchedule(prev => ({ 
+                        ...prev, 
+                        title: e.target.value,
+                        tourTitle: e.target.value 
+                      }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Enter tour title"
                       readOnly
@@ -1299,7 +1361,7 @@ const fetchUserData = async () => {
                         type="number"
                         min="1"
                         max="12"
-                        value={editingSchedule.duration}
+                        value={editingSchedule.duration || 3}
                         onChange={(e) => setEditingSchedule(prev => ({ ...prev, duration: parseInt(e.target.value) || 1 }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1310,7 +1372,7 @@ const fetchUserData = async () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
                     <input
                       type="text"
-                      value={editingSchedule.location}
+                      value={editingSchedule.location || ''}
                       onChange={(e) => setEditingSchedule(prev => ({ ...prev, location: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Enter location"
@@ -1332,7 +1394,7 @@ const fetchUserData = async () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
                       <input
                         type="time"
-                        value={editingSchedule.startTime}
+                        value={editingSchedule.startTime || '09:00'}
                         onChange={(e) => setEditingSchedule(prev => ({ ...prev, startTime: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1342,7 +1404,7 @@ const fetchUserData = async () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
                       <input
                         type="time"
-                        value={editingSchedule.endTime}
+                        value={editingSchedule.endTime || '17:00'}
                         onChange={(e) => setEditingSchedule(prev => ({ ...prev, endTime: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1355,7 +1417,7 @@ const fetchUserData = async () => {
                       <input
                         type="number"
                         min="1"
-                        value={editingSchedule.maxGuests}
+                        value={editingSchedule.maxGuests || 10}
                         onChange={(e) => setEditingSchedule(prev => ({ ...prev, maxGuests: parseInt(e.target.value) || 1 }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1366,7 +1428,7 @@ const fetchUserData = async () => {
                       <input
                         type="number"
                         min="0"
-                        value={editingSchedule.price}
+                        value={editingSchedule.price || 50}
                         onChange={(e) => setEditingSchedule(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1377,7 +1439,7 @@ const fetchUserData = async () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Meeting Point</label>
                     <input
                       type="text"
-                      value={editingSchedule.meetingPoint}
+                      value={editingSchedule.meetingPoint || ''}
                       onChange={(e) => setEditingSchedule(prev => ({ ...prev, meetingPoint: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Enter meeting point"
@@ -1387,7 +1449,7 @@ const fetchUserData = async () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
                     <textarea
-                      value={editingSchedule.specialInstructions}
+                      value={editingSchedule.specialInstructions || ''}
                       onChange={(e) => setEditingSchedule(prev => ({ ...prev, specialInstructions: e.target.value }))}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1424,7 +1486,9 @@ const fetchUserData = async () => {
               <div className="p-4 sm:p-6">
                 <div className="flex justify-between items-start mb-4 sm:mb-6">
                   <div className="flex-1 mr-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedSchedule.tourTitle}</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                      {selectedSchedule.title || selectedSchedule.tourTitle}
+                    </h2>
                     <p className="text-gray-600 mt-1 text-sm sm:text-base">
                       <i className={`bi ${getTourTypeIcon(selectedSchedule.tourType)} mr-2`}></i>
                       {selectedSchedule.tourType} Tour • {selectedSchedule.duration} hours
@@ -1452,12 +1516,16 @@ const fetchUserData = async () => {
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-people text-gray-600 text-lg sm:text-xl mb-1"></i>
                     <p className="text-sm sm:text-base text-gray-600">Guests</p>
-                    <p className="font-semibold text-sm sm:text-base">{selectedSchedule.currentGuests}/{selectedSchedule.maxGuests}</p>
+                    <p className="font-semibold text-sm sm:text-base">
+                      {selectedSchedule.currentGuests || selectedSchedule.bookedSlots || 0}/{selectedSchedule.maxGuests || selectedSchedule.totalSlots || 0}
+                    </p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
                     <i className="bi bi-cash-stack text-gray-600 text-lg sm:text-xl mb-1"></i>
                     <p className="text-sm sm:text-base text-gray-600">Revenue</p>
-                    <p className="font-semibold text-sm sm:text-base">${formatCurrency(selectedSchedule.price * selectedSchedule.currentGuests)}</p>
+                    <p className="font-semibold text-sm sm:text-base">
+                      ${formatCurrency((selectedSchedule.price || 0) * (selectedSchedule.currentGuests || selectedSchedule.bookedSlots || 0))}
+                    </p>
                   </div>
                 </div>
 
@@ -1474,7 +1542,7 @@ const fetchUserData = async () => {
                     </span>
                     <span className="text-gray-600 text-sm sm:text-base">
                       <i className="bi bi-translate mr-1"></i>
-                      {selectedSchedule.language.join(', ')}
+                      {(selectedSchedule.language || ['English']).join(', ')}
                     </span>
                   </div>
                   {selectedSchedule.meetingPoint && (

@@ -1,368 +1,189 @@
-//app/pages/agent/dashboard.tsx
 'use client';
 
-import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import  api  from '@/app/api/apiService'; // Adjust path as needed
+import api from '@/app/api/apiService';
 
-const AgentDashboard = () => {
+const EnhancedAgentDashboard = () => {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    
+    // State for dashboard data
     const [dashboardData, setDashboardData] = useState<any>(null);
-    const [propertiesData, setPropertiesData] = useState<any>(null);
-    const [earningsData, setEarningsData] = useState<any>(null);
+    const [enhancedData, setEnhancedData] = useState<any>(null);
+    const [transactionsData, setTransactionsData] = useState<any>([]);
+    const [earningsData, setEarningsData] = useState<any>([]);
+    const [propertiesData, setPropertiesData] = useState<any>([]);
+    const [loading, setLoading] = useState<any>(true);
+    const [error, setError] = useState<any>(null);
     const [userName, setUserName] = useState('Agent');
-    const [user, setUser] = useState<any>(null);
-    const [showKYCModal, setShowKYCModal] = useState(false);
 
-    const checkKYCStatus = (): boolean => {
-        if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
-            setShowKYCModal(true);
-            return false;
-        }
-        return true;
-    };
-
-    const fetchUserData = async () => {
-        try {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                api.setAuth(token);
-                const response = await api.get('/auth/me');
-                if (response.data) {
-                    setUser(response.data);
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching user data:', error);
-        }
-    };
-
-    const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-        if (!isOpen) return null;
-
-        return (
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-                    <div className="p-6">
-                        <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full">
-                            <i className="bi bi-hourglass-split text-2xl text-yellow-600"></i>
-                        </div>
-                        <h3 className="text-xl font-semibold text-center text-gray-900 mb-3">
-                            KYC Verification Pending
-                        </h3>
-                        <p className="text-gray-600 text-center mb-6">
-                            Your account verification is currently being processed. Please wait for verification to complete before performing this action. This process typically takes 2-4 hours.
-                        </p>
-                        <div className="flex justify-center">
-                            <button
-                                onClick={onClose}
-                                className="px-6 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85]/80 transition-colors font-medium cursor-pointer"
-                            >
-                                Understood
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // Get time-based greeting
-    const getTimeBasedGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 17) return 'Good afternoon';
-        if (hour < 21) return 'Good evening';
-        return 'Good night';
-    };
-
-    // Load all dashboard data
+    // Fetch all dashboard data
     useEffect(() => {
-        const loadDashboardData = async () => {
+        const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                setError(null);
 
-                // Load user name from localStorage or context
                 const user = JSON.parse(localStorage.getItem('userSession') || '{}');
-                if (user.name) {
-                    setUserName(user.name);
+                if (user.name || user.firstName) {
+                    setUserName(user.firstName || user.name);
                 }
 
-                // Set authentication token
-                const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-                api.setAuth(token || '');
+                // Fetch basic dashboard data
+                const dashboardResponse = await api.get('/properties/agent/dashboard');
+                const dashboard = dashboardResponse.data.data;
+                setDashboardData(dashboard);
 
-                // Fetch all required data concurrently
-                const [dashboardResponse, propertiesResponse, earningsResponse] = await Promise.all([
-                    api.get('/properties/agent/dashboard'),
-                    api.get('/properties/agent/properties'),  
-                    api.get('/properties/agent/earnings')
-                ]);
+                // Fetch enhanced dashboard data
+                const enhancedResponse = await api.get('/properties/agent/dashboard/enhanced');
+                const enhanced = enhancedResponse.data.data;
+                setEnhancedData(enhanced);
 
-                console.log('Dashboard Response:', dashboardResponse);
-                console.log('Properties Response:', propertiesResponse);
-                console.log('Earnings Response:', earningsResponse);
+                // Fetch transaction monitoring data
+                const transactionsResponse = await api.get('/properties/agent/transactions/monitoring');
+                setTransactionsData(transactionsResponse.data.data);
 
-                // Process dashboard data with fallbacks
-                if (dashboardResponse.ok || dashboardResponse.ok) {
-                    const dashboardData = dashboardResponse.data?.data || dashboardResponse.data || {};
-                    
-                    // Process real backend data only
-                    const processedDashboardData = {
-                        ...dashboardData,
-                        activeClients: dashboardData.activeClients || dashboardData.totalClients || 0,
-                        totalCommissions: dashboardData.totalCommissions || dashboardData.totalEarnings || 0,
-                        pendingCommissions: dashboardData.pendingCommissions || 0,
-                        avgCommissionPerBooking: dashboardData.avgCommissionPerBooking || 
-                            (dashboardData.totalCommissions > 0 && dashboardData.totalBookings > 0 ? 
-                                dashboardData.totalCommissions / dashboardData.totalBookings : 0),
-                        monthlyCommissions: dashboardData.monthlyCommissions || [],
-                        recentBookings: dashboardData.recentBookings || []
-                    };
-                    
-                    setDashboardData(processedDashboardData);
-                } else {
-                    // Set empty data if API isn't available
-                    setDashboardData({
-                        activeClients: 0,
-                        totalClients: 0,
-                        totalCommissions: 0,
-                        pendingCommissions: 0,
-                        avgCommissionPerBooking: 0,
-                        monthlyCommissions: [],
-                        recentBookings: []
-                    });
-                }
+                // Fetch earnings data with transactions
+                const earningsResponse = await api.get('/properties/agent/earnings');
+                setEarningsData(earningsResponse.data.data);
 
-                // Process properties data with fallbacks
-                if (propertiesResponse.ok || propertiesResponse.ok) {
-                    const propertiesData = propertiesResponse.data?.data || propertiesResponse.data || {};
-                    const processedPropertiesData = {
-                        total: propertiesData.totalProperties || (propertiesData.properties?.length || 0),
-                        properties: Array.isArray(propertiesData.properties) ? propertiesData.properties : 
-                                   Array.isArray(propertiesData) ? propertiesData : []
-                    };
-                    setPropertiesData(processedPropertiesData);
-                } else {
-                    setPropertiesData({
-                        total: 0,
-                        properties: []
-                    });
-                }
+                // Fetch agent's properties
+                const propertiesResponse = await api.get('/properties/agent/properties');
+                setPropertiesData(propertiesResponse.data.data.properties);
 
-                // Process earnings data with fallbacks  
-                if (earningsResponse.ok || earningsResponse.ok) {
-                    const earningsData = earningsResponse.data?.data || earningsResponse.data || {};
-                    setEarningsData({
-                        totalEarnings: earningsData.totalEarnings || earningsData.totalCommissions || 0,
-                        totalBookings: earningsData.totalBookings || 0,
-                        ...earningsData
-                    });
-                } else {
-                    setEarningsData({
-                        totalEarnings: 0,
-                        totalBookings: 0
-                    });
-                }
-
-                await fetchUserData();
-
-            } catch (err: Error | any) {
-                console.error('Error loading dashboard data:', err);
-                setError(err.message || 'Failed to load dashboard data');
-                
-                // Set empty data on error
-                setDashboardData({
-                    activeClients: 0,
-                    totalClients: 0,
-                    totalCommissions: 0,
-                    pendingCommissions: 0,
-                    avgCommissionPerBooking: 0,
-                    monthlyCommissions: [],
-                    recentBookings: []
-                });
-                setPropertiesData({
-                    total: 0,
-                    properties: []
-                });
-                setEarningsData({
-                    totalEarnings: 0,
-                    totalBookings: 0
-                });
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                setError('Failed to load dashboard data '+JSON.stringify(error));
             } finally {
                 setLoading(false);
             }
         };
 
-        loadDashboardData();
+        fetchDashboardData();
     }, []);
 
-    // Transform monthly commissions data for chart
-    const getMonthlyEarningsData = () => {
-        if (!dashboardData?.monthlyCommissions) return [];
+    // Transform earnings data for chart
+    const transformEarningsData = (monthlyCommissions: any) => {
+        if (!monthlyCommissions || monthlyCommissions.length === 0) {
+            // Fallback data if no earnings data
+            return [
+                { month: 'Jan', earnings: 0 },
+                { month: 'Feb', earnings: 0 },
+                { month: 'Mar', earnings: 0 },
+                { month: 'Apr', earnings: 0 },
+                { month: 'May', earnings: 0 },
+                { month: 'Jun', earnings: 0 },
+            ];
+        }
         
-        return dashboardData.monthlyCommissions.map((item: any) => ({
-            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
-            commission: item.commission || 0,
-            bonus: item.bonus || 0
+        return monthlyCommissions.map((item: any) => ({
+            month: new Date(item.month + '-01').toLocaleDateString('en-US', { month: 'short' }),
+            earnings: item.commission || item.earnings || 0
         }));
     };
 
-    // Transform recent bookings for client acquisition chart
-    const getClientAcquisitionData = () => {
-        if (!dashboardData?.recentBookings) return [];
+    // Transform transaction performance data for chart
+    const transformTransactionData = (transactionBreakdown: any) => {
+        if (!transactionBreakdown || !transactionBreakdown.escrowTransactions) {
+            // Fallback weekly data
+            return [
+                { day: 'Mon', transactions: 0 },
+                { day: 'Tue', transactions: 0 },
+                { day: 'Wed', transactions: 0 },
+                { day: 'Thu', transactions: 0 },
+                { day: 'Fri', transactions: 0 },
+                { day: 'Sat', transactions: 0 },
+                { day: 'Sun', transactions: 0 },
+            ];
+        }
         
-        // Group bookings by week
-        const weeklyData: { [key: string]: number } = {};
-        dashboardData.recentBookings.forEach((booking: any, index: number) => {
-            const weekKey = `Week ${Math.floor(index / 7) + 1}`;
-            weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
-        });
-
-        return Object.entries(weeklyData).map(([week, clients]) => ({
-            week,
-            clients
-        }));
-    };
-
-    // Get summary cards data
-    const getSummaryCards = () => {
-        if (!dashboardData) return [];
-
-        return [
-            {
-                title: 'Active Clients',
-                value: dashboardData.activeClients?.toString() || '0',
-                change: `${dashboardData.totalClients || 0} total clients`,
-                icon: 'people',
-                iconBg: '#F20C8F',
-                bgGradient: 'from-pink-50 to-white',
-                textColor: 'text-pink-600'
-            },
-            {
-                title: 'Total Earnings',
-                value: `$${dashboardData.totalCommissions?.toLocaleString() || '0'}`,
-                change: `$${dashboardData.pendingCommissions?.toLocaleString() || '0'} pending`,
-                icon: 'currency-dollar',
-                iconBg: '#083A85',
-                bgGradient: 'from-blue-50 to-white',
-                textColor: 'text-blue-600'
-            },
-            {
-                title: 'Properties Managed',
-                value: propertiesData?.total?.toString() || '0',
-                change: `${propertiesData?.properties?.length || 0} active listings`,
-                icon: 'house-door',
-                iconBg: '#10B981',
-                bgGradient: 'from-green-50 to-white',
-                textColor: 'text-green-600'
-            },
-            {
-                title: 'Avg Commission',
-                value: `$${dashboardData.avgCommissionPerBooking?.toFixed(0) || '0'}`,
-                change: 'per booking',
-                icon: 'graph-up-arrow',
-                iconBg: '#F59E0B',
-                bgGradient: 'from-yellow-50 to-white',
-                textColor: 'text-yellow-600'
-            },
+        // Group transactions by day of week from the last 7 days
+        const transactions = [
+            ...(transactionBreakdown.escrowTransactions || []),
+            ...(transactionBreakdown.paymentTransactions || [])
         ];
-    };
-
-    // Get recent activities from bookings
-    const getRecentActivities = () => {
-        if (!dashboardData?.recentBookings) return [];
         
-        return dashboardData.recentBookings.slice(0, 4).map((booking: any, index: number) => ({
-            icon: index % 4 === 0 ? 'person-plus' : index % 4 === 1 ? 'house-add' : index % 4 === 2 ? 'calendar-check' : 'cash-coin',
-            text: `${booking.guestName ? 'New booking from ' + booking.guestName : 'New booking received'}${booking.propertyName ? ' for ' + booking.propertyName : ''}`,
-            time: new Date(booking.createdAt || booking.checkIn).toLocaleDateString(),
-            color: index % 4 === 0 ? 'text-green-500' : index % 4 === 1 ? 'text-blue-600' : index % 4 === 2 ? 'text-pink-500' : 'text-green-600'
-        }));
-    };
-
-    // Get upcoming appointments from recent bookings
-    const getUpcomingAppointments = () => {
-        if (!dashboardData?.recentBookings) return [];
-        
-        return dashboardData.recentBookings.slice(0, 3).map((booking: any, index: number) => ({
-            client: booking.guestName || `Client ${index + 1}`,
-            property: booking.propertyName || 'Property Viewing',
-            time: new Date(booking.checkIn).toLocaleDateString(),
-            type: index % 3 === 0 ? 'Property Viewing' : index % 3 === 1 ? 'Contract Signing' : 'Initial Consultation',
-            priority: index < 2 ? 'high' : 'medium'
-        }));
-    };
-
-    // Get top properties
-    const getTopProperties = () => {
-        if (!propertiesData?.properties) return [];
-
-        return propertiesData.properties.slice(0, 3).map((property: any, index: number) => ({
-            name: property.name || `Property ${index + 1}`,
-            bookings: property.totalBookings || 0,
-            revenue: `$${property.totalRevenue?.toLocaleString() || '0'}`,
-            rating: property.averageRating?.toFixed(1) || '4.5',
-            location: property.location || property.city || 'Location'
-        }));
-    };
-
-    // Property categories for pie chart
-    const getPropertyCategories = () => {
-        if (!propertiesData?.properties) return [];
-
-        const categories: { [key: string]: number } = {};
-        propertiesData.properties.forEach((property: any) => {
-            const type = property.propertyType || 'Other';
-            categories[type] = (categories[type] || 0) + 1;
+        const dayCount: any = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0, Sun: 0 };
+        transactions.forEach((transaction: any) => {
+            const day = new Date(transaction.createdAt).toLocaleDateString('en-US', { weekday: 'short' });
+            if (dayCount.hasOwnProperty(day)) {
+                dayCount[day] += 1;
+            }
         });
 
-        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#8B5CF6'];
-        return Object.entries(categories).map(([name, value], index) => ({
+        return Object.entries(dayCount).map(([day, count]) => ({
+            day,
+            transactions: count
+        }));
+    };
+
+    // Get transaction types from transaction data
+    const getTransactionTypes = (transactionBreakdown: any) => {
+        if (!transactionBreakdown || (!transactionBreakdown.escrowTransactions && !transactionBreakdown.paymentTransactions)) {
+            return [
+                { name: 'No Transactions', value: 1, color: '#E5E7EB' }
+            ];
+        }
+
+        const typeCount: any = {};
+        const allTransactions = [
+            ...(transactionBreakdown.escrowTransactions || []),
+            ...(transactionBreakdown.paymentTransactions || [])
+        ];
+        
+        allTransactions.forEach((transaction: any) => {
+            const type = transaction.status || transaction.type || 'Other';
+            typeCount[type] = (typeCount[type] || 0) + 1;
+        });
+
+        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+        return Object.entries(typeCount).map(([name, value], index) => ({
             name,
             value,
             color: colors[index % colors.length]
         }));
     };
 
-    // Quick stats
-    const getQuickStats = () => [
-        { 
-            label: 'Conversion Rate', 
-            value: earningsData?.totalBookings > 0 ? `${((earningsData.totalBookings / (dashboardData?.totalClients || 1)) * 100).toFixed(0)}%` : '0%', 
-            icon: 'arrow-up-circle' 
-        },
-        { 
-            label: 'Avg. Deal Size', 
-            value: `$${(earningsData?.totalEarnings / Math.max(earningsData?.totalBookings || 1, 1))?.toFixed(0) || '0'}`, 
-            icon: 'currency-dollar' 
-        },
-        { 
-            label: 'Total Bookings', 
-            value: earningsData?.totalBookings?.toString() || '0', 
-            icon: 'calendar-check' 
-        },
-        { 
-            label: 'Client Satisfaction', 
-            value: '4.8/5', 
-            icon: 'star-fill' 
-        },
-    ];
+    // Transform recent transactions for messages section
+    const transformRecentActivity = (transactionBreakdown: any) => {
+        if (!transactionBreakdown || (!transactionBreakdown.escrowTransactions && !transactionBreakdown.paymentTransactions)) return [];
+        
+        const allTransactions = [
+            ...(transactionBreakdown.escrowTransactions || []).map((t: any) => ({ ...t, source: 'escrow' })),
+            ...(transactionBreakdown.paymentTransactions || []).map((t: any) => ({ ...t, source: 'payment' }))
+        ];
+        
+        return allTransactions
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 4)
+            .map((transaction: any) => ({
+                client: transaction.clientName || transaction.user?.name || 'Client',
+                message: transaction.description || transaction.notes || `${transaction.source} transaction ${transaction.status}`,
+                time: new Date(transaction.createdAt).toLocaleTimeString(),
+                type: transaction.status === 'RELEASED' || transaction.status === 'completed' ? 'commission' : transaction.status
+            }));
+    };
+
+    // Transform upcoming appointments
+    const transformUpcomingAppointments = (properties: any) => {
+        if (!properties || properties.length === 0) return [];
+        
+        return properties.slice(0, 3).map((property: any) => ({
+            title: property.title || property.name,
+            time: property.nextViewing ? new Date(property.nextViewing).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00',
+            client: property.interestedClient || 'Potential Client',
+            duration: '1 hr',
+            location: property.location || property.address,
+            status: property.status || 'confirmed'
+        }));
+    };
 
     if (loading) {
         return (
-            <div className="mt-18">
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center justify-center h-64">
-                        <div className="flex flex-col items-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                            <p className="mt-4 text-gray-600">Loading dashboard...</p>
-                        </div>
-                    </div>
+            <div className="mt-20 flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading dashboard...</p>
                 </div>
             </div>
         );
@@ -370,52 +191,124 @@ const AgentDashboard = () => {
 
     if (error) {
         return (
-            <div className="mt-18">
-                <div className="max-w-7xl mx-auto">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                        <div className="flex items-center">
-                            <i className="bi bi-exclamation-triangle text-red-500 text-xl mr-3"></i>
-                            <div>
-                                <h3 className="text-red-800 font-semibold">Error Loading Dashboard</h3>
-                                <p className="text-red-600 mt-1">{error}</p>
-                                <button 
-                                    onClick={() => window.location.reload()} 
-                                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors cursor-pointer"
-                                >
-                                    Retry
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+            <div className="mt-20 flex items-center justify-center min-h-screen">
+                <div className="text-center text-red-600">
+                    <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
+                    <p>{error}</p>
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
     }
 
-    const monthlyEarningsData = getMonthlyEarningsData();
-    const clientAcquisitionData = getClientAcquisitionData();
-    const summaryCards = getSummaryCards();
-    const recentActivities = getRecentActivities();
-    const upcomingAppointments = getUpcomingAppointments();
-    const topProperties = getTopProperties();
-    const propertyCategories = getPropertyCategories();
-    const quickStats = getQuickStats();
+    // Prepare data for UI
+    const chartEarningsData = transformEarningsData(dashboardData?.monthlyCommissions || earningsData?.monthlyCommissions);
+    const chartTransactionData = transformTransactionData(transactionsData?.transactionBreakdown || dashboardData?.transactionBreakdown);
+    const transactionTypes = getTransactionTypes(transactionsData?.transactionBreakdown || dashboardData?.transactionBreakdown);
+    const recentActivity = transformRecentActivity(transactionsData?.transactionBreakdown || dashboardData?.transactionBreakdown);
+    const upcomingAppointments = transformUpcomingAppointments(propertiesData || dashboardData?.upcomingAppointments);
 
+    // Summary cards data
+    const summaryCards = [
+        {
+            title: 'Active Properties',
+            value: dashboardData?.activeProperties?.toString() || '0',
+            change: `${dashboardData?.totalProperties || 0} total properties`,
+            icon: 'house',
+            bgColor: 'bg-pink-500',
+            iconBg: '#F20C8F',
+        },
+        {
+            title: 'Total Clients',
+            value: dashboardData?.totalClients?.toString() || '0',
+            change: `${dashboardData?.activeClients || 0} active clients`,
+            icon: 'people',
+            bgColor: 'bg-blue-800',
+            iconBg: '#083A85',
+        },
+        {
+            title: 'Total Commissions',
+            value: `$${dashboardData?.totalCommissions?.toLocaleString() || '0'}`,
+            change: 'All time earnings',
+            icon: 'currency-dollar',
+            bgColor: 'bg-green-500',
+            iconBg: '#10B981',
+        },
+        {
+            title: 'Success Rate',
+            value: `${dashboardData?.successRate?.toFixed(1) || '85.0'}%`,
+            change: `${dashboardData?.pendingDeals || 0} pending deals`,
+            icon: 'graph-up-arrow',
+            bgColor: 'bg-amber-500',
+            iconBg: '#F59E0B',
+        },
+    ];
+
+    // Recent reviews/feedback (from recent transactions with feedback)
+    const recentFeedback = (transactionsData?.transactionBreakdown?.escrowTransactions || [])
+        .filter((transaction: any) => transaction.feedback || transaction.rating)
+        .slice(0, 3)
+        .map((transaction: any) => ({
+            client: transaction.clientName || transaction.user?.name || 'Anonymous',
+            rating: transaction.rating || 5,
+            comment: transaction.feedback?.comment || transaction.notes || 'Professional service!',
+            property: transaction.property?.title || transaction.propertyName || 'Property',
+            date: new Date(transaction.feedback?.createdAt || transaction.createdAt).toLocaleDateString()
+        }));
+
+    // Quick stats
+    const quickStats = [
+        { 
+            label: 'Deals Closed', 
+            value: dashboardData?.totalDeals?.toString() || '0', 
+            icon: 'check-circle' 
+        },
+        { 
+            label: 'Response Rate', 
+            value: '98%', // This might need a separate endpoint
+            icon: 'chat-dots' 
+        },
+        { 
+            label: 'Repeat Clients', 
+            value: '34%', // This might need calculation from transactions
+            icon: 'arrow-repeat' 
+        },
+        { 
+            label: 'Avg Commission', 
+            value: `$${dashboardData?.avgCommissionPerBooking?.toFixed(0) || '0'}`, 
+            icon: 'cash-coin' 
+        },
+    ];
+    
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 17) return 'Good afternoon';
+        if (hour < 21) return 'Good evening';
+        return 'Good night';
+    };
+    
     return (
-        <div className="mt-18">
+        <div className="mt-20">
             <div className="max-w-7xl mx-auto">
+                          
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
                         {getTimeBasedGreeting()}, {userName}!
                     </h1>
-                    <p className="text-gray-600 text-md">Here's what's happening with your property business</p>
+                    <p className="text-gray-600 text-md">Here's what's happening with your real estate business</p>
                 </div>
-                
+               
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
                     {summaryCards.map((card, index) => (
-                        <div key={index} className={`bg-gradient-to-br ${card.bgGradient} rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 relative overflow-hidden`}>
+                        <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
                             <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
                                 <i className={`bi bi-${card.icon}`} />
                             </div>
@@ -426,10 +319,10 @@ const AgentDashboard = () => {
                                 >
                                     <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
                                 </div>
-                                <span className="text-sm sm:text-base text-gray-600 font-medium">{card.title}</span>
+                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
                             </div>
-                            <div className={`text-xl sm:text-2xl lg:text-3xl font-bold mb-1 ${card.textColor}`}>{card.value}</div>
-                            <div className={`text-sm sm:text-base ${card.textColor} flex items-center font-medium`}>
+                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
+                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
                                 <i className="bi bi-arrow-up mr-1" />
                                 {card.change}
                             </div>
@@ -440,175 +333,148 @@ const AgentDashboard = () => {
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
                     {/* Earnings Chart */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-graph-up mr-2 text-pink-500" />
-                                Monthly Earnings
+                                Monthly Commissions
                             </h3>
                             <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
                         <div className="h-48 sm:h-56 lg:h-64">
-                            {monthlyEarningsData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={monthlyEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: 'white', 
-                                                border: '1px solid #e5e7eb', 
-                                                borderRadius: '8px',
-                                                fontSize: '12px'
-                                            }} 
-                                        />
-                                        <Line 
-                                            type="monotone" 
-                                            dataKey="commission" 
-                                            stroke="#F20C8F" 
-                                            strokeWidth={3} 
-                                            dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} 
-                                            name="Commission"
-                                        />
-                                        <Line 
-                                            type="monotone" 
-                                            dataKey="bonus" 
-                                            stroke="#083A85" 
-                                            strokeWidth={2} 
-                                            dot={{ fill: '#083A85', strokeWidth: 2, r: 3 }} 
-                                            name="Bonus"
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
-                                    <div className="text-center">
-                                        <i className="bi bi-graph-up text-3xl mb-2"></i>
-                                        <p>No earnings data available</p>
-                                    </div>
-                                </div>
-                            )}
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ 
+                                            backgroundColor: 'white', 
+                                            border: '1px solid #e5e7eb', 
+                                            borderRadius: '8px',
+                                            fontSize: '12px'
+                                        }} 
+                                    />
+                                    <Line 
+                                        type="monotone" 
+                                        dataKey="earnings" 
+                                        stroke="#F20C8F" 
+                                        strokeWidth={3} 
+                                        dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} 
+                                        activeDot={{ r: 6, stroke: '#F20C8F', strokeWidth: 2 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Client Acquisition Chart */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+                    {/* Transaction Activity Chart */}
+                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-bar-chart mr-2 text-blue-800" />
-                                Weekly Client Activity
+                                Weekly Transaction Activity
                             </h3>
                             <div className="text-md text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
                         <div className="h-48 sm:h-56 lg:h-64">
-                            {clientAcquisitionData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={clientAcquisitionData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="week" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <Tooltip 
-                                            contentStyle={{ 
-                                                backgroundColor: 'white', 
-                                                border: '1px solid #e5e7eb', 
-                                                borderRadius: '8px',
-                                                fontSize: '12px'
-                                            }} 
-                                        />
-                                        <Bar dataKey="clients" fill="#083A85" radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
-                                    <div className="text-center">
-                                        <i className="bi bi-bar-chart text-3xl mb-2"></i>
-                                        <p>No client activity data</p>
-                                    </div>
-                                </div>
-                            )}
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartTransactionData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <Tooltip 
+                                        contentStyle={{ 
+                                            backgroundColor: 'white', 
+                                            border: '1px solid #e5e7eb', 
+                                            borderRadius: '8px',
+                                            fontSize: '12px'
+                                        }} 
+                                    />
+                                    <Bar dataKey="transactions" fill="#083A85" radius={[6, 6, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
 
-                {/* Appointments & Properties */}
+                {/* Appointments & Activity */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
-                    {/* Upcoming Appointments */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+                    {/* Today's Appointments */}
+                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-calendar-event mr-2 text-blue-600" />
-                                Recent Bookings
+                                <i className="bi bi-calendar-week mr-2 text-green-600" />
+                                Today's Schedule
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => {router.push('/agent/schedule')}}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/schedule')}}>
                                 View Calendar
                             </button>
                         </div>
                         <div className="space-y-3">
                             {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-start justify-between">
+                                    <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{appointment.client}</h4>
-                                            <p className="text-md text-gray-600 mt-1">{appointment.property}</p>
-                                            <p className="text-md text-gray-500 mt-1">{appointment.type}</p>
+                                            <h4 className="font-medium text-gray-800 text-md">{appointment.title}</h4>
+                                            <p className="text-md text-gray-600 mt-1">{appointment.location}</p>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-md font-medium text-gray-800">{appointment.time}</span>
-                                            <span className={`block mt-1 px-2 py-1 rounded-full text-md font-medium ${
-                                                appointment.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                                {appointment.priority}
-                                            </span>
-                                        </div>
+                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
+                                            appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                        }`}>
+                                            {appointment.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-md text-gray-500">
+                                        <span>{appointment.time} • {appointment.duration}</span>
+                                        <span>{appointment.client}</span>
                                     </div>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-calendar-x text-3xl mb-2"></i>
-                                    <p>No recent bookings</p>
+                                    <i className="bi bi-calendar-x text-3xl mb-2" />
+                                    <p>No appointments scheduled for today</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Top Properties */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+                    {/* Recent Activity */}
+                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-trophy mr-2 text-amber-500" />
-                                Top Performing Properties
+                            <h3 className="text-base lg:text-lg font-semibiled flex items-center text-gray-800">
+                                <i className="bi bi-chat-dots mr-2 text-blue-600" />
+                                Recent Activity
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => router.push('/agent/properties')}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium">
                                 View All
                             </button>
                         </div>
                         <div className="space-y-3">
-                            {topProperties.length > 0 ? topProperties.map((property: any, index: number) => (
+                            {recentActivity.length > 0 ? recentActivity.map((activity: any, index: number) => (
                                 <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-start justify-between">
+                                    <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{property.name}</h4>
-                                            <p className="text-md text-gray-600 mt-1">{property.location}</p>
-                                            <p className="text-md text-gray-500 mt-1">{property.bookings} bookings</p>
+                                            <h4 className="font-medium text-gray-800 text-md">{activity.client}</h4>
+                                            <p className="text-md text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-md font-bold text-green-600">{property.revenue}</span>
-                                            <div className="flex items-center mt-1">
-                                                <i className="bi bi-star-fill text-yellow-500 text-md mr-1" />
-                                                <span className="text-md text-gray-600">{property.rating}</span>
-                                            </div>
-                                        </div>
+                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
+                                            activity.type === 'commission' ? 'bg-green-100 text-green-800' : 
+                                            activity.type === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                                        }`}>
+                                            {activity.type}
+                                        </span>
                                     </div>
+                                    <div className="text-md text-gray-500">{activity.time}</div>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-house-x text-3xl mb-2"></i>
-                                    <p>No properties available</p>
+                                    <i className="bi bi-chat-square-dots text-3xl mb-2" />
+                                    <p>No recent activity</p>
                                 </div>
                             )}
                         </div>
@@ -617,82 +483,83 @@ const AgentDashboard = () => {
 
                 {/* Bottom Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-                    {/* Property Categories */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
+                    {/* Transaction Types */}
+                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-pie-chart mr-2 text-gray-600" />
-                                Property Portfolio
+                                Transaction Types
                             </h3>
                         </div>
                         <div className="h-48 sm:h-56">
-                            {propertyCategories.length > 0 ? (
-                                <>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={propertyCategories}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={30}
-                                                outerRadius={70}
-                                                paddingAngle={5}
-                                                dataKey="value"
-                                            >
-                                                {propertyCategories.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    <div className="flex flex-wrap justify-center gap-3 mt-3">
-                                        {propertyCategories.map((type, index) => (
-                                            <div key={index} className="flex items-center text-md font-medium">
-                                                <div 
-                                                    className="w-3 h-3 mr-2 rounded-sm"
-                                                    style={{ backgroundColor: type.color }}
-                                                ></div>
-                                                {type.name} ({type.value})
-                                            </div>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={transactionTypes}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={30}
+                                        outerRadius={70}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {transactionTypes.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
-                                    <div className="text-center">
-                                        <i className="bi bi-pie-chart text-3xl mb-2"></i>
-                                        <p>No property data</p>
-                                    </div>
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-3 mt-3">
+                            {transactionTypes.map((type: any, index) => (
+                                <div key={index} className="flex items-center text-md font-medium">
+                                    <div 
+                                        className="w-3 h-3 mr-2 rounded-sm"
+                                        style={{ backgroundColor: type.color }}
+                                    ></div>
+                                    {type.name} ({type.value})
                                 </div>
-                            )}
+                            ))}
                         </div>
                     </div>
 
-                    {/* Recent Activity */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105 lg:col-span-2">
+                    {/* Recent Client Feedback */}
+                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-clock-history mr-2 text-gray-800" />
-                                Recent Activity
+                                <i className="bi bi-star mr-2 text-amber-500" />
+                                Recent Client Feedback
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => router.push('/agent/logs')}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/agent/reviews')}}>
                                 View All
                             </button>
                         </div>
-                        <div className="space-y-3">
-                            {recentActivities.length > 0 ? recentActivities.map((activity: any, index: number) => (
-                                <div key={index} className="flex items-center p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                    <div className={`mr-3 ${activity.color}`}>
-                                        <i className={`bi bi-${activity.icon} text-lg`} />
+                        <div className="space-y-4">
+                            {recentFeedback.length > 0 ? recentFeedback.map((feedback: any, index: number) => (
+                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1">
+                                            <div className="flex items-center mb-1">
+                                                <h4 className="font-medium text-gray-800 text-md mr-2">{feedback.client}</h4>
+                                                <div className="flex items-center">
+                                                    {[...Array(feedback.rating)].map((_, i) => (
+                                                        <i key={i} className="bi bi-star-fill text-yellow-500 text-md" />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="text-md text-gray-600 mb-1">{feedback.comment}</p>
+                                            <div className="flex items-center justify-between text-md text-gray-500">
+                                                <span>{feedback.property}</span>
+                                                <span>{feedback.date}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <span className="flex-1 text-md font-medium text-gray-700">{activity.text}</span>
-                                    <span className="text-gray-400 text-md font-medium">{activity.time}</span>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-clock-history text-3xl mb-2"></i>
-                                    <p>No recent activity</p>
+                                    <i className="bi bi-star text-3xl mb-2" />
+                                    <p>No feedback yet</p>
                                 </div>
                             )}
                         </div>
@@ -700,8 +567,8 @@ const AgentDashboard = () => {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="mt-6 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                    <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Metrics</h3>
+                <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Stats</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
                         {quickStats.map((stat, index) => (
                             <div key={index} className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
@@ -715,9 +582,8 @@ const AgentDashboard = () => {
                     </div>
                 </div>
             </div>
-            <KYCPendingModal isOpen={showKYCModal} onClose={() => setShowKYCModal(false)} />
         </div>
     );
 };
 
-export default AgentDashboard;
+export default EnhancedAgentDashboard;

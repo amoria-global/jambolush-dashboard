@@ -385,11 +385,11 @@ const SchedulePage: React.FC = () => {
     setShowDetailModal(true);
   };
 
-  const handleAddNew = (type?: 'property' | 'tour') => {
+  const handleAddNew = (type?: 'property' | 'tours') => {
     if (type === 'property') {
-      window.location.href = '/properties';
-    } else if (type === 'tour') {
-      window.location.href = '/tours';
+      window.location.href = 'https://jambolush.com/';
+    } else if (type === 'tours') {
+      window.location.href = 'https://jambolush.com/all/tours';
     } else {
       // Show selection modal or redirect to main booking page
       window.location.href = '/';
@@ -576,7 +576,7 @@ const SchedulePage: React.FC = () => {
             Book Property
           </button>
           <button
-            onClick={() => handleAddNew('tour')}
+            onClick={() => handleAddNew('tours')}
             className="w-full sm:w-auto inline-block px-5 py-2.5 rounded-lg text-white text-base font-medium transition-transform hover:scale-105 cursor-pointer"
             style={{ backgroundColor: '#F20C8F' }}
           >
@@ -660,7 +660,7 @@ const SchedulePage: React.FC = () => {
                 <button onClick={() => handleAddNew('property')} className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700">
                   <i className="bi bi-house mr-2"></i>Book a Property
                 </button>
-                <button onClick={() => handleAddNew('tour')} className="px-6 py-3 text-white rounded-lg font-medium" style={{ backgroundColor: '#F20C8F' }}>
+                <button onClick={() => handleAddNew('tours')} className="px-6 py-3 text-white rounded-lg font-medium" style={{ backgroundColor: '#F20C8F' }}>
                   <i className="bi bi-map mr-2"></i>Book a Tour
                 </button>
               </div>

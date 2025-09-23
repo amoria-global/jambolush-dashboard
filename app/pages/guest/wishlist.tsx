@@ -305,7 +305,7 @@ const WishlistPage: React.FC = () => {
   };
 
   return (
-    <div className="pt-14 px-2 sm:px-4 md:px-8 lg:px-12 xl:px-24">
+    <div className="pt-14 px-2 sm:px-4">
       <div className="mx-auto py-8">
         {/* Header */}
         <div className="mb-8 text-center sm:text-left">

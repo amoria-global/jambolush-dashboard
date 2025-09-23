@@ -30,9 +30,20 @@ type SummaryData = {
 };
 
 type WithdrawalAccount = {
-    id: string;
-    bank: string;
-    number: string;
+  id: string;
+  bank: string;
+  number: string;
+};
+
+type Transaction = {
+  id: string;
+  amount: number;
+  type: string;
+  category?: string;
+  description?: string;
+  reference?: string;
+  date?: string;
+  createdAt?: string;
 };
 
 const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
@@ -82,181 +93,177 @@ const Earnings = () => {
   const [monthlyCommissionData, setMonthlyCommissionData] = useState<MonthlyCommission[]>([]);
   const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
   const [commissionStatements, setCommissionStatements] = useState<CommissionStatement[]>([]);
-
-  // Modals & Withdrawal state
+  
+  // Modal states
   const [showSetAccountModal, setShowSetAccountModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showKYCModal, setShowKYCModal] = useState(false);
   const [withdrawalAccounts, setWithdrawalAccounts] = useState<WithdrawalAccount[]>([]);
   const [newAccount, setNewAccount] = useState({ bank: '', number: '' });
-  const [withdrawAmount, setWithdrawAmount] = useState<number | string>('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [modalError, setModalError] = useState('');
-  const [user, setUser] = useState<any>(null);
-  const [showKYCModal, setShowKYCModal] = useState(false);
 
-  const checkKYCStatus = (): boolean => {
-    if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
-      setShowKYCModal(true);
-      return false;
-    }
-    return true;
-  };
-
-  const handleWithdrawWithKYC = () => {
-    if (!checkKYCStatus()) return;
-    handleWithdrawClick();
-  };
-
-  const fetchUserData = async () => {
+  // --- DATA FETCHING FUNCTIONS ---
+  const fetchAllTransactions = async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        api.setAuth(token);
-        const response = await api.get('/auth/me');
-        if (response.data) {
-          setUser(response.data);
-        }
+      const response: any = await api.get('/payments/transactions');
+      if (response.success) {
+        return response.data.data.transactions || [];
       }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
+      return [];
+    } catch (err) {
+      setError('Failed to fetch transactions');
+      return [];
     }
   };
 
-  // --- MAIN DATA FETCHING EFFECT ---
-  useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        setError(null);
-        
-        // Fetch user data for KYC
-        await fetchUserData();
-        
-        // Use existing endpoints that work
-        const [transactionsRes, walletRes] = await Promise.all([
-          api.get('/payments/transactions'), // Agent transactions
-          api.get('/payments/wallet'), // Wallet/balance info
-        ]);
+  const fetchWalletInfo = async () => {
+    try {
+      const response: any = await api.get('/payments/wallet');
+      if (response.success) {
+        return response.data.data;
+      }
+      return null;
+    } catch (err) {
+      setError('Failed to fetch wallet info');
+      return null;
+    }
+  };
 
-        // Process Wallet data for balance
-        if (walletRes.data && walletRes.data.success) {
-          const walletData = walletRes.data.data;
-          setBalance(walletData.balance || walletData.availableBalance || 0);
-        }
+  // --- DATA PROCESSING FUNCTIONS ---
+  const processTransactionsData = (transactions: Transaction[]) => {
+    // Filter commission-related transactions
+    const commissionTransactions = transactions.filter(
+      (tx) => tx.type === 'commission' || tx.category === 'commission'
+    );
 
-        // Process Transactions for all calculations
-        if (transactionsRes.data && transactionsRes.data.success) {
-          const transactions = transactionsRes.data.data.transactions || [];
-          
-          // Filter commission transactions
-          const commissionTransactions = transactions.filter(
-            (tx: any) => tx.type === 'commission' || tx.category === 'commission' || 
+    // Calculate summary data from transactions
+    let totalCommission = 0;
+    let fromProperties = 0;
+
+    // Process monthly data
+    const monthlyData: { [key: string]: { properties: number } } = {};
+    const performersMap: { [key: string]: { commission: number; type: 'Property' } } = {};
+
+    commissionTransactions.forEach((tx: Transaction) => {
+      const amount = Math.abs(tx.amount);
+      totalCommission += amount;
+      
+      const isProperty = tx.description?.toLowerCase().includes('property') || 
+                        tx.description?.toLowerCase().includes('villa') || 
+                        tx.description?.toLowerCase().includes('apartment') ||
+                        tx.description?.toLowerCase().includes('house') ||
+                        tx.description?.toLowerCase().includes('rental') ||
                         tx.description?.toLowerCase().includes('commission') ||
                         tx.description?.toLowerCase().includes('referral') ||
-                        tx.amount > 0 // Positive amounts could be earnings
-          );
+                        true; // Default all transactions to property type
 
-          // Calculate summary data from transactions
-          let totalCommission = 0;
-          let fromProperties = 0;
-
-          // Process monthly data
-          const monthlyData: { [key: string]: { properties: number } } = {};
-          const performersMap: { [key: string]: { commission: number; type: 'Property' } } = {};
-
-          commissionTransactions.forEach((tx: any) => {
-            const amount = Math.abs(tx.amount);
-            totalCommission += amount;
-            
-            const isProperty = tx.description?.toLowerCase().includes('property') || 
-                              tx.description?.toLowerCase().includes('villa') || 
-                              tx.description?.toLowerCase().includes('apartment') ||
-                              tx.description?.toLowerCase().includes('house') ||
-                              tx.description?.toLowerCase().includes('rental') ||
-                              tx.description?.toLowerCase().includes('commission') ||
-                              tx.description?.toLowerCase().includes('referral') ||
-                              true; // Default all transactions to property type
-
-            if (isProperty) {
-              fromProperties += amount;
-            }
-
-            // Process monthly data
-            const date = new Date(tx.date || tx.createdAt);
-            const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
-            
-            if (!monthlyData[monthKey]) {
-              monthlyData[monthKey] = { properties: 0 };
-            }
-
-            monthlyData[monthKey].properties += amount;
-
-            // Process top performers data
-            const sourceName = tx.description || tx.reference || `Transaction ${tx.id}`;
-            if (!performersMap[sourceName]) {
-              performersMap[sourceName] = { 
-                commission: 0, 
-                type: 'Property'
-              };
-            }
-            performersMap[sourceName].commission += amount;
-          });
-
-          // Update summary data
-          setSummaryData({
-            totalCommission,
-            fromProperties,
-          });
-          setLoading(prev => ({ ...prev, summary: false }));
-
-          // Convert monthly data to array format
-          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          const monthlyArray = months.map(month => ({
-            month,
-            properties: monthlyData[month]?.properties || 0,
-          }));
-
-          // Convert performers data to array and sort
-          const performersArray = Object.entries(performersMap)
-            .map(([name, data]) => ({
-              name,
-              commission: data.commission,
-              type: data.type,
-            }))
-            .sort((a: { commission: number }, b: { commission: number }) => b.commission - a.commission)
-            .slice(0, 5);
-
-          // Create commission statements
-          const statements = commissionTransactions
-            .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
-            .slice(0, 10)
-            .map((tx: any) => ({
-              id: tx.id,
-              source: tx.description || tx.reference || 'Commission Payment',
-              type: 'Property' as 'Property',
-              date: new Date(tx.date || tx.createdAt).toISOString().split('T')[0],
-              commission: Math.abs(tx.amount),
-            }));
-
-          setMonthlyCommissionData(monthlyArray);
-          setTopPerformers(performersArray);
-          setCommissionStatements(statements);
-        }
-        
-        setLoading(prev => ({ ...prev, charts: false, statements: false }));
-
-        // For now, set withdrawal accounts as empty since these endpoints don't exist yet
-        setWithdrawalAccounts([]);
-
-      } catch (err: any) {
-        console.error('Error fetching agent earnings data:', err);
-        setError(err.response?.data?.message || 'An error occurred while loading your earnings data.');
-        setLoading({ summary: false, charts: false, statements: false });
+      if (isProperty) {
+        fromProperties += amount;
       }
-    };
 
+      // Process monthly data
+      const date = new Date(tx.date || tx.createdAt || new Date());
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { properties: 0 };
+      }
+
+      monthlyData[monthKey].properties += amount;
+
+      // Process top performers data
+      const sourceName = tx.description || tx.reference || `Transaction ${tx.id}`;
+      if (!performersMap[sourceName]) {
+        performersMap[sourceName] = { 
+          commission: 0, 
+          type: 'Property'
+        };
+      }
+      performersMap[sourceName].commission += amount;
+    });
+
+    // Convert monthly data to array format
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyArray = months.map(month => ({
+      month,
+      properties: monthlyData[month]?.properties || 0,
+    }));
+
+    // Convert performers data to array and sort
+    const performersArray = Object.entries(performersMap)
+      .map(([name, data]) => ({
+        name,
+        commission: data.commission,
+        type: data.type,
+      }))
+      .sort((a, b) => b.commission - a.commission)
+      .slice(0, 5);
+
+    // Create commission statements
+    const statements = commissionTransactions
+      .sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime())
+      .slice(0, 10)
+      .map((tx) => ({
+        id: tx.id,
+        source: tx.description || tx.reference || 'Commission Payment',
+        type: 'Property' as 'Property',
+        date: new Date(tx.date || tx.createdAt || new Date()).toISOString().split('T')[0],
+        commission: Math.abs(tx.amount),
+      }));
+
+    return {
+      summary: { totalCommission, fromProperties },
+      monthly: monthlyArray,
+      performers: performersArray,
+      statements
+    };
+  };
+
+  const fetchAllData = async () => {
+    try {
+      setLoading({ summary: true, charts: true, statements: true });
+      
+      // Fetch data
+      const transactions = await fetchAllTransactions();
+      const walletInfo = await fetchWalletInfo();
+
+      // Process transaction data
+      const processedData = processTransactionsData(transactions);
+
+      // Update state
+      setSummaryData(processedData.summary);
+      setMonthlyCommissionData(processedData.monthly);
+      setTopPerformers(processedData.performers);
+      setCommissionStatements(processedData.statements);
+
+      // Add wallet info if available
+      if (walletInfo) {
+        setBalance(walletInfo.balance || 0);
+        setSummaryData(prev => ({
+          ...prev,
+          totalCommission: walletInfo.totalEarnings || prev.totalCommission,
+        }));
+      }
+
+    } catch (err) {
+      setError('Failed to load earnings data. Please try again.');
+    } finally {
+      setLoading({ summary: false, charts: false, statements: false });
+    }
+  };
+
+  // --- EFFECTS ---
+  useEffect(() => {
     fetchAllData();
   }, []);
 
   // --- EVENT HANDLERS ---
+  const handleWithdrawWithKYC = () => {
+    // Check KYC status - for now, always show KYC modal
+    setShowKYCModal(true);
+  };
+
   const handleWithdrawClick = () => {
     setModalError('');
     if (withdrawalAccounts.length === 0) {
@@ -289,7 +296,6 @@ const Earnings = () => {
     const amount = Number(withdrawAmount);
     if (amount > 0 && amount <= balance) {
       try {
-        // Use a more generic withdrawal endpoint
         const response = await api.post('/payments/withdraw', {
           amount,
           accountId: withdrawalAccounts[0].id,

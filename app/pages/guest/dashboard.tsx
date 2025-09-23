@@ -6,263 +6,143 @@ import React, { useState, useEffect } from 'react';
 const GuestDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userType, setUserType] = useState<'guest' | 'host' | 'agent' | 'tourguide'>('guest');
   const [dashboardData, setDashboardData] = useState<any>({
     bookings: {
       properties: [],
       tours: [],
       stats: null,
-      calendar: null
-    },
-    properties: {
-      myProperties: [],
-      dashboard: null,
-      earnings: null
+      wishlist: []
     },
     payments: {
       wallet: null,
-      transactions: [],
-      analytics: null
+      transactions: []
     }
   });
 
-  // Detect user type and load appropriate data
+  const [userName, setUserName] = useState('Valued Customer');
+  
+  // Load guest dashboard data
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+                if (user.name) {
+                    setUserName(user.name);
+                }
     loadDashboardData();
-  }, [userType]);
+  }, []);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const promises = [];
-
-      // Common data for all users
-      promises.push(
+      const promises = [
         api.get('/bookings/stats').catch(() => null),
-        api.get('/bookings/calendar').catch(() => null),
         api.get('/payments/wallet').catch(() => null),
-        api.get('/payments/transactions').catch(() => null)
-      );
-
-      // User type specific data
-      if (userType === 'host') {
-        promises.push(
-          api.get('/properties/host/dashboard').catch(() => null),
-          api.get('/properties/host/my-properties').catch(() => null),
-          api.get('/properties/host/earnings').catch(() => null),
-          api.get('/bookings/properties').catch(() => null)
-        );
-      } else if (userType === 'agent') {
-        promises.push(
-          api.get('/properties/agent/dashboard').catch(() => null),
-          api.get('/properties/agent/properties').catch(() => null),
-          api.get('/properties/agent/earnings').catch(() => null),
-          api.get('/bookings/agent/clients').catch(() => null)
-        );
-      } else if (userType === 'tourguide') {
-        promises.push(
-          api.get('/bookings/tourguide/bookings').catch(() => null),
-          api.get('/bookings/tours').catch(() => null)
-        );
-      } else {
-        // Guest
-        promises.push(
-          api.get('/bookings/properties').catch(() => null),
-          api.get('/bookings/tours').catch(() => null),
-          api.get('/bookings/wishlist').catch(() => null)
-        );
-      }
+        api.get('/payments/transactions').catch(() => null),
+        api.get('/bookings/properties').catch(() => null),
+        api.get('/bookings/tours').catch(() => null),
+        api.get('/bookings/wishlist').catch(() => null)
+      ];
 
       const results = await Promise.all(promises);
+      const [bookingStats, wallet, transactions, propertyBookings, tourBookings, wishlist] = results;
 
-      // Debug logging
-      console.log('Raw API results:', results);
-
-      // Parse results based on user type - FIXED: removed .data
-      const [bookingStats, calendar, wallet, transactions] = results.slice(0, 4);
-      const additionalData = results.slice(4);
-
-      // Debug specific data
-      console.log('Transactions raw data:', transactions);
-      console.log('Wallet raw data:', wallet);
-
-      // Helper function to safely extract array data - UPDATED TO HANDLE NESTED STRUCTURE
-      const extractArray = (data: any, fallback: any[] = []): any[] => {
-        if (!data) {
-          console.log('No data provided, returning fallback:', fallback);
-          return fallback;
-        }
+      // Helper function to safely extract array data
+      const extractArray = (data: any): any[] => {
+        if (!data) return [];
         
-        // Handle nested API response structure: { data: { data: { bookings: [...] } } }
+        // Handle nested API response structure
         if (data.data && data.data.data) {
           if (data.data.data.bookings && Array.isArray(data.data.data.bookings)) {
-            console.log('Found array in data.data.data.bookings:', data.data.data.bookings);
             return data.data.data.bookings;
           }
           if (data.data.data.transactions && Array.isArray(data.data.data.transactions)) {
-            console.log('Found array in data.data.data.transactions:', data.data.data.transactions);
             return data.data.data.transactions;
           }
-          if (data.data.data.properties && Array.isArray(data.data.data.properties)) {
-            console.log('Found array in data.data.data.properties:', data.data.data.properties);
-            return data.data.data.properties;
-          }
-          if (data.data.data.tours && Array.isArray(data.data.data.tours)) {
-            console.log('Found array in data.data.data.tours:', data.data.data.tours);
-            return data.data.data.tours;
-          }
           if (data.data.data.wishlist && Array.isArray(data.data.data.wishlist)) {
-            console.log('Found array in data.data.data.wishlist:', data.data.data.wishlist);
             return data.data.data.wishlist;
           }
           if (Array.isArray(data.data.data)) {
-            console.log('Found array in data.data.data:', data.data.data);
             return data.data.data;
           }
         }
         
-        // Handle structure: { data: { bookings: [...] } }
         if (data.data) {
           if (data.data.bookings && Array.isArray(data.data.bookings)) {
-            console.log('Found array in data.data.bookings:', data.data.bookings);
             return data.data.bookings;
           }
           if (data.data.transactions && Array.isArray(data.data.transactions)) {
-            console.log('Found array in data.data.transactions:', data.data.transactions);
             return data.data.transactions;
           }
-          if (data.data.properties && Array.isArray(data.data.properties)) {
-            console.log('Found array in data.data.properties:', data.data.properties);
-            return data.data.properties;
-          }
-          if (data.data.tours && Array.isArray(data.data.tours)) {
-            console.log('Found array in data.data.tours:', data.data.tours);
-            return data.data.tours;
-          }
           if (data.data.wishlist && Array.isArray(data.data.wishlist)) {
-            console.log('Found array in data.data.wishlist:', data.data.wishlist);
             return data.data.wishlist;
           }
           if (Array.isArray(data.data)) {
-            console.log('Found array in data.data:', data.data);
             return data.data;
           }
         }
         
-        // If data itself is an array
         if (Array.isArray(data)) {
-          console.log('Data itself is array:', data);
           return data;
         }
         
-        // Check root level properties
-        if (data.transactions && Array.isArray(data.transactions)) {
-          console.log('Found array in data.transactions:', data.transactions);
-          return data.transactions;
-        }
-        if (data.bookings && Array.isArray(data.bookings)) {
-          console.log('Found array in data.bookings:', data.bookings);
-          return data.bookings;
-        }
-        if (data.properties && Array.isArray(data.properties)) {
-          console.log('Found array in data.properties:', data.properties);
-          return data.properties;
-        }
-        if (data.tours && Array.isArray(data.tours)) {
-          console.log('Found array in data.tours:', data.tours);
-          return data.tours;
-        }
-        if (data.wishlist && Array.isArray(data.wishlist)) {
-          console.log('Found array in data.wishlist:', data.wishlist);
-          return data.wishlist;
-        }
-        
-        console.log('No array found, returning fallback. Data structure:', typeof data, data);
-        return fallback;
+        return [];
       };
 
-      // Helper function to safely extract object data - UPDATED TO HANDLE NESTED STRUCTURE
-      const extractObject = (data: any, fallback: any = null): any => {
-        if (!data) return fallback;
+      // Helper function to safely extract object data
+      const extractObject = (data: any): any => {
+        if (!data) return null;
         
-        // Handle nested structure: { data: { data: { ... } } }
         if (data.data && data.data.data && typeof data.data.data === 'object' && !Array.isArray(data.data.data)) {
           return data.data.data;
         }
         
-        // Handle structure: { data: { ... } }
         if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
           return data.data;
         }
         
-        return data || fallback;
+        return data;
       };
 
-      // Extract data safely with proper type handling
-      const extractedTransactions = extractArray(transactions);
-      
-      // Extract properties and tours based on user type and API response structure
-      let extractedProperties = [];
-      let extractedTours = [];
-      let extractedMyProperties = [];
-
-      if (userType === 'host') {
-        extractedMyProperties = extractArray(additionalData[1]); // my-properties
-        extractedProperties = extractArray(additionalData[3]);   // bookings/properties
-      } else if (userType === 'agent') {
-        extractedMyProperties = extractArray(additionalData[1]); // agent/properties
-        extractedProperties = extractArray(additionalData[3]);   // agent/clients
-      } else if (userType === 'tourguide') {
-        extractedProperties = extractArray(additionalData[0]);   // tourguide/bookings
-        extractedTours = extractArray(additionalData[1]);        // tours
-      } else {
-        // Guest
-        extractedProperties = extractArray(additionalData[0]);   // bookings/properties
-        extractedTours = extractArray(additionalData[1]);        // bookings/tours
-      }
-
-      console.log('Extracted data summary:');
-      console.log('- Transactions:', extractedTransactions);
-      console.log('- Properties:', extractedProperties);
-      console.log('- Tours:', extractedTours);
-      console.log('- My Properties:', extractedMyProperties);
-
-      const newDashboardData = {
+      setDashboardData({
         bookings: {
           stats: extractObject(bookingStats),
-          calendar: extractObject(calendar),
-          properties: extractedProperties,
-          tours: extractedTours
-        },
-        properties: {
-          dashboard: extractObject(additionalData[0]),
-          myProperties: extractedMyProperties,
-          earnings: extractObject(additionalData[2])
+          properties: extractArray(propertyBookings),
+          tours: extractArray(tourBookings),
+          wishlist: extractArray(wishlist)
         },
         payments: {
           wallet: extractObject(wallet),
-          transactions: extractedTransactions,
-          analytics: null
+          transactions: extractArray(transactions)
         }
-      };
-
-      console.log('Final dashboard data:', newDashboardData);
-      setDashboardData(newDashboardData);
-
-      console.log('Successfully loaded dashboard data for', userType);
+      });
 
     } catch (err: any) {
       const errorMessage = err?.data?.message || err?.message || 'Failed to load dashboard. Please try again.';
       setError(errorMessage);
       console.error('Dashboard loading error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayNow = async (transactionId: string, amount: number) => {
+    try {
+      setLoading(true);
+      const response = await api.post(`/payments/${transactionId}/pay`, {
+        amount: amount
+      });
       
-      // Handle authentication errors
-      if (err?.status === 401) {
-        console.log('Unauthorized access - user needs to login');
-        // Optional: Add redirect logic here if needed
+      if (response.data.success) {
+        // Refresh dashboard data after successful payment
+        await loadDashboardData();
+        alert('Payment successful!');
+      } else {
+        alert('Payment failed. Please try again.');
       }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      alert('Payment failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -270,16 +150,6 @@ const GuestDashboard = () => {
 
   const refreshData = () => {
     loadDashboardData();
-  };
-
-  // Helper function to safely get array length
-  const getArrayLength = (arr: any): number => {
-    return Array.isArray(arr) ? arr.length : 0;
-  };
-
-  // Helper function to safely get array items
-  const getArrayItems = (arr: any): any[] => {
-    return Array.isArray(arr) ? arr : [];
   };
 
   if (loading) {
@@ -316,71 +186,79 @@ const GuestDashboard = () => {
     );
   }
 
+  const totalBookings = (dashboardData.bookings.properties?.length || 0) + (dashboardData.bookings.tours?.length || 0);
+  const pendingTransactions = dashboardData.payments.transactions?.filter((t: any) => t.status === 'pending') || [];
+  const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good morning';
+        if (hour < 17) return 'Good afternoon';
+        if (hour < 21) return 'Good evening';
+        return 'Good night';
+    };
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="py-14">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-semibold text-[#083A85] mb-2">Dashboard</h1>
-              <p className="text-gray-600">Welcome back to your {userType} dashboard</p>
-            </div>
-            <div className="flex space-x-4">
-              <select 
-                value={userType} 
-                onChange={(e) => setUserType(e.target.value as 'guest' | 'host' | 'agent' | 'tourguide')}
-                className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm focus:ring-2 focus:ring-[#083A85] focus:border-[#083A85] transition-colors"
-              >
-                <option value="guest">Guest</option>
-                <option value="host">Host</option>
-                <option value="agent">Agent</option>
-                <option value="tourguide">Tour Guide</option>
-              </select>
-              <button 
-                onClick={refreshData}
-                className="bg-[#083A85] text-white px-4 py-2 rounded-lg hover:bg-blue-900 transition-colors font-medium shadow-sm"
-              >
-                <i className="bi bi-arrow-clockwise mr-2" />
-                Refresh
-              </button>
-            </div>
-          </div>
+           {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+                        {getTimeBasedGreeting()}, {userName}!
+                    </h1>
+                    <p className="text-gray-600 text-md">Here's your dashboard summary</p>
+                </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="p-2">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <StatCard 
             title="Total Bookings" 
-            value={dashboardData.bookings.stats?.totalBookings || 0}
-            change="+12%"
+            value={totalBookings}
             color="blue"
             icon="calendar-check"
           />
           <StatCard 
-            title="Total Earnings" 
-            value={`${dashboardData.payments.wallet?.balance || 0} ${dashboardData.payments.wallet?.currency || 'KES'}`}
-            change="+8%"
+            title="Wallet Balance" 
+            value={dashboardData.payments.wallet?.balance ? `${dashboardData.payments.wallet.balance} ${dashboardData.payments.wallet.currency || 'USD'}` : '0 USD'}
             color="green"
-            icon="currency-dollar"
+            icon="wallet2"
           />
           <StatCard 
-            title="Active Properties" 
-            value={getArrayLength(dashboardData.properties.myProperties)}
-            change="+2"
+            title="Wishlist Items" 
+            value={dashboardData.bookings.wishlist?.length || 0}
             color="purple"
-            icon="house"
+            icon="heart"
           />
           <StatCard 
-            title="Completion Rate" 
-            value={`${dashboardData.bookings.stats?.completedBookings || 0}%`}
-            change="+5%"
+            title="Pending Payments" 
+            value={pendingTransactions.length}
             color="orange"
-            icon="check-circle"
+            icon="clock"
           />
         </div>
+
+        {/* Pending Payments Alert */}
+        {pendingTransactions.length > 0 && (
+          <div className="mb-8 bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-lg">
+            <div className="flex items-center">
+              <i className="bi bi-exclamation-triangle text-orange-400 text-xl mr-3" />
+              <div className="flex-1">
+                <h3 className="text-orange-800 font-semibold">Pending Payments</h3>
+                <p className="text-orange-700 text-sm mt-1">
+                  You have {pendingTransactions.length} pending payment{pendingTransactions.length > 1 ? 's' : ''} that require your attention.
+                </p>
+              </div>
+              <button 
+                onClick={() => document.getElementById('transactions-section')?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+              >
+                View Payments
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -392,17 +270,19 @@ const GuestDashboard = () => {
                   <i className="bi bi-clock-history mr-2 text-[#083A85]" />
                   Recent Bookings
                 </h2>
-                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-medium">
-                  {getArrayLength(dashboardData.bookings.properties) + getArrayLength(dashboardData.bookings.tours)} total
-                </span>
+                {totalBookings > 0 && (
+                  <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                    {totalBookings} total
+                  </span>
+                )}
               </div>
               <div className="space-y-3">
-                {[...getArrayItems(dashboardData.bookings.properties), ...getArrayItems(dashboardData.bookings.tours)]
+                {[...dashboardData.bookings.properties, ...dashboardData.bookings.tours]
                   .slice(0, 5)
                   .map((booking, index) => (
                   <BookingItem key={booking.id || index} booking={booking} />
                 ))}
-                {(getArrayLength(dashboardData.bookings.properties) + getArrayLength(dashboardData.bookings.tours)) === 0 && (
+                {totalBookings === 0 && (
                   <div className="text-center py-12">
                     <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full">
                       <i className="bi bi-calendar-x text-gray-400 text-2xl" />
@@ -430,7 +310,7 @@ const GuestDashboard = () => {
                     Available Balance
                   </span>
                   <span className="font-bold text-lg text-gray-800">
-                    {dashboardData.payments.wallet?.balance || 0} {dashboardData.payments.wallet?.currency || 'KES'}
+                    {dashboardData.payments.wallet?.balance || 0} {dashboardData.payments.wallet?.currency || 'USD'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
@@ -439,14 +319,14 @@ const GuestDashboard = () => {
                     Pending
                   </span>
                   <span className="text-orange-600 font-bold">
-                    {dashboardData.payments.wallet?.pendingBalance || 0} {dashboardData.payments.wallet?.currency || 'KES'}
+                    {dashboardData.payments.wallet?.pendingBalance || 0} {dashboardData.payments.wallet?.currency || 'USD'}
                   </span>
                 </div>
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center p-3 bg-[#083A85] bg-opacity-10 rounded-lg">
                     <span className="font-bold text-gray-800">Total</span>
                     <span className="font-bold text-lg text-[#083A85]">
-                      {(dashboardData.payments.wallet?.balance || 0) + (dashboardData.payments.wallet?.pendingBalance || 0)} {dashboardData.payments.wallet?.currency || 'KES'}
+                      {(dashboardData.payments.wallet?.balance || 0) + (dashboardData.payments.wallet?.pendingBalance || 0)} {dashboardData.payments.wallet?.currency || 'USD'}
                     </span>
                   </div>
                 </div>
@@ -460,69 +340,53 @@ const GuestDashboard = () => {
                 Quick Actions
               </h3>
               <div className="space-y-3">
-                {userType === 'host' && (
-                  <>
-                    <ActionButton text="Add New Property" icon="plus-circle" onClick={() => console.log('Add property')} />
-                    <ActionButton text="View Earnings" icon="graph-up" onClick={() => console.log('View earnings')} />
-                    <ActionButton text="Manage Bookings" icon="calendar-check" onClick={() => console.log('Manage bookings')} />
-                  </>
-                )}
-                {userType === 'agent' && (
-                  <>
-                    <ActionButton text="Add Client Property" icon="building-add" onClick={() => console.log('Add client property')} />
-                    <ActionButton text="View Commissions" icon="currency-dollar" onClick={() => console.log('View commissions')} />
-                    <ActionButton text="Manage Client Bookings" icon="people" onClick={() => console.log('Manage client bookings')} />
-                  </>
-                )}
-                {userType === 'guest' && (
-                  <>
-                    <ActionButton text="Book Property" icon="house-add" onClick={() => console.log('Book property')} />
-                    <ActionButton text="Book Tour" icon="geo-alt" onClick={() => console.log('Book tour')} />
-                    <ActionButton text="View Wishlist" icon="heart" onClick={() => console.log('View wishlist')} />
-                  </>
-                )}
-                {userType === 'tourguide' && (
-                  <>
-                    <ActionButton text="Manage Tours" icon="map" onClick={() => console.log('Manage tours')} />
-                    <ActionButton text="Check-in Participants" icon="person-check" onClick={() => console.log('Check-in participants')} />
-                    <ActionButton text="View Schedule" icon="calendar-week" onClick={() => console.log('View schedule')} />
-                  </>
-                )}
+                <ActionButton text="Book Property" icon="house-add" onClick={() => console.log('Book property')} />
+                <ActionButton text="Book Tour" icon="geo-alt" onClick={() => console.log('Book tour')} />
+                <ActionButton text="View Wishlist" icon="heart" onClick={() => console.log('View wishlist')} />
+                <ActionButton text="My Bookings" icon="calendar-check" onClick={() => console.log('My bookings')} />
               </div>
             </div>
           </div>
         </div>
 
         {/* Recent Transactions */}
-        <div className="mt-8">
+        <div className="mt-8" id="transactions-section">
           <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold flex items-center text-gray-800">
                 <i className="bi bi-credit-card mr-2 text-[#F20C8F]" />
                 Recent Transactions
               </h2>
-              <button className="text-[#083A85] hover:text-blue-900 font-medium transition-colors">
-                <i className="bi bi-arrow-right mr-1" />
-                View All
-              </button>
+              {dashboardData.payments.transactions?.length > 0 && (
+                <button className="text-[#083A85] hover:text-blue-900 font-medium transition-colors">
+                  <i className="bi bi-arrow-right mr-1" />
+                  View All
+                </button>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-2 font-semibold text-gray-700">Type</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Description</th>
                     <th className="text-left py-3 px-2 font-semibold text-gray-700">Amount</th>
                     <th className="text-left py-3 px-2 font-semibold text-gray-700">Status</th>
                     <th className="text-left py-3 px-2 font-semibold text-gray-700">Date</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-700">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {getArrayItems(dashboardData.payments.transactions).map((transaction: any, index: number) => (
-                    <TransactionRow key={transaction.id || index} transaction={transaction} />
+                  {dashboardData.payments.transactions?.map((transaction: any, index: number) => (
+                    <TransactionRow 
+                      key={transaction.id || index} 
+                      transaction={transaction} 
+                      onPayNow={handlePayNow}
+                    />
                   ))}
-                  {getArrayLength(dashboardData.payments.transactions) === 0 && (
+                  {!dashboardData.payments.transactions?.length && (
                     <tr>
-                      <td colSpan={4} className="text-center py-12">
+                      <td colSpan={6} className="text-center py-12">
                         <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full">
                           <i className="bi bi-receipt text-gray-400 text-2xl" />
                         </div>
@@ -545,17 +409,16 @@ const GuestDashboard = () => {
 interface StatCardProps {
   title: string;
   value: string | number;
-  change: string;
   color: 'blue' | 'green' | 'purple' | 'orange';
   icon: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, change, color, icon }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
   const colorConfig = {
-    blue: { bg: '#083A85', bgLight: '#083A85', textColor: 'text-blue-800' },
-    green: { bg: '#10B981', bgLight: '#10B981', textColor: 'text-green-800' },
-    purple: { bg: '#F20C8F', bgLight: '#F20C8F', textColor: 'text-pink-800' },
-    orange: { bg: '#F59E0B', bgLight: '#F59E0B', textColor: 'text-amber-800' }
+    blue: { bg: '#083A85' },
+    green: { bg: '#10B981' },
+    purple: { bg: '#F20C8F' },
+    orange: { bg: '#F59E0B' }
   };
 
   const config = colorConfig[color];
@@ -575,10 +438,6 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, change, color, icon }
         <span className="text-sm text-gray-600 font-medium">{title}</span>
       </div>
       <div className="text-2xl lg:text-3xl font-bold mb-2 text-gray-800">{value}</div>
-      <div className="text-sm text-green-600 flex items-center font-medium">
-        <i className="bi bi-arrow-up mr-1" />
-        {change}
-      </div>
     </div>
   );
 };
@@ -606,12 +465,11 @@ const BookingItem: React.FC<BookingItemProps> = ({ booking }) => {
     );
   };
 
-  // Handle both property and tour bookings based on actual API structure
   const bookingName = booking.property?.name || booking.tour?.title || booking.tour?.name || 'Booking';
   const bookingLocation = booking.property?.location || booking.tour?.location || '';
   const bookingDate = booking.checkIn || booking.startDate || booking.schedule?.startDate || booking.createdAt;
   const bookingPrice = booking.totalPrice || booking.totalAmount || booking.price || 0;
-  const currency = booking.currency || 'KES';
+  const currency = booking.currency || 'USD';
 
   return (
     <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
@@ -659,9 +517,10 @@ const ActionButton: React.FC<ActionButtonProps> = ({ text, icon, onClick }) => (
 
 interface TransactionRowProps {
   transaction: any;
+  onPayNow: (transactionId: string, amount: number) => void;
 }
 
-const TransactionRow: React.FC<TransactionRowProps> = ({ transaction }) => {
+const TransactionRow: React.FC<TransactionRowProps> = ({ transaction, onPayNow }) => {
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       completed: { class: 'bg-green-100 text-green-800', icon: 'check-circle' },
@@ -684,14 +543,27 @@ const TransactionRow: React.FC<TransactionRowProps> = ({ transaction }) => {
       <td className="py-4 px-2">
         <div className="flex items-center">
           <i className="bi bi-arrow-right-circle mr-2 text-gray-400" />
-          {transaction.type || 'Transaction'}
+          {transaction.type || 'Payment'}
         </div>
       </td>
+      <td className="py-4 px-2 text-gray-700">
+        {transaction.description || transaction.reference || 'Transaction'}
+      </td>
       <td className="py-4 px-2 font-semibold text-gray-800">
-        {transaction.amount || 0} {transaction.currency || 'KES'}
+        {transaction.amount || 0} {transaction.currency || 'USD'}
       </td>
       <td className="py-4 px-2">{getStatusBadge(transaction.status)}</td>
       <td className="py-4 px-2 text-gray-600">{new Date(transaction.createdAt || Date.now()).toLocaleDateString()}</td>
+      <td className="py-4 px-2">
+        {transaction.status === 'pending' && (
+          <button
+            onClick={() => onPayNow(transaction.id, transaction.amount)}
+            className="bg-[#083A85] text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-900 transition-colors"
+          >
+            Pay Now
+          </button>
+        )}
+      </td>
     </tr>
   );
 };

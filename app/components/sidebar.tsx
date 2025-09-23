@@ -70,6 +70,13 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const pathname = usePathname();
     const router = useRouter();
 
+    const [frontend_url, setFrontEnd] = useState<string>('https://jambolush.com');
+
+    useEffect(() => { 
+        if (process.env.FRONTEND_URL) {
+        setFrontEnd(process.env.FRONTEND_URL);
+        }
+    }, []);
     // Function to fetch user session from API
     const fetchUserSession = async () => {
         if (authInitialized) return; // Prevent multiple calls
@@ -187,7 +194,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         setAuthInitialized(false);
         
         setTimeout(() => {
-            window.location.href = 'https://jambolush.com/all/login';
+            window.location.href = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
         }, 100);
     };
 
@@ -330,9 +337,9 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
     // Fallback navigation for unauthenticated users
     const fallbackItems: NavigationItem[] = [
-        { label: 'Login', icon: 'bi-box-arrow-in-right', path: '/all/login' },
-        { label: 'Sign Up', icon: 'bi-person-plus', path: '/all/signup' },
-        { label: 'Help & Support', icon: 'bi-question-circle', path: '/all/support-page' }
+        { label: 'Login', icon: 'bi-box-arrow-in-right', path: frontend_url + `/all/login`},
+        { label: 'Sign Up', icon: 'bi-person-plus', path: frontend_url + '/all/signup' },
+        { label: 'Help & Support', icon: 'bi-question-circle', path: frontend_url + '/all/support-page' }
     ];
 
     const getRoleDisplayName = (role: UserRole, tourGuideType?: TourGuideType): string => {
@@ -527,7 +534,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                                         Please log in to access all features
                                     </p>
                                     <Link 
-                                        href="/all/login"
+                                        href={frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href)}
                                         className="inline-flex items-center px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
                                     >
                                         <i className="bi bi-box-arrow-in-right mr-2"></i>
