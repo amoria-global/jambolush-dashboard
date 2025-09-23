@@ -184,18 +184,24 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     // Function to handle logout
     const handleLogout = async () => {
         setIsRedirecting(true);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userSession');
-        setUser(null);
-        setUserSession(null);
-        setSession(null);
-        setIsAuthenticated(false);
-        setAuthInitialized(false);
-        
-        setTimeout(() => {
-            window.location.href = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
-        }, 100);
+        try {
+            await api.logout();
+             localStorage.removeItem('authToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('userSession');
+                setUser(null);
+                setUserSession(null);
+                setSession(null);
+                setIsAuthenticated(false);
+                setAuthInitialized(false);
+
+            setTimeout(() => {
+                window.location.href = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
+            }, 100);
+        } catch (error) {
+            console.error('Logout API call failed:', error);
+        }
+       
     };
 
     // Initialize authentication on component mount
