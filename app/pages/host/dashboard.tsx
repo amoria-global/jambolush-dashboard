@@ -256,12 +256,127 @@ const HostDashboard = () => {
         },
     ];
     
-    const getTimeBasedGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 17) return 'Good afternoon';
-        if (hour < 21) return 'Good evening';
-        return 'Good night';
+       const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    
+    // Early Morning (5-7 AM)
+    const earlyMorningMessages = [
+        `🌅 <i class="bi bi-sunrise-fill text-warning"></i> Rise and shine, early bird!`,
+        `☕ <i class="bi bi-cup-hot text-danger"></i> First coffee, first victory!`,
+        `🐦 <i class="bi bi-feather text-info"></i> The world is yours this early!`,
+        `🌄 <i class="bi bi-mountain text-success"></i> Conquer mountains today!`,
+        `⏰ <i class="bi bi-alarm text-warning"></i> Early start, early success!`,
+        `🌤 <i class="bi bi-cloud-sun text-primary"></i> Dawn brings new possibilities!`,
+        `💪 <i class="bi bi-lightning-charge text-danger"></i> Power up for greatness!`,
+        `🔥 <i class="bi bi-fire text-warning"></i> Ignite your potential now!`,
+        `✨ <i class="bi bi-sparkle text-info"></i> Magic happens in the morning!`,
+        `🎯 <i class="bi bi-target text-success"></i> Aim high from the start!`
+    ];
+
+    // Morning (7-12 PM)
+    const morningMessages = [
+        `🌅 <i class="bi bi-sunrise-fill text-warning"></i> Good morning!`,
+        `☕ <i class="bi bi-cup-hot text-danger"></i> Coffee time!`,
+        `💡 <i class="bi bi-lightbulb-fill text-warning"></i> Fresh ideas start now!`,
+        `🏃 <i class="bi bi-lightning-charge-fill text-primary"></i> Start strong today!`,
+        `📅 <i class="bi bi-calendar-check text-success"></i> New goals, new wins!`,
+        `🌞 <i class="bi bi-brightness-alt-high-fill text-warning"></i> Shine bright today!`,
+        `🤝 <i class="bi bi-people-fill text-info"></i> Connect and grow!`,
+        `📈 <i class="bi bi-graph-up-arrow text-success"></i> Progress starts early!`,
+        `🎨 <i class="bi bi-palette-fill text-primary"></i> Paint your day beautiful!`,
+        `🚀 <i class="bi bi-rocket text-danger"></i> Launch into excellence!`,
+        `🌱 <i class="bi bi-seedling text-success"></i> Plant seeds of success!`,
+        `⭐ <i class="bi bi-star-half text-warning"></i> Half the day, full potential!`,
+        `🎪 <i class="bi bi-balloon-heart text-danger"></i> Make today spectacular!`,
+        `🏆 <i class="bi bi-trophy text-warning"></i> Champion mindset activated!`,
+        `🎵 <i class="bi bi-music-note text-info"></i> Start with good vibes!`
+    ];
+
+    // Afternoon (12-17 PM)
+    const afternoonMessages = [
+        `☀️ <i class="bi bi-brightness-high-fill text-primary"></i> Good afternoon!`,
+        `🚀 <i class="bi bi-rocket-takeoff-fill text-success"></i> Keep the momentum!`,
+        `🔥 <i class="bi bi-fire text-danger"></i> Stay on fire!`,
+        `🌱 <i class="bi bi-tree-fill text-success"></i> Keep growing strong!`,
+        `📊 <i class="bi bi-bar-chart-line-fill text-info"></i> Productivity boost!`,
+        `💪 <i class="bi bi-shield-check text-success"></i> Power through the day!`,
+        `🎯 <i class="bi bi-bullseye text-danger"></i> Focus on your targets!`,
+        `⚡ <i class="bi bi-lightning-fill text-warning"></i> Energy check—stay sharp!`,
+        `🌻 <i class="bi bi-flower1 text-warning"></i> Bloom where you're planted!`,
+        `🎪 <i class="bi bi-circus text-primary"></i> Make magic happen now!`,
+        `🏃‍♂️ <i class="bi bi-person-running text-success"></i> Sprint to your goals!`,
+        `🎨 <i class="bi bi-brush text-danger"></i> Create something amazing!`,
+        `🔮 <i class="bi bi-gem text-info"></i> Afternoon gems await you!`,
+        `🌊 <i class="bi bi-water text-primary"></i> Flow with the rhythm!`,
+        `🎭 <i class="bi bi-mask-happy text-warning"></i> Performance time!`,
+        `🏅 <i class="bi bi-award text-success"></i> Excellence is calling!`
+    ];
+
+    // Evening (17-21 PM)
+    const eveningMessages = [
+        `🌇 <i class="bi bi-moon-stars-fill text-info"></i> Good evening!`,
+        `📖 <i class="bi bi-journal-richtext text-secondary"></i> Reflect and recharge!`,
+        `🌟 <i class="bi bi-star-fill text-warning"></i> You did amazing today!`,
+        `🎶 <i class="bi bi-music-note-beamed text-primary"></i> Relax with good vibes!`,
+        `🍵 <i class="bi bi-cup-straw text-success"></i> Slow down, breathe easy!`,
+        `🙌 <i class="bi bi-emoji-smile-fill text-warning"></i> Celebrate small wins!`,
+        `🛋 <i class="bi bi-house-heart-fill text-danger"></i> Enjoy your comfort zone!`,
+        `🌌 <i class="bi bi-cloud-moon text-info"></i> Night is settling in—peace ahead!`,
+        `🍷 <i class="bi bi-cup text-danger"></i> Unwind and appreciate!`,
+        `🎨 <i class="bi bi-easel text-primary"></i> Evening creativity flows!`,
+        `🧘‍♀️ <i class="bi bi-peace text-success"></i> Find your inner calm!`,
+        `🎬 <i class="bi bi-camera-reels text-warning"></i> Enjoy life's moments!`,
+        `🌹 <i class="bi bi-flower2 text-danger"></i> Beauty in the twilight!`,
+        `📚 <i class="bi bi-book text-info"></i> Knowledge before rest!`,
+        `🕯 <i class="bi bi-candle text-warning"></i> Light up the evening!`,
+        `🎭 <i class="bi bi-drama-masks text-secondary"></i> Evening entertainment!`
+    ];
+
+    // Night (21-24 PM)
+    const nightMessages = [
+        `🌙 <i class="bi bi-stars text-light"></i> Good night!`,
+        `🛌 <i class="bi bi-moon-fill text-info"></i> Rest well, dream big!`,
+        `✨ <i class="bi bi-magic text-warning"></i> Tomorrow holds magic!`,
+        `😴 <i class="bi bi-cloud-moon-fill text-secondary"></i> Recharge your soul!`,
+        `🔕 <i class="bi bi-bell-slash-fill text-muted"></i> Disconnect and rest!`,
+        `💤 <i class="bi bi-clouds-fill text-light"></i> Deep sleep matters!`,
+        `🌠 <i class="bi bi-star text-warning"></i> Drift into dreams!`,
+        `🛡 <i class="bi bi-shield-lock-fill text-success"></i> Safe and sound tonight!`,
+        `🌜 <i class="bi bi-moon text-info"></i> Let the moon guide your dreams!`,
+        `🎶 <i class="bi bi-music-note-list text-secondary"></i> Lullabies of the night!`,
+        `🏰 <i class="bi bi-castle text-primary"></i> Build castles in your sleep!`,
+        `🌌 <i class="bi bi-stars text-warning"></i> Cosmic dreams await!`,
+        `🛏 <i class="bi bi-house text-success"></i> Home sweet dreams!`,
+        `🔮 <i class="bi bi-crystal text-info"></i> Crystal clear rest ahead!`
+    ];
+
+    // Late Night/Midnight (0-5 AM)
+    const lateNightMessages = [
+        `🌃 <i class="bi bi-city text-primary"></i> Burning the midnight oil?`,
+        `🦉 <i class="bi bi-moon-stars text-info"></i> Night owl vibes!`,
+        `⭐ <i class="bi bi-stars text-warning"></i> Stars are your companions!`,
+        `🌙 <i class="bi bi-moon text-secondary"></i> Midnight magic hour!`,
+        `💻 <i class="bi bi-laptop text-primary"></i> Late night productivity!`,
+        `🎧 <i class="bi bi-headphones text-info"></i> Night sounds and focus!`,
+        `🔥 <i class="bi bi-flame text-danger"></i> Burning bright at night!`,
+        `🌌 <i class="bi bi-infinity text-warning"></i> Limitless night energy!`,
+        `☕ <i class="bi bi-cup-hot text-warning"></i> Midnight fuel running!`,
+        `🎯 <i class="bi bi-crosshair text-success"></i> Sharp focus in the dark!`,
+        `🚀 <i class="bi bi-rocket-takeoff text-primary"></i> Launch into the night!`,
+        `🎪 <i class="bi bi-tent text-danger"></i> Night circus performance!`,
+        `🔬 <i class="bi bi-microscope text-info"></i> Deep dive discoveries!`,
+        `🎨 <i class="bi bi-paint-bucket text-warning"></i> Creative night sessions!`
+    ];
+
+    const pickRandom = (messages: string[]) =>
+        messages[Math.floor(Math.random() * messages.length)];
+
+    if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
+    if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
+    if (hour >= 7 && hour < 12) return pickRandom(morningMessages);
+    if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
+    if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
+    return pickRandom(nightMessages);
     };
     
     return (

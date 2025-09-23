@@ -59,13 +59,12 @@ interface UserSession {
 }
 
 const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
-    const [session, setSession] = useState<UserSession | null>(null);
-    const [userSession, setUserSession] = useState<UserSession | null>(null);
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [authInitialized, setAuthInitialized] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const pathname = usePathname();
     const router = useRouter();
@@ -77,9 +76,34 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         setFrontEnd(process.env.FRONTEND_URL);
         }
     }, []);
+
+    // Complete session cleanup function
+    const clearAllSessionData = () => {
+        // Clear localStorage
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userSession');
+        
+        // Clear sessionStorage if any
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('refreshToken');
+        sessionStorage.removeItem('userSession');
+        
+        // Reset all state
+        setUser(null);
+        setIsAuthenticated(false);
+        setAuthInitialized(false);
+        setIsLoading(false);
+        setIsRedirecting(false);
+        setIsLoggingOut(false);
+        
+        // Clear API auth
+        api.clearAuth();
+    };
+
     // Function to fetch user session from API
     const fetchUserSession = async () => {
-        if (authInitialized) return; // Prevent multiple calls
+        if (authInitialized || isLoggingOut) return;
         
         try {
             setIsLoading(true);
@@ -102,14 +126,11 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 url.searchParams.delete('token');
                 url.searchParams.delete('refresh_token');
                 window.history.replaceState({}, '', url.toString());
-                
-                console.log('Token retrieved from URL and stored');
             } else {
                 authToken = localStorage.getItem('authToken');
             }
             
             if (!authToken) {
-                console.log('No token found');
                 setIsAuthenticated(false);
                 setIsLoading(false);
                 return;
@@ -119,45 +140,29 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             api.setAuth(authToken);
             const response = await api.get('auth/me');
 
-            console.log('=== SIDEBAR DEBUG: API Response ===', response);
-
-            // FIXED: Check the actual API response structure from your logs
+            // Check the actual API response structure
             if (response.data && response.data.id) {
                 const userData: UserProfile = {
                     ...response.data,
                     id: response.data.id.toString()
                 };
                 
-                console.log('=== SIDEBAR DEBUG: User Data ===', userData);
-                
                 // Validate user role
                 const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
                 if (!validRoles.includes(userData.userType)) {
-                    console.error('Invalid user role:', userData.userType);
                     handleLogout();
                     return;
                 }
 
-                // FIXED: Remove problematic KYC redirect that was preventing authentication
-                // Just log KYC status but don't redirect - let user access dashboard
+                // Log KYC status but allow dashboard access
                 if ((userData.userType === 'host' || userData.userType === 'tourguide' || userData.userType === 'agent') && !userData.kycCompleted) {
-                    console.log('User KYC not completed, but allowing dashboard access');
-                    // You can show a banner or notification instead of redirecting
+                    // Show notification instead of blocking access
                 }
 
-                // Create user session
-                const sessionData: UserSession = {
-                    user: userData,
-                    token: authToken,
-                    role: userData.userType
-                };
-
-                setUserSession(sessionData);
-                setSession(sessionData);
                 setUser(userData);
                 setIsAuthenticated(true);
 
-                // Store session data
+                // Store minimal session data
                 localStorage.setItem('userSession', JSON.stringify({
                     role: userData.userType,
                     name: getUserDisplayName(userData),
@@ -166,42 +171,48 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                     tourGuideType: userData.tourGuideType
                 }));
 
-                console.log('✅ User session established successfully');
-
             } else {
-                console.log('Invalid response structure');
                 handleLogout();
             }
-        } catch (error) {
-            console.error('Failed to fetch user session:', error);
-            // Don't logout on network errors, just show unauthenticated state
+        } catch (error: any) {
+            // Handle 401 errors or network issues
+            if (error?.response?.status === 401 || error?.status === 401) {
+                handleLogout();
+                return;
+            }
             setIsAuthenticated(false);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Function to handle logout
+    // Enhanced logout function
     const handleLogout = async () => {
+        if (isLoggingOut) return; // Prevent multiple logout calls
+        
+        setIsLoggingOut(true);
         setIsRedirecting(true);
+        
         try {
-            await api.logout();
-             localStorage.removeItem('authToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('userSession');
-                setUser(null);
-                setUserSession(null);
-                setSession(null);
-                setIsAuthenticated(false);
-                setAuthInitialized(false);
-
-            setTimeout(() => {
-                window.location.href = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
-            }, 100);
+            // Call logout API if authenticated
+            if (isAuthenticated) {
+                await api.logout();
+            }
         } catch (error) {
-            console.error('Logout API call failed:', error);
+            // Continue with cleanup even if API fails
+        } finally {
+            // Always perform complete cleanup
+            clearAllSessionData();
+            
+            // Broadcast logout event for other components
+            window.dispatchEvent(new CustomEvent('userLogout', { 
+                detail: { timestamp: Date.now() } 
+            }));
+            
+            // Force redirect
+            const redirectUrl = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
+            window.location.href = redirectUrl;
         }
-       
     };
 
     // Initialize authentication on component mount
@@ -214,24 +225,29 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     // Monitor localStorage changes
     useEffect(() => {
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'authToken' && !e.newValue && isAuthenticated) {
-                console.log('Auth token removed from localStorage, logging out');
+            if (e.key === 'authToken' && !e.newValue && isAuthenticated && !isLoggingOut) {
                 handleLogout();
             }
         };
 
+        const handleUserLogout = () => {
+            clearAllSessionData();
+        };
+
         if (typeof window !== 'undefined') {
             window.addEventListener('storage', handleStorageChange);
-            return () => window.removeEventListener('storage', handleStorageChange);
+            window.addEventListener('userLogout', handleUserLogout);
+            return () => {
+                window.removeEventListener('storage', handleStorageChange);
+                window.removeEventListener('userLogout', handleUserLogout);
+            };
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, isLoggingOut]);
 
     // Handle profile updates
     useEffect(() => {
         const handleProfileUpdate = (event: CustomEvent) => {
-            if (user && event.detail.user) {
-                console.log('Sidebar: Profile updated');
-                
+            if (user && event.detail.user && !isLoggingOut) {
                 const updatedUser = {
                     ...user,
                     ...event.detail.user,
@@ -242,28 +258,18 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 
                 setUser(updatedUser);
                 
-                if (userSession) {
-                    const updatedSession = {
-                        ...userSession,
-                        user: updatedUser
-                    };
-                    setUserSession(updatedSession);
-                    setSession(updatedSession);
-                    
-                    localStorage.setItem('userSession', JSON.stringify({
-                        role: updatedUser.userType,
-                        name: getUserDisplayName(updatedUser),
-                        id: updatedUser.id,
-                        email: updatedUser.email,
-                        tourGuideType: updatedUser.tourGuideType
-                    }));
-                }
+                localStorage.setItem('userSession', JSON.stringify({
+                    role: updatedUser.userType,
+                    name: getUserDisplayName(updatedUser),
+                    id: updatedUser.id,
+                    email: updatedUser.email,
+                    tourGuideType: updatedUser.tourGuideType
+                }));
             }
         };
 
         const handleProfileImageUpdate = (event: CustomEvent) => {
-            if (user && event.detail.profile) {
-                console.log('Sidebar: Profile image updated');
+            if (user && event.detail.profile && !isLoggingOut) {
                 setUser({ ...user, profile: event.detail.profile });
             }
         };
@@ -275,7 +281,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
             window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
         };
-    }, [user, userSession]);
+    }, [user, isLoggingOut]);
 
     // Close sidebar on route change
     useEffect(() => {
@@ -385,8 +391,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     };
 
     // Get current navigation items and dashboard title
-    const currentNavItems = isAuthenticated && userSession 
-        ? navigationItems[userSession.role] 
+    const currentNavItems = isAuthenticated && user 
+        ? navigationItems[user.userType] 
         : fallbackItems;
     
     const currentDashboardTitle = isAuthenticated && user 
@@ -523,10 +529,15 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                                     {/* Logout Button */}
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full flex items-center space-x-3 px-3 py-3 mt-2 rounded-lg cursor-pointer text-left transition-all duration-200 hover:bg-red-50 text-gray-700 hover:text-red-600"
+                                        disabled={isLoggingOut}
+                                        className={`w-full flex items-center space-x-3 px-3 py-3 mt-2 rounded-lg text-left transition-all duration-200 ${
+                                            isLoggingOut 
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                                : 'hover:bg-red-50 text-gray-700 hover:text-red-600 cursor-pointer'
+                                        }`}
                                     >
-                                        <i className="bi bi-box-arrow-right text-lg text-gray-500" />
-                                        <span className="text-base">Logout</span>
+                                        <i className={`bi ${isLoggingOut ? 'bi-arrow-clockwise animate-spin' : 'bi-box-arrow-right'} text-lg text-gray-500`} />
+                                        <span className="text-base">{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                                     </button>
                                 </div>
                             </>

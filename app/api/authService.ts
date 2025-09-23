@@ -53,11 +53,21 @@ class AuthService {
   private refreshPromise: Promise<void> | null = null;
   private eventListeners: Map<AuthEventType, AuthEventListener[]> = new Map();
   private isInitialized = false;
+  private isLoggingOut = false;
 
-  // Consistent storage keys
+  // Comprehensive storage keys - all possible locations
   private readonly STORAGE_KEYS = {
+    // New format
     SESSION: 'jambolush_session',
-    TOKENS: 'jambolush_auth_tokens'
+    TOKENS: 'jambolush_auth_tokens',
+    // Legacy formats
+    AUTH_TOKEN: 'authToken',
+    REFRESH_TOKEN: 'refreshToken',
+    USER_SESSION: 'userSession',
+    // Additional possible keys
+    ACCESS_TOKEN: 'access_token',
+    JAMBOLUSH_USER: 'jambolush_user',
+    JAMBOLUSH_AUTH: 'jambolush_auth'
   };
 
   private constructor() {
@@ -75,13 +85,28 @@ class AuthService {
     if (typeof window !== 'undefined') {
       // Listen for storage changes across tabs
       window.addEventListener('storage', (e) => {
-        if (e.key === this.STORAGE_KEYS.SESSION || e.key === this.STORAGE_KEYS.TOKENS) {
-          if (!e.newValue) {
-            this.handleLogout(false); // Don't clear storage again
-          }
+        if (this.isStorageKey(e.key) && !e.newValue && !this.isLoggingOut) {
+          this.handleLogout(false); // Don't clear storage again
         }
       });
+
+      // Listen for user logout events from other components
+      window.addEventListener('userLogout', () => {
+        if (!this.isLoggingOut) {
+          this.handleLogout(true);
+        }
+      });
+
+      // Listen for beforeunload to cleanup
+      window.addEventListener('beforeunload', () => {
+        this.cleanup();
+      });
     }
+  }
+
+  private isStorageKey(key: string | null): boolean {
+    if (!key) return false;
+    return Object.values(this.STORAGE_KEYS).includes(key);
   }
 
   /**
@@ -106,7 +131,6 @@ class AuthService {
       this.isInitialized = true;
       return session;
     } catch (error) {
-      console.error('Auth initialization failed:', error);
       this.handleLogout();
       this.isInitialized = true;
       return null;
@@ -134,7 +158,12 @@ class AuthService {
    * Handle tokens from URL and establish session
    */
   private async handleURLTokens(tokens: { accessToken: string; refreshToken: string }) {
+    if (this.isLoggingOut) return;
+
     try {
+      // Clear any existing session first
+      this.clearAllStorageData();
+      
       // Store tokens
       const authTokens: AuthTokens = {
         accessToken: tokens.accessToken,
@@ -159,11 +188,8 @@ class AuthService {
         
         this.setCurrentSession(session);
         this.emit('login', session);
-        
-        console.log('Session established from URL tokens');
       }
     } catch (error) {
-      console.error('Failed to handle URL tokens:', error);
       throw error;
     }
   }
@@ -184,6 +210,8 @@ class AuthService {
    * Restore session from localStorage
    */
   private async restoreSession(): Promise<UserSession | null> {
+    if (this.isLoggingOut) return null;
+
     try {
       const tokens = this.getStoredTokens();
       if (!tokens) {
@@ -192,7 +220,6 @@ class AuthService {
 
       // Check if token is expired and refresh if needed
       if (this.isTokenExpired(tokens.expiresAt)) {
-        console.log('Token expired, attempting refresh...');
         await this.refreshTokens();
         // Get updated tokens after refresh
         const newTokens = this.getStoredTokens();
@@ -215,14 +242,12 @@ class AuthService {
         };
         
         this.setCurrentSession(session);
-        console.log('Session restored from storage');
         return session;
       } else {
         throw new Error('Invalid session');
       }
     } catch (error) {
-      console.error('Failed to restore session:', error);
-      this.clearStorage();
+      this.clearAllStorageData();
       return null;
     }
   }
@@ -231,6 +256,10 @@ class AuthService {
    * Refresh access token
    */
   async refreshTokens(): Promise<void> {
+    if (this.isLoggingOut) {
+      throw new Error('Cannot refresh tokens during logout');
+    }
+
     // Prevent multiple concurrent refresh attempts
     if (this.refreshPromise) {
       return this.refreshPromise;
@@ -240,6 +269,9 @@ class AuthService {
     
     try {
       await this.refreshPromise;
+    } catch (error) {
+      this.refreshPromise = null;
+      throw error;
     } finally {
       this.refreshPromise = null;
     }
@@ -276,12 +308,10 @@ class AuthService {
         }
 
         this.emit('token_refreshed', newTokens);
-        console.log('Tokens refreshed successfully');
       } else {
         throw new Error('Invalid refresh response');
       }
     } catch (error) {
-      console.error('Token refresh failed:', error);
       this.handleLogout();
       throw error;
     }
@@ -313,11 +343,11 @@ class AuthService {
   private storeTokens(tokens: AuthTokens) {
     try {
       localStorage.setItem(this.STORAGE_KEYS.TOKENS, JSON.stringify(tokens));
-      // Also store in old format for backward compatibility
-      localStorage.setItem('authToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
+      // Also store in legacy format for backward compatibility
+      localStorage.setItem(this.STORAGE_KEYS.AUTH_TOKEN, tokens.accessToken);
+      localStorage.setItem(this.STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
     } catch (error) {
-      console.error('Failed to store tokens:', error);
+      // Handle silently - storage might be disabled
     }
   }
 
@@ -331,9 +361,9 @@ class AuthService {
         return JSON.parse(stored);
       }
       
-      // Fallback to old format
-      const accessToken = localStorage.getItem('authToken');
-      const refreshToken = localStorage.getItem('refreshToken');
+      // Fallback to legacy format
+      const accessToken = localStorage.getItem(this.STORAGE_KEYS.AUTH_TOKEN);
+      const refreshToken = localStorage.getItem(this.STORAGE_KEYS.REFRESH_TOKEN);
       
       if (accessToken && refreshToken) {
         return {
@@ -358,12 +388,13 @@ class AuthService {
         role: session.role,
         name: this.getUserDisplayName(session.user),
         id: session.user.id,
-        email: session.user.email
+        email: session.user.email,
+        tourGuideType: (session.user as any).tourGuideType
       };
       localStorage.setItem(this.STORAGE_KEYS.SESSION, JSON.stringify(sessionData));
-      localStorage.setItem('userSession', JSON.stringify(sessionData)); // Backward compatibility
+      localStorage.setItem(this.STORAGE_KEYS.USER_SESSION, JSON.stringify(sessionData)); // Backward compatibility
     } catch (error) {
-      console.error('Failed to store session:', error);
+      // Handle silently - storage might be disabled
     }
   }
 
@@ -377,31 +408,100 @@ class AuthService {
   }
 
   /**
-   * Clear all stored data
+   * Clear all stored data - comprehensive cleanup
    */
-  private clearStorage() {
+  private clearAllStorageData() {
     try {
-      localStorage.removeItem(this.STORAGE_KEYS.TOKENS);
-      localStorage.removeItem(this.STORAGE_KEYS.SESSION);
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userSession');
+      // Clear localStorage
+      Object.values(this.STORAGE_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Clear sessionStorage as well
+      if (typeof sessionStorage !== 'undefined') {
+        Object.values(this.STORAGE_KEYS).forEach(key => {
+          sessionStorage.removeItem(key);
+        });
+      }
+
+      // Clear any other possible auth-related keys
+      const keysToCheck = [
+        'token', 'tokens', 'auth', 'user', 'session',
+        'jambolush', 'jambo', 'auth_data', 'user_data'
+      ];
+      
+      keysToCheck.forEach(key => {
+        localStorage.removeItem(key);
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem(key);
+        }
+      });
     } catch (error) {
-      console.error('Failed to clear storage:', error);
+      // Handle silently - storage operations might fail
     }
   }
 
   /**
-   * Handle logout
+   * Handle logout with comprehensive cleanup
    */
   private handleLogout(clearStorage = true) {
-    this.currentSession = null;
+    if (this.isLoggingOut) return; // Prevent recursive calls
     
-    if (clearStorage) {
-      this.clearStorage();
+    this.isLoggingOut = true;
+    
+    try {
+      // Cancel any ongoing token refresh
+      this.refreshPromise = null;
+      
+      // Clear session
+      this.currentSession = null;
+      
+      // Clear storage
+      if (clearStorage) {
+        this.clearAllStorageData();
+      }
+      
+      // Clear API auth
+      this.clearAPIAuth();
+      
+      // Emit logout event
+      this.emit('logout');
+      
+      // Broadcast logout event for other components
+      if (typeof window !== 'undefined') {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('userLogout', { 
+            detail: { timestamp: Date.now(), source: 'authService' } 
+          }));
+        }, 0);
+      }
+      
+    } finally {
+      // Reset logout flag after a short delay
+      setTimeout(() => {
+        this.isLoggingOut = false;
+      }, 100);
     }
-    
-    this.emit('logout');
+  }
+
+  /**
+   * Clear API authentication
+   */
+  private async clearAPIAuth() {
+    try {
+      const api = (await import('../api/apiService')).default;
+      api.clearAuth();
+    } catch (error) {
+      // Handle silently - API might not be available
+    }
+  }
+
+  /**
+   * Cleanup resources
+   */
+  private cleanup() {
+    this.refreshPromise = null;
+    this.eventListeners.clear();
   }
 
   /**
@@ -435,14 +535,14 @@ class AuthService {
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return this.currentSession !== null;
+    return this.currentSession !== null && !this.isLoggingOut;
   }
 
   /**
    * Update user profile
    */
   updateProfile(updatedUser: Partial<UserProfile>) {
-    if (this.currentSession) {
+    if (this.currentSession && !this.isLoggingOut) {
       this.currentSession.user = { ...this.currentSession.user, ...updatedUser };
       this.storeSession(this.currentSession);
       this.emit('profile_updated', this.currentSession.user);
@@ -453,14 +553,26 @@ class AuthService {
    * Logout user
    */
   async logout() {
+    if (this.isLoggingOut) return;
+    
     try {
-      const api = (await import('../api/apiService')).default;
-      await api.post('auth/logout');
+      // Call logout API if we have a session
+      if (this.currentSession) {
+        const api = (await import('../api/apiService')).default;
+        await api.post('auth/logout');
+      }
     } catch (error) {
-      console.error('Logout API call failed:', error);
+      // Continue with logout even if API call fails
     } finally {
-      this.handleLogout();
+      this.handleLogout(true);
     }
+  }
+
+  /**
+   * Force logout (for error scenarios)
+   */
+  forceLogout() {
+    this.handleLogout(true);
   }
 
   /**
@@ -486,8 +598,27 @@ class AuthService {
   private emit(event: AuthEventType, data?: any) {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
-      listeners.forEach(listener => listener(data));
+      listeners.forEach(listener => {
+        try {
+          listener(data);
+        } catch (error) {
+          // Handle listener errors silently
+        }
+      });
     }
+  }
+
+  /**
+   * Reset auth service (for testing or complete reset)
+   */
+  reset() {
+    this.isLoggingOut = false;
+    this.isInitialized = false;
+    this.currentSession = null;
+    this.refreshPromise = null;
+    this.clearAllStorageData();
+    this.eventListeners.clear();
+    this.initializeEventListeners();
   }
 }
 
