@@ -55,7 +55,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 mt-20">
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-600 mb-4">
           Redirecting...
@@ -63,12 +63,7 @@ export default function HomePage() {
         <p className="text-gray-500">
           If you are not redirected automatically, please try refreshing the page.
         </p>
-        <button
-          onClick={() => router.push("/login")}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Go to Login
-        </button>
+        
       </div>
     </div>
   );

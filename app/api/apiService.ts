@@ -362,6 +362,8 @@ class FrontendAPIService {
   private defaultHeaders: Record<string, string> = {
     'Accept': 'application/json'
   };
+  private isLoggingOut: boolean = false;
+  private tokenRefreshPromise: Promise<void> | null = null;
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'http://localhost:5000/api';
@@ -401,6 +403,8 @@ class FrontendAPIService {
 
   clearAuth(): void {
     delete this.defaultHeaders['Authorization'];
+    this.isLoggingOut = false;
+    this.tokenRefreshPromise = null;
   }
 
   private buildURL(endpoint: string, params?: Record<string, any>): string {
@@ -476,13 +480,12 @@ class FrontendAPIService {
   async request<T = any>(endpoint: string, config: APIConfig = {}): Promise<APIResponse<T>> {
     const { method = 'GET', headers = {}, body, params, timeout = 50000 } = config;
     
-    // Check if we need to refresh token before making request
-    if (!endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
+    // Don't attempt token refresh if we're logging out or calling auth endpoints
+    if (!this.isLoggingOut && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register') && !endpoint.includes('/auth/logout')) {
       try {
         await this.ensureValidToken();
       } catch (error) {
-        console.error('Token validation failed:', error);
-        // Let the request proceed - it will get 401 and trigger logout
+        // Token validation failed, continue with request - will get 401 and trigger logout
       }
     }
     
@@ -529,14 +532,9 @@ class FrontendAPIService {
         }
       }
 
-      // Handle 401 Unauthorized - trigger logout through auth service
-      if (response.status === 401 && !endpoint.includes('/auth/')) {
-        console.log('Received 401, triggering logout...');
-        
-        // Use auth service to handle logout
-        setTimeout(() => {
-          authService.logout();
-        }, 100);
+      // Handle 401 Unauthorized - trigger logout only if not already logging out
+      if (response.status === 401 && !endpoint.includes('/auth/') && !this.isLoggingOut) {
+        this.handleLogout();
         
         throw {
           message: `HTTP ${response.status}: Unauthorized`,
@@ -575,14 +573,45 @@ class FrontendAPIService {
       const tokenExpiryBuffer = 60 * 1000; // 1 minute buffer
       const isExpiringSoon = session.tokens.expiresAt <= (Date.now() + tokenExpiryBuffer);
       
-      if (isExpiringSoon) {
-        console.log('Token expiring soon, refreshing...');
-        await authService.refreshTokens();
+      if (isExpiringSoon && !this.tokenRefreshPromise) {
+        // Only one refresh at a time
+        this.tokenRefreshPromise = this.performTokenRefresh();
+        await this.tokenRefreshPromise;
+        this.tokenRefreshPromise = null;
+      } else if (this.tokenRefreshPromise) {
+        // Wait for ongoing refresh
+        await this.tokenRefreshPromise;
       }
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      this.tokenRefreshPromise = null;
       throw error;
     }
+  }
+
+  private async performTokenRefresh(): Promise<void> {
+    try {
+      await authService.refreshTokens();
+    } catch (error) {
+      // If refresh fails, trigger logout
+      this.handleLogout();
+      throw error;
+    }
+  }
+
+  private handleLogout(): void {
+    if (this.isLoggingOut) return; // Prevent multiple logout calls
+    
+    this.isLoggingOut = true;
+    
+    // Clear all local data immediately
+    this.clearAuth();
+    
+    // Broadcast logout event
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('userLogout', { 
+        detail: { timestamp: Date.now() } 
+      }));
+    }, 0);
   }
 
   // HTTP method shortcuts
@@ -915,6 +944,8 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
    * User logout
    */
   async logout(): Promise<APIResponse<BackendResponse<any>>> {
+    this.isLoggingOut = true;
+    
     try {
       const response = await this.post<BackendResponse<any>>('/auth/logout');
       return response;
@@ -1367,8 +1398,6 @@ async getKYCStatus(): Promise<APIResponse<BackendResponse<{
     
     return this.post<BackendResponse<{ urls: string[] }>>('/upload/multiple', formData);
   }
-
-
 
   // ============ ENHANCED BOOKING API METHODS ============
 
