@@ -1,6 +1,7 @@
+//app/pages/agent/earnings.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import api from '@/app/api/apiService';
 
@@ -76,6 +77,241 @@ const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
   );
 };
 
+// --- SEPARATE MODAL COMPONENTS (OUTSIDE MAIN COMPONENT) ---
+const SetAccountModal = memo(({ 
+  isOpen, 
+  newAccount, 
+  modalError, 
+  onAccountChange, 
+  onSave, 
+  onClose 
+}: {
+  isOpen: boolean;
+  newAccount: { bank: string; number: string };
+  modalError: string;
+  onAccountChange: (field: 'bank' | 'number', value: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+        <h2 className="text-lg font-bold text-black mb-4">Set Withdrawal Account</h2>
+        <p className="text-sm text-gray-600 mb-4">You need to add a bank account before you can withdraw funds.</p>
+        <div className="space-y-3">
+          <input 
+            type="text" 
+            placeholder="Bank Name (e.g., Chase)" 
+            value={newAccount.bank} 
+            onChange={(e) => onAccountChange('bank', e.target.value)} 
+            className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoComplete="off"
+          />
+          <input 
+            type="text" 
+            placeholder="Account Number" 
+            value={newAccount.number} 
+            onChange={(e) => onAccountChange('number', e.target.value)} 
+            className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoComplete="off"
+          />
+        </div>
+        {modalError && <p className="text-red-500 text-xs mt-2">{modalError}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-md cursor-pointer bg-red-500 text-white hover:bg-red-600 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={onSave}
+            className="px-4 py-2 text-sm rounded-md cursor-pointer text-white hover:opacity-90 transition-opacity" 
+            style={{ backgroundColor: '#083A85' }}
+          >
+            Save Account
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const WithdrawModal = memo(({ 
+  isOpen, 
+  withdrawAmount, 
+  modalError, 
+  withdrawalAccounts,
+  onAmountChange, 
+  onConfirm, 
+  onClose 
+}: {
+  isOpen: boolean;
+  withdrawAmount: number | string;
+  modalError: string;
+  withdrawalAccounts: WithdrawalAccount[];
+  onAmountChange: (value: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+        <h2 className="text-lg font-bold text-black mb-2">Withdraw Funds</h2>
+        <div className="text-xs bg-gray-100 p-2 rounded-md mb-4">
+          <p className="font-semibold text-gray-800">To: {withdrawalAccounts[0]?.bank}</p>
+          <p className="text-gray-600">Acct: ****{withdrawalAccounts[0]?.number.slice(-4)}</p>
+        </div>
+        <label className="text-xs font-medium text-gray-600">Amount to withdraw</label>
+        <input 
+          type="number" 
+          placeholder="0.00" 
+          value={withdrawAmount} 
+          onChange={(e) => onAmountChange(e.target.value)} 
+          className="w-full p-2 text-2xl font-bold border-b-2 border-gray-300 focus:border-pink-500 outline-none"
+          step="0.01"
+          min="0"
+          autoComplete="off"
+        />
+        {modalError && <p className="text-red-500 text-xs mt-2">{modalError}</p>}
+        <div className="flex justify-end gap-2 mt-4">
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-md bg-gray-200 text-black cursor-pointer hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm rounded-md text-white cursor-pointer hover:opacity-90 transition-opacity" 
+            style={{ backgroundColor: '#F20C8F' }}
+          >
+            Confirm Withdrawal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Add display names for easier debugging
+SetAccountModal.displayName = 'SetAccountModal';
+WithdrawModal.displayName = 'WithdrawModal';
+
+const OTPModal = memo(({ 
+  isOpen, 
+  otpCode,
+  otpError,
+  otpLoading,
+  maskedPhone,
+  countdown,
+  onOtpChange,
+  onVerify,
+  onResend,
+  onClose 
+}: {
+  isOpen: boolean;
+  otpCode: string;
+  otpError: string;
+  otpLoading: boolean;
+  maskedPhone: string;
+  countdown: number;
+  onOtpChange: (value: string) => void;
+  onVerify: () => void;
+  onResend: () => void;
+  onClose: () => void;
+}) => {
+  if (!isOpen) return null;
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+        <div className="text-center mb-4">
+          <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+            <i className="bi bi-shield-lock text-2xl text-blue-600"></i>
+          </div>
+          <h2 className="text-lg font-bold text-black mb-2">Verify Withdrawal</h2>
+          <p className="text-sm text-gray-600">
+            Enter the 6-digit code sent to {maskedPhone}
+          </p>
+        </div>
+
+        <div className="mb-4">
+          <input 
+            type="text" 
+            placeholder="000000" 
+            value={otpCode} 
+            onChange={(e) => onOtpChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            className="w-full p-3 text-2xl font-mono text-center border-2 border-gray-300 rounded-md focus:border-blue-500 outline-none tracking-widest"
+            maxLength={6}
+            autoComplete="off"
+            disabled={otpLoading}
+          />
+        </div>
+
+        {countdown > 0 && (
+          <div className="text-center mb-3">
+            <span className="text-sm text-gray-500">
+              Code expires in {formatTime(countdown)}
+            </span>
+          </div>
+        )}
+
+        {otpError && (
+          <p className="text-red-500 text-xs mb-3 text-center">{otpError}</p>
+        )}
+
+        <div className="space-y-3">
+          <button 
+            onClick={onVerify}
+            disabled={otpCode.length !== 6 || otpLoading}
+            className="w-full py-3 text-sm rounded-md text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity" 
+            style={{ backgroundColor: '#083A85' }}
+          >
+            {otpLoading ? 'Verifying...' : 'Verify & Withdraw'}
+          </button>
+
+          <div className="flex justify-between">
+            <button 
+              onClick={onResend}
+              disabled={countdown > 0 || otpLoading}
+              className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              {countdown > 0 ? `Resend in ${formatTime(countdown)}` : 'Resend Code'}
+            </button>
+            
+            <button 
+              onClick={onClose}
+              className="text-sm text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-yellow-50 rounded-md">
+          <p className="text-xs text-yellow-800">
+            <i className="bi bi-exclamation-triangle mr-1"></i>
+            Never share this code with anyone.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+OTPModal.displayName = 'OTPModal';
+
 // --- AGENT EARNINGS COMPONENT ---
 const Earnings = () => {
   // --- STATE MANAGEMENT ---
@@ -102,8 +338,76 @@ const Earnings = () => {
   const [newAccount, setNewAccount] = useState({ bank: '', number: '' });
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [modalError, setModalError] = useState('');
+  const [user, setUser] = useState<any>(null);
 
-  // --- DATA FETCHING FUNCTIONS ---
+  // OTP Modal states
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [maskedPhone, setMaskedPhone] = useState('');
+  const [countdown, setCountdown] = useState(0);
+  const [withdrawalData, setWithdrawalData] = useState<{ amount: number } | null>(null);
+
+  const checkKYCStatus = (): boolean => {
+     // Check if user data exists and KYC is approved
+    console.log('=== KYC STATUS CHECK ===');
+    console.log('User object:', user);
+    console.log('User KYC Status:', user?.kycStatus);
+    console.log('User KYC Completed:', user?.kycCompleted);
+
+    if (!user) {
+      console.log('❌ No user data available');
+      setShowKYCModal(true);
+      return false;
+    }
+
+    if (user.kycStatus !== 'approved') {
+      console.log('❌ KYC status not approved:', user.kycStatus);
+      setShowKYCModal(true);
+      return false;
+    }
+
+    console.log('✅ KYC status check passed');
+    return true;
+  };
+
+  const handleWithdrawWithKYC = () => {
+    // Don't check KYC if data is still loading
+    if (loading.summary) {
+      console.log('⏳ Still loading user data, please wait...');
+      return;
+    }
+
+    if (!checkKYCStatus()) return;
+    handleWithdrawClick();
+  };
+
+    const fetchUserData = async () => {
+    try {
+      console.log('🔄 Fetching user data...');
+      const response: any = await api.get('/auth/me');
+      console.log('📥 User API Response:', response);
+
+      if (response.data && response.data.success) {
+        console.log('✅ User data received:', response.data.data);
+        console.log('🔍 KYC Status from API:', response.data.data?.kycStatus);
+        setUser(response.data.data);
+        return response.data.data;
+      } else if (response.data) {
+        console.log('✅ User data received (direct):', response.data);
+        console.log('🔍 KYC Status from API:', response.data?.kycStatus);
+        setUser(response.data);
+        return response.data;
+      }
+      console.log('❌ User API response not successful:', response);
+      return null;
+    } catch (err) {
+      console.error('❌ Failed to fetch user data:', err);
+      return null;
+    }
+  };
+
   const fetchAllTransactions = async () => {
     try {
       const response: any = await api.get('/payments/transactions');
@@ -223,8 +527,10 @@ const Earnings = () => {
   const fetchAllData = async () => {
     try {
       setLoading({ summary: true, charts: true, statements: true });
-      
+
       // Fetch data
+      const userData = await fetchUserData();
+      console.log('📋 User data from fetchAllData:', userData);
       const transactions = await fetchAllTransactions();
       const walletInfo = await fetchWalletInfo();
 
@@ -259,10 +565,7 @@ const Earnings = () => {
   }, []);
 
   // --- EVENT HANDLERS ---
-  const handleWithdrawWithKYC = () => {
-    // Check KYC status - for now, always show KYC modal
-    setShowKYCModal(true);
-  };
+
 
   const handleWithdrawClick = () => {
     setModalError('');
@@ -296,6 +599,7 @@ const Earnings = () => {
     const amount = Number(withdrawAmount);
     if (amount > 0 && amount <= balance) {
       try {
+        // Use a more generic withdrawal endpoint
         const response = await api.post('/payments/withdraw', {
           amount,
           accountId: withdrawalAccounts[0].id,
@@ -320,94 +624,170 @@ const Earnings = () => {
     }
   };
 
+  // OTP related functions
+  const requestWithdrawalOTP = async (amount: number) => {
+    try {
+      setOtpLoading(true);
+      const response = await api.post('/payments/request-withdrawal-otp', { amount });
+      if (response.data.success) {
+        setMaskedPhone(response.data.data.maskedPhone || '***-***-1234');
+        setShowOTPModal(true);
+        setCountdown(300); // 5 minutes
+
+        // Start countdown
+        const timer = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setModalError(response.data.message || 'Failed to send OTP');
+      }
+    } catch (error: any) {
+      setModalError(error.response?.data?.message || 'Failed to request OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const verifyOTPAndWithdraw = async () => {
+    if (!withdrawalData) return;
+
+    try {
+      setOtpLoading(true);
+      const response = await api.post('/payments/verify-withdrawal', {
+        otp: otpCode,
+        amount: withdrawalData.amount,
+        accountId: withdrawalAccounts[0]?.id
+      });
+
+      if (response.data.success) {
+        setBalance(prev => prev - withdrawalData.amount);
+        setShowOTPModal(false);
+        setOtpCode('');
+        setOtpError('');
+        setWithdrawalData(null);
+        setModalError('');
+      } else {
+        setOtpError(response.data.message || 'Invalid OTP');
+      }
+    } catch (error: any) {
+      setOtpError(error.response?.data?.message || 'Failed to verify OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const resendOTP = async () => {
+    if (!withdrawalData) return;
+
+    try {
+      setOtpLoading(true);
+      const response = await api.post('/payments/resend-withdrawal-otp', {
+        amount: withdrawalData.amount
+      });
+
+      if (response.data.success) {
+        setCountdown(300);
+        setOtpError('');
+
+        // Restart countdown
+        const timer = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setOtpError(response.data.message || 'Failed to resend OTP');
+      }
+    } catch (error: any) {
+      setOtpError(error.response?.data?.message || 'Failed to resend OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleCloseOTPModal = () => {
+    setShowOTPModal(false);
+    setOtpCode('');
+    setOtpError('');
+    setCountdown(0);
+  };
+
+  // Enhanced withdrawal handler with OTP support
+  const handleConfirmWithdrawalWithOTP = async () => {
+    const amount = Number(withdrawAmount);
+
+    if (amount <= 0) {
+      setModalError('Please enter a valid amount.');
+      return;
+    }
+
+    if (amount < 500) {
+      setModalError('Minimum withdrawal amount is 500 RWF');
+      return;
+    }
+
+    if (amount > balance) {
+      setModalError('Withdrawal amount cannot exceed your balance.');
+      return;
+    }
+
+    setWithdrawalData({ amount });
+    setShowWithdrawModal(false);
+
+    // Request OTP
+    await requestWithdrawalOTP(amount);
+  };
+
   // --- ERROR STATE ---
   if (error) {
     return <div className="mt-20 text-center text-red-500">{error}</div>;
   }
 
-  // --- MODAL COMPONENTS ---
-  const SetAccountModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
-        <h2 className="text-lg font-bold text-black mb-4">Set Withdrawal Account</h2>
-        <p className="text-xs text-gray-600 mb-4">You need to add a bank account before you can withdraw funds.</p>
-        <div className="space-y-3">
-          <input 
-            type="text" 
-            placeholder="Bank Name (e.g., Chase)" 
-            value={newAccount.bank} 
-            onChange={(e) => setNewAccount({...newAccount, bank: e.target.value})} 
-            className="w-full p-2 text-sm border rounded-md"
-          />
-          <input 
-            type="text" 
-            placeholder="Account Number" 
-            value={newAccount.number} 
-            onChange={(e) => setNewAccount({...newAccount, number: e.target.value})} 
-            className="w-full p-2 text-sm border rounded-md"
-          />
-        </div>
-        {modalError && <p className="text-red-500 text-xs mt-2">{modalError}</p>}
-        <div className="flex justify-end gap-2 mt-4">
-          <button 
-            onClick={() => setShowSetAccountModal(false)} 
-            className="px-4 py-2 text-sm rounded-md cursor-pointer bg-gray-200 text-black"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={handleSaveAccount} 
-            className="px-4 py-2 text-sm rounded-md cursor-pointer text-white" 
-            style={{ backgroundColor: '#083A85' }}
-          >
-            Save Account
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const WithdrawModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
-        <h2 className="text-lg font-bold text-black mb-2">Withdraw Funds</h2>
-        <div className="text-xs bg-gray-100 p-2 rounded-md mb-4">
-          <p className="font-semibold text-gray-800">To: {withdrawalAccounts[0]?.bank}</p>
-          <p className="text-gray-600">Acct: ****{withdrawalAccounts[0]?.number.slice(-4)}</p>
-        </div>
-        <label className="text-xs font-medium text-gray-600">Amount to withdraw</label>
-        <input 
-          type="number" 
-          placeholder="0.00" 
-          value={withdrawAmount} 
-          onChange={(e) => setWithdrawAmount(e.target.value)} 
-          className="w-full p-2 text-2xl font-bold border-b-2 border-gray-300 focus:border-pink-500 outline-none"
-        />
-        {modalError && <p className="text-red-500 text-xs mt-2">{modalError}</p>}
-        <div className="flex justify-end gap-2 mt-4">
-          <button 
-            onClick={() => setShowWithdrawModal(false)} 
-            className="px-4 py-2 text-sm rounded-md bg-gray-200 text-black cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={handleConfirmWithdrawal} 
-            className="px-4 py-2 text-sm rounded-md text-white cursor-pointer" 
-            style={{ backgroundColor: '#F20C8F' }}
-          >
-            Confirm Withdrawal
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   // --- RENDER ---
   return (
     <div className="mt-20">
-      {showSetAccountModal && <SetAccountModal />}
-      {showWithdrawModal && <WithdrawModal />}
+      <SetAccountModal
+        isOpen={showSetAccountModal}
+        newAccount={newAccount}
+        modalError={modalError}
+        onAccountChange={(field, value) => setNewAccount(prev => ({ ...prev, [field]: value }))}
+        onSave={handleSaveAccount}
+        onClose={() => setShowSetAccountModal(false)}
+      />
+      
+      <WithdrawModal
+        isOpen={showWithdrawModal}
+        withdrawAmount={withdrawAmount}
+        modalError={modalError}
+        withdrawalAccounts={withdrawalAccounts}
+        onAmountChange={(value) => setWithdrawAmount(value)}
+        onConfirm={handleConfirmWithdrawalWithOTP}
+        onClose={() => setShowWithdrawModal(false)}
+      />
+
+      <OTPModal
+      isOpen={showOTPModal}
+      otpCode={otpCode}
+      otpError={otpError}
+      otpLoading={otpLoading}
+      maskedPhone={maskedPhone}
+      countdown={countdown}
+      onOtpChange={setOtpCode}
+      onVerify={verifyOTPAndWithdraw}
+      onResend={resendOTP}
+      onClose={handleCloseOTPModal}
+    />
+
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">

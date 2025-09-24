@@ -497,7 +497,7 @@ const HostDashboard = () => {
                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                 Upcoming Check-ins
               </h3>
-              <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/host/calendar') }}>
+              <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/host/calendar') }}>
                 View Calendar
               </button>
             </div>
@@ -535,7 +535,7 @@ const HostDashboard = () => {
                 <i className="bi bi-chat-dots mr-2 text-blue-600" />
                 Recent Activity
               </h3>
-              <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/host/bookings') }}>
+              <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/host/bookings') }}>
                 View All
               </button>
             </div>
@@ -615,7 +615,7 @@ const HostDashboard = () => {
                 <i className="bi bi-star mr-2 text-amber-500" />
                 Recent Reviews
               </h3>
-              <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/host/reviews') }}>
+              <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/host/reviews') }}>
                 View All
               </button>
             </div>
