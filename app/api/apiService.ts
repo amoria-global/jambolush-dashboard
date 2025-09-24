@@ -969,6 +969,39 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
     return this.get<BackendResponse<User>>('/auth/profile');
   }
 
+  // ADDED: Methods for the Account Activity Page
+  // ===============================================
+
+  /**
+   * Get user's active sessions and login history.
+   * Corresponds to: GET /auth/sessions
+   */
+  async getUserSessions(): Promise<APIResponse<BackendResponse<any[]>>> {
+    return this.get<BackendResponse<any[]>>('/auth/sessions');
+  }
+
+  /**
+   * Change the current user's password.
+   * Corresponds to: PUT /auth/me/password
+   */
+  async changePassword(passwordData: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.put<BackendResponse<any>>('/auth/me/password', passwordData);
+  }
+
+  /**
+   * Log the current user out from all devices.
+   * Corresponds to: POST /auth/logout-all
+   */
+  async logoutAllDevices(): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/auth/logout-all');
+  }
+  
+  // ===============================================
+
   /**
    * Update user profile
    */
@@ -1586,6 +1619,81 @@ async getUserBookingCalendar(): Promise<APIResponse<BackendResponse<{
     };
     
     return new Date(dateString).toLocaleDateString('en-US', options || defaultOptions);
+  }
+  /**
+ * Request withdrawal OTP
+ */
+async requestWithdrawalOTP(amount: number): Promise<APIResponse<BackendResponse<{
+  messageId: string;
+  expiresIn: number;
+  maskedPhone: string;
+  amount: number;
+  currency: string;
+}>>> {
+  return this.post<BackendResponse<{
+    messageId: string;
+    expiresIn: number;
+    maskedPhone: string;
+    amount: number;
+    currency: string;
+  }>>('/payments/withdrawal/request-otp', { amount });
+}
+
+/**
+ * Verify OTP and process withdrawal
+ */
+async verifyAndWithdraw(data: {
+  otp: string;
+  amount: number;
+  method?: 'MOBILE' | 'BANK';
+  destination?: any;
+}): Promise<APIResponse<BackendResponse<{
+  withdrawalId: string;
+  amount: number;
+  currency: string;
+  method: string;
+  status: string;
+  reference: string;
+  estimatedDelivery: string;
+  newBalance: number;
+}>>> {
+  return this.post<BackendResponse<{
+    withdrawalId: string;
+    amount: number;
+    currency: string;
+    method: string;
+    status: string;
+    reference: string;
+    estimatedDelivery: string;
+    newBalance: number;
+  }>>('/payments/withdrawal/verify-and-withdraw', data);
+}
+
+/**
+ * Resend withdrawal OTP
+ */
+async resendWithdrawalOTP(amount: number): Promise<APIResponse<BackendResponse<{
+  messageId: string;
+  expiresIn: number;
+}>>> {
+  return this.post<BackendResponse<{
+    messageId: string;
+    expiresIn: number;
+  }>>('/payments/withdrawal/resend-otp', { amount });
+}
+
+/**
+ * Get withdrawal info
+ */
+async getWithdrawalInfo(): Promise<APIResponse<BackendResponse<{
+  wallet: { balance: number; currency: string; isActive: boolean; };
+  limits: { minimum: number; maximum: number; daily: number; monthly: number; };
+  kyc: { completed: boolean; status: string; required: boolean; };
+  phoneVerified: boolean;
+  supportedMethods: string[];
+  currency: string;
+}>>> {
+  return this.get<BackendResponse<any>>('/payments/withdrawal/info');
   }
 }
 

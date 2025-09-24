@@ -267,21 +267,35 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (checkForNew: boolean = false) => {
     try {
       setNotificationsLoading(true);
-      
-      const response = await handleApiCall(() => api.get('/notifications', { params: {
+
+      const response = await handleApiCall(() => api.getNotifications({
         limit: 10,
         sortField: 'timestamp',
         sortOrder: 'desc'
-      }}));
+      }));
 
-      if (response.data && response.data.data) {
-        const transformedNotifications = response.data.data.map((notification: any) => ({
+      if (response.data && response.data.success && response.data.data.notifications) {
+        const transformedNotifications = response.data.data.notifications.map((notification: any) => ({
           ...notification,
           timestamp: new Date(notification.timestamp)
         }));
+
+        // Check for new notifications if requested
+        if (checkForNew && notifications.length > 0) {
+          const existingIds = new Set(notifications.map(n => n.id));
+          const newNotifications = transformedNotifications.filter(n => !existingIds.has(n.id));
+
+          // Show toast for new notifications
+          newNotifications.forEach(notification => {
+            window.dispatchEvent(new CustomEvent('newNotificationReceived', {
+              detail: { notification }
+            }));
+          });
+        }
+
         setNotifications(transformedNotifications);
       }
     } catch (error) {
@@ -307,11 +321,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     if (!isAuthenticated) return;
 
     const pollInterval = setInterval(() => {
-      fetchNotifications();
+      fetchNotifications(true); // Check for new notifications when polling
     }, 30000);
 
     return () => clearInterval(pollInterval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, notifications]);
 
   useEffect(() => {
     const handleNotificationUpdate = () => {

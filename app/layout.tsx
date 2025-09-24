@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import SideBar from "./components/sidebar";
 import TopBar from "./components/topbar";
+import NotificationToast from "./components/NotificationToast";
 import "./styles/globals.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import authService from './api/authService';
@@ -34,6 +35,9 @@ export default function RootLayout({
         
         {/* Pass the toggle function to the TopBar's onMenuButtonClick prop */}
         <TopBar onMenuButtonClick={toggleSidebar} />
+
+        {/* Notification Toast Component */}
+        <NotificationToast />
 
         <main className={`md:ml-72 p-4 sm:p-2 md:p-4 `}>
           {children}

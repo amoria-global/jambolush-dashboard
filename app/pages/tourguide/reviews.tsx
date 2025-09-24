@@ -485,16 +485,16 @@ const TourGuideReviews: React.FC = () => {
                         )}
 
                         <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#083A85] transition-colors">
+                        <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#083A85] transition-colors cursor-pointer">
                             <i className="bi bi-hand-thumbs-up"></i>
                             Helpful ({review.helpful})
                         </button>
-                        <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors">
+                        <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors cursor-pointer">
                             <i className="bi bi-flag"></i>
                             Report
                         </button>
                         {!review.response && (
-                          <button className="flex items-center gap-2 text-sm text-[#083A85] hover:text-blue-700 transition-colors">
+                          <button className="flex items-center gap-2 text-sm text-[#083A85] hover:text-blue-700 transition-colors cursor-pointer">
                             <i className="bi bi-reply"></i>
                             Respond
                           </button>

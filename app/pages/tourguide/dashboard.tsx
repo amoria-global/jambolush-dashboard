@@ -500,7 +500,7 @@ const TourGuideDashboard = () => {
                                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                                 Today's Schedule
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/tourguide/schedule') }}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/tourguide/schedule') }}>
                                 View Calendar
                             </button>
                         </div>
@@ -618,7 +618,7 @@ const TourGuideDashboard = () => {
                                 <i className="bi bi-star mr-2 text-amber-500" />
                                 Recent Reviews
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/tourguide/reviews') }}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/tourguide/reviews') }}>
                                 View All
                             </button>
                         </div>

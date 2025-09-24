@@ -526,7 +526,7 @@ const EnhancedAgentDashboard = () => {
                                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                                 Today's Schedule
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/agent/schedule') }}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/agent/schedule') }}>
                                 View Calendar
                             </button>
                         </div>
@@ -644,7 +644,7 @@ const EnhancedAgentDashboard = () => {
                                 <i className="bi bi-star mr-2 text-amber-500" />
                                 Recent Client Feedback
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => { router.push('/agent/reviews') }}>
+                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/agent/reviews') }}>
                                 View All
                             </button>
                         </div>

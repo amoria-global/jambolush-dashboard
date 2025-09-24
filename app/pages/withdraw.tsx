@@ -161,7 +161,7 @@ const WithdrawalPage: FC = () => {
               <h3 className="text-sm font-bold text-gray-800">{selectedMethod} Account</h3>
               <button
                 onClick={() => setShowAccountSetupModal(true)}
-                className="px-2 py-1 text-xs font-semibold bg-white rounded shadow text-[#083A85] hover:text-white hover:bg-[#083A85] transition-colors"
+                className="px-2 py-1 text-xs font-semibold bg-white rounded shadow text-[#083A85] hover:text-white hover:bg-[#083A85] transition-colors cursor-pointer"
               >
                 Change
               </button>
@@ -212,13 +212,13 @@ const WithdrawalPage: FC = () => {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => setShowAccountSetupModal(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 font-bold py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-xs"
+                  className="flex-1 bg-gray-100 text-gray-700 font-bold py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-xs cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAccountSetup}
-                  className="flex-1 font-bold py-2 px-3 rounded-lg text-xs transition-all duration-200"
+                  className="flex-1 font-bold py-2 px-3 rounded-lg text-xs transition-all duration-200 cursor-pointer"
                   style={{ backgroundColor: primaryColor, color: 'white' }}
                 >
                   Save
@@ -244,7 +244,7 @@ const WithdrawalPage: FC = () => {
               <div className="flex justify-between gap-2">
                 <button
                   onClick={() => setShowConfirmationModal(false)}
-                  className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 transition-colors text-xs"
+                  className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 transition-colors text-xs cursor-pointer"
                 >
                   Cancel
                 </button>
