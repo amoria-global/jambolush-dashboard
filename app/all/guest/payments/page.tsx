@@ -1,4 +1,4 @@
-import Payments from "@/app/pages/agent/earnings";
+import Payments from "@/app/pages/guest/earnings";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
