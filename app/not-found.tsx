@@ -48,8 +48,8 @@ const NotFound: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mt-6">
-            <button 
-              className="bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            <button
+              className="bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base cursor-pointer"
               onClick={handleGoBack}
               aria-label="Go back to previous page"
             >

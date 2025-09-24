@@ -2,7 +2,9 @@
 "use client";
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import api from '../../api/apiService'; 
+import api from '../../api/apiService';
+import notificationSound from '../../utils/notificationSound';
+import browserNotifications from '../../utils/browserNotifications'; 
 
 // Types (keep existing interfaces)
 interface Notification {
@@ -127,6 +129,9 @@ function NotificationsContent() {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [goToPageInput, setGoToPageInput] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(true);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission>('default');
   
   // API response states
   const [totalNotifications, setTotalNotifications] = useState(0);
@@ -233,6 +238,41 @@ function NotificationsContent() {
   useEffect(() => {
     setGoToPageInput(currentPage.toString());
   }, [currentPage]);
+
+  // Initialize settings
+  useEffect(() => {
+    setSoundEnabled(notificationSound.isSoundEnabled());
+    setBrowserNotificationsEnabled(browserNotifications.isEnabled());
+    setBrowserPermission(browserNotifications.getPermissionStatus());
+  }, []);
+
+  const toggleSoundEnabled = () => {
+    const newSoundEnabled = !soundEnabled;
+    setSoundEnabled(newSoundEnabled);
+    notificationSound.setSoundEnabled(newSoundEnabled);
+
+    // Play test sound if enabling
+    if (newSoundEnabled) {
+      notificationSound.playNotificationSound('info');
+    }
+  };
+
+  const toggleBrowserNotifications = async () => {
+    if (!browserNotificationsEnabled && browserPermission !== 'granted') {
+      const granted = await browserNotifications.requestPermission();
+      if (granted) {
+        setBrowserPermission('granted');
+        setBrowserNotificationsEnabled(true);
+        browserNotifications.setEnabled(true);
+      } else {
+        setBrowserPermission(browserNotifications.getPermissionStatus());
+      }
+    } else {
+      const newEnabled = !browserNotificationsEnabled;
+      setBrowserNotificationsEnabled(newEnabled);
+      browserNotifications.setEnabled(newEnabled);
+    }
+  };
 
   // Handlers with URL updates
   const handleSearchChange = (value: string) => {
@@ -515,6 +555,53 @@ const handleNotificationClick = async (notification: Notification) => {
                 </div>
               )}
               <button
+                onClick={toggleSoundEnabled}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-base font-medium cursor-pointer ${
+                  soundEnabled
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title={soundEnabled ? 'Disable notification sounds' : 'Enable notification sounds'}
+              >
+                <i className={`bi ${soundEnabled ? 'bi-volume-up' : 'bi-volume-mute'}`}></i>
+                <span className="hidden sm:inline">
+                  {soundEnabled ? 'Sound On' : 'Sound Off'}
+                </span>
+              </button>
+              <button
+                onClick={toggleBrowserNotifications}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-base font-medium cursor-pointer ${
+                  browserNotificationsEnabled && browserPermission === 'granted'
+                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    : browserPermission === 'denied'
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                title={
+                  browserPermission === 'denied'
+                    ? 'Browser notifications blocked'
+                    : browserNotificationsEnabled
+                    ? 'Disable browser notifications'
+                    : 'Enable browser notifications'
+                }
+              >
+                <i className={`bi ${
+                  browserPermission === 'denied'
+                    ? 'bi-bell-slash'
+                    : browserNotificationsEnabled && browserPermission === 'granted'
+                    ? 'bi-bell'
+                    : 'bi-bell-slash'
+                }`}></i>
+                <span className="hidden md:inline">
+                  {browserPermission === 'denied'
+                    ? 'Blocked'
+                    : browserNotificationsEnabled && browserPermission === 'granted'
+                    ? 'Browser'
+                    : 'Browser'
+                  }
+                </span>
+              </button>
+              <button
                 onClick={handleMarkAllAsRead}
                 disabled={loading || unreadCount === 0}
                 className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors text-base font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -584,7 +671,7 @@ const handleNotificationClick = async (notification: Notification) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
               >
                 <option value="all">All Categories</option>
-                {uniqueCategories.map(category => (
+                {uniqueCategories?.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
               </select>
