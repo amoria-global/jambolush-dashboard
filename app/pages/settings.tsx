@@ -48,7 +48,7 @@ function SettingsLoading() {
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-10 bg-gray-200 rounded-lg flex-1 animate-pulse"></div>
             ))}
-          </div>
+          </div> 
         </div>
         
         <div className="space-y-6">
