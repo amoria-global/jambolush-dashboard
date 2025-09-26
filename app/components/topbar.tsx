@@ -87,7 +87,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const router = useRouter();
 
-  const [frontend_url, setFrontEnd] = useState<string>('https://jambolush.com');
+  const [frontend_url, setFrontEnd] = useState<string>('http://localhost:3000');
 
   useEffect(() => { 
     if (process.env.FRONTEND_URL) {
@@ -772,7 +772,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                         handleLogout();
                       }}
                       disabled={isLoggingOut}
-                      className={`flex items-center gap-3 px-4 py-2 text-base rounded-md transition-colors w-full text-left ${
+                      className={`flex items-center gap-3 px-4 py-2 text-base rounded-md transition-colors w-full text-left cursor-pointer ${
                         isLoggingOut 
                           ? 'text-gray-400 cursor-not-allowed' 
                           : 'text-red-600 hover:bg-red-50'

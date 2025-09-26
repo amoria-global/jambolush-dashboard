@@ -154,14 +154,18 @@ const KYCUploadPage: React.FC = () => {
 
   // Country list for nationality dropdown
   const countries = [
-    'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Australia', 'Austria',
-    'Bangladesh', 'Belgium', 'Brazil', 'Canada', 'China', 'Colombia',
-    'Denmark', 'Egypt', 'Finland', 'France', 'Germany', 'Ghana',
-    'India', 'Indonesia', 'Italy', 'Japan', 'Kenya', 'Malaysia',
-    'Mexico', 'Netherlands', 'Nigeria', 'Norway', 'Pakistan', 'Philippines',
-    'Poland', 'Portugal', 'Russia', 'Rwanda', 'Saudi Arabia', 'South Africa', 'Spain',
-    'Sweden', 'Switzerland', 'Thailand', 'Turkey', 'Ukraine', 'United Kingdom',
-    'United States', 'Vietnam'
+    'Afghanistan', 'Albania', 'Algeria', 'Angola', 'Argentina', 'Australia', 'Austria',
+    'Bangladesh', 'Belgium', 'Benin', 'Botswana', 'Brazil', 'Burkina Faso', 'Burundi',
+    'Cameroon', 'Canada', 'Chad', 'China', 'Colombia', 'Comoros', 'Congo (Democratic Republic)',
+    'Congo (Republic)', 'Denmark', 'Djibouti', 'Egypt', 'Equatorial Guinea', 'Eritrea', 'Ethiopia',
+    'Finland', 'France', 'Gabon', 'Gambia', 'Germany', 'Ghana', 'Guinea', 'Guinea-Bissau',
+    'India', 'Indonesia', 'Italy', 'Japan', 'Kenya', 'Lesotho', 'Liberia', 'Madagascar',
+    'Malawi', 'Malaysia', 'Mali', 'Mauritania', 'Mauritius', 'Mexico', 'Morocco', 'Mozambique',
+    'Namibia', 'Netherlands', 'Niger', 'Nigeria', 'Norway', 'Pakistan', 'Philippines',
+    'Poland', 'Portugal', 'Russia', 'Rwanda', 'São Tomé and Príncipe', 'Saudi Arabia',
+    'Senegal', 'Seychelles', 'Sierra Leone', 'Somalia', 'South Africa', 'South Sudan', 'Spain',
+    'Sudan', 'Sweden', 'Switzerland', 'Tanzania', 'Thailand', 'Togo', 'Tunisia', 'Turkey',
+    'Uganda', 'Ukraine', 'United Kingdom', 'United States', 'Vietnam', 'Zambia', 'Zimbabwe'
   ].sort();
 
   // Helper function to get tomorrow's date for min date validation
@@ -790,7 +794,7 @@ const isStepValid = (): boolean => {
                           name="address"
                           value={formData.personalDetails.address}
                           onChange={handlePersonalDetailsChange}
-                          placeholder="Street, City, State, Country, ZIP Code"
+                          placeholder="District, Sector, Street, City, Province, State, Country, ZIP Code"
                           className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
                             validationErrors.address ? 'border-red-500' : 'border-gray-300'
                           }`}
