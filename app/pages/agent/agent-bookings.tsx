@@ -219,7 +219,7 @@ const AgentBookingsPage: React.FC = () => {
             // Create all API calls as promises
             const bookingPromises = properties.map(async (property) => {
                 try {
-                    const response = await api.get(`/properties/agent/properties/${property.id}/bookings`);
+                    const response = await api.get(`/properties/agent/own/properties/${property.id}/bookings`);
                     
                     if (response.data && response.data.success) {
                         const propertyBookings = response.data.data || [];

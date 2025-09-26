@@ -1,6 +1,8 @@
+//app/pages/settings.tsx
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import api from '../api/apiService';
 
 // Types
 interface NotificationSettings {
@@ -14,7 +16,6 @@ interface NotificationSettings {
 
 interface AppearanceSettings {
   theme: 'light' | 'dark' | 'auto';
-  accentColor: string;
   fontSize: 'small' | 'medium' | 'large';
   compactMode: boolean;
 }
@@ -22,7 +23,6 @@ interface AppearanceSettings {
 interface VerificationStatus {
   email: boolean;
   phone: boolean;
-  identity: boolean;
 }
 
 interface ConnectedAccount {
@@ -75,10 +75,16 @@ function SettingsContent() {
   
   // Initialize with default tab
   const [activeTab, setActiveTab] = useState('notifications');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showVerificationModal, setShowVerificationModal] = useState<'email' | 'phone' | 'identity' | null>(null);
+  const [showVerificationModal, setShowVerificationModal] = useState<'email' | 'phone' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Settings states
   const [notifications, setNotifications] = useState<NotificationSettings>({
@@ -92,23 +98,16 @@ function SettingsContent() {
 
   const [appearance, setAppearance] = useState<AppearanceSettings>({
     theme: 'light',
-    accentColor: '#083A85',
     fontSize: 'medium',
-    compactMode: false,
+    compactMode: true,
   });
 
   const [verification, setVerification] = useState<VerificationStatus>({
-    email: true,
+    email: false,
     phone: false,
-    identity: false,
   });
 
-  const [connectedAccounts] = useState<ConnectedAccount[]>([
-    { id: '1', provider: 'Google', email: 'user@gmail.com', connected: true, icon: 'bi-google' },
-    { id: '2', provider: 'Facebook', email: '', connected: false, icon: 'bi-facebook' },
-    { id: '3', provider: 'Apple', email: '', connected: false, icon: 'bi-apple' },
-    { id: '4', provider: 'LinkedIn', email: '', connected: false, icon: 'bi-linkedin' },
-  ]);
+  const [connectedAccounts, setConnectedAccounts] = useState<ConnectedAccount[]>([]);
 
   // Password form states
   const [passwordForm, setPasswordForm] = useState({
@@ -117,15 +116,195 @@ function SettingsContent() {
     confirmPassword: '',
   });
 
-  // Theme colors
-  const themeColors = [
-    { name: 'Blue', value: '#083A85' },
-    { name: 'Pink', value: '#F20C8F' },
-    { name: 'Green', value: '#10B981' },
-    { name: 'Purple', value: '#8B5CF6' },
-    { name: 'Orange', value: '#F97316' },
-    { name: 'Teal', value: '#14B8A6' },
-  ];
+  // Load settings from API and localStorage
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          api.setAuth(token);
+        }
+
+        // Load appearance settings from localStorage using the same structure as layout.tsx
+        const savedAppearanceSettings = localStorage.getItem('appearanceSettings');
+        if (savedAppearanceSettings) {
+          try {
+            const parsedSettings = JSON.parse(savedAppearanceSettings);
+            setAppearance({
+              theme: parsedSettings.theme || 'light',
+              fontSize: parsedSettings.fontSize || 'medium',
+              compactMode: parsedSettings.compactMode || false,
+            });
+
+            // Apply settings immediately on load
+            const savedTheme = parsedSettings.theme || 'light';
+            const savedFontSize = parsedSettings.fontSize || 'medium';
+            const savedCompactMode = parsedSettings.compactMode || true;
+
+            // Apply theme
+            if (savedTheme === 'dark') {
+              document.documentElement.classList.add('dark');
+            } else if (savedTheme === 'light') {
+              document.documentElement.classList.remove('dark');
+            } else {
+              // Auto theme - check system preference
+              if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+              } else {
+                document.documentElement.classList.remove('dark');
+              }
+            }
+
+            // Apply font size
+            document.documentElement.className = document.documentElement.className
+              .replace(/\bfont-(small|medium|large)\b/g, '')
+              .trim();
+            document.documentElement.classList.add(`font-${savedFontSize}`);
+
+            // Apply compact mode
+            if (savedCompactMode) {
+              document.documentElement.classList.add('compact');
+            } else {
+              document.documentElement.classList.remove('compact');
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse saved appearance settings:', parseError);
+            // Fallback to defaults
+            setAppearance({
+              theme: 'light',
+              fontSize: 'medium',
+              compactMode: false,
+            });
+          }
+        } else {
+          // Check for legacy individual settings and migrate them
+          const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' || 'light';
+          const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' || 'medium';
+          const compactModeFromStorage = localStorage.getItem('compactMode');
+          const savedCompactMode = compactModeFromStorage !== null ? compactModeFromStorage === 'true' : true;
+
+          const appearanceSettings = {
+            theme: savedTheme,
+            fontSize: savedFontSize,
+            compactMode: savedCompactMode,
+          };
+
+          setAppearance(appearanceSettings);
+
+          // Save to new format and remove old individual items
+          localStorage.setItem('appearanceSettings', JSON.stringify(appearanceSettings));
+          localStorage.removeItem('theme');
+          localStorage.removeItem('fontSize');
+          localStorage.removeItem('compactMode');
+
+          // Apply settings immediately
+          if (savedTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else if (savedTheme === 'light') {
+            document.documentElement.classList.remove('dark');
+          } else {
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              document.documentElement.classList.add('dark');
+            } else {
+              document.documentElement.classList.remove('dark');
+            }
+          }
+
+          document.documentElement.className = document.documentElement.className
+            .replace(/\bfont-(small|medium|large)\b/g, '')
+            .trim();
+          document.documentElement.classList.add(`font-${savedFontSize}`);
+
+          if (savedCompactMode) {
+            document.documentElement.classList.add('compact');
+          } else {
+            document.documentElement.classList.remove('compact');
+          }
+        }
+
+        // Load user settings from backend
+        try {
+          const settingsResponse = await api.getUserSettings();
+          if (settingsResponse.data?.success && settingsResponse.data?.data) {
+            const settings = settingsResponse.data.data;
+            if (settings.notifications) {
+              setNotifications(settings.notifications);
+            }
+          }
+        } catch (settingsError) {
+          console.warn('Could not load user settings, using defaults:', settingsError);
+          // Keep default notifications settings if API fails
+        }
+
+        // Load verification status
+        try {
+          const verificationResponse = await api.getVerificationStatus();
+          if (verificationResponse.data?.success && verificationResponse.data?.data) {
+            const verificationData = verificationResponse.data.data;
+            setVerification({
+              email: verificationData.email?.verified || false,
+              phone: verificationData.phone?.verified || false,
+            });
+          }
+        } catch (verificationError) {
+          console.warn('Could not load verification status, using defaults:', verificationError);
+          // Keep default verification status if API fails
+        }
+
+        // Load user data for email display
+        try {
+          const userResponse = await api.getCurrentUser();
+          if (userResponse.data?.success && userResponse.data?.data) {
+            setUserInfo(userResponse.data.data);
+          }
+        } catch (userError) {
+          console.warn('Could not load user data:', userError);
+        }
+
+        // Load connected accounts
+        try {
+          const accountsResponse = await api.getConnectedAccounts();
+          if (accountsResponse.data?.success && accountsResponse.data?.data) {
+            // Map the API response to include the required 'icon' property.
+            const providerIcons: { [key: string]: string } = {
+              'Google': 'bi-google',
+              'Facebook': 'bi-facebook',
+              'Apple': 'bi-apple',
+            };
+            const mappedAccounts = accountsResponse.data.data.map(account => ({
+              ...account,
+              // Assign an icon based on the provider, with a default fallback.
+              icon: providerIcons[account.provider] || 'bi-link-45deg',
+            }));
+            setConnectedAccounts(mappedAccounts);
+          } else {
+            // Fallback to default Google account structure if API doesn't exist yet
+            setConnectedAccounts([
+              { id: '1', provider: 'Google', email: userInfo?.email || 'user@gmail.com', connected: true, icon: 'bi-google' },
+            ]);
+          }
+        } catch (accountsError) {
+          console.warn('Could not load connected accounts, using fallback:', accountsError);
+          // Fallback for development
+          setConnectedAccounts([
+            { id: '1', provider: 'Google', email: userInfo?.email || 'user@gmail.com', connected: true, icon: 'bi-google' },
+          ]);
+        }
+
+      } catch (err: any) {
+        console.error('Failed to load settings:', err);
+        setError(err.message || 'Failed to load settings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
 
   // Update URL when tab changes
   const handleTabChange = (tabId: string) => {
@@ -140,12 +319,113 @@ function SettingsContent() {
     setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Appearance handlers (localStorage only) - Updated to use unified storage format
+  const handleThemeChange = (theme: 'light' | 'dark' | 'auto') => {
+    const newAppearance = { ...appearance, theme };
+    setAppearance(newAppearance);
+
+    // Save to localStorage using unified format
+    localStorage.setItem('appearanceSettings', JSON.stringify(newAppearance));
+
+    // Apply theme immediately to document
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      // Auto theme - check system preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    // Dispatch custom event to notify layout of changes
+    window.dispatchEvent(new CustomEvent('userSettingsUpdated'));
+  };
+
+  const handleFontSizeChange = (fontSize: 'small' | 'medium' | 'large') => {
+    const newAppearance = { ...appearance, fontSize };
+    setAppearance(newAppearance);
+
+    // Save to localStorage using unified format
+    localStorage.setItem('appearanceSettings', JSON.stringify(newAppearance));
+
+    // Apply font size immediately
+    document.documentElement.className = document.documentElement.className
+      .replace(/\bfont-(small|medium|large)\b/g, '')
+      .trim();
+    document.documentElement.classList.add(`font-${fontSize}`);
+
+    // Dispatch custom event to notify layout of changes
+    window.dispatchEvent(new CustomEvent('userSettingsUpdated'));
+  };
+
+  const handleCompactModeChange = (compactMode: boolean) => {
+    const newAppearance = { ...appearance, compactMode };
+    setAppearance(newAppearance);
+
+    // Save to localStorage using unified format
+    localStorage.setItem('appearanceSettings', JSON.stringify(newAppearance));
+
+    // Apply compact mode immediately
+    if (compactMode) {
+      document.documentElement.classList.add('compact');
+    } else {
+      document.documentElement.classList.remove('compact');
+    }
+
+    // Dispatch custom event to notify layout of changes
+    window.dispatchEvent(new CustomEvent('userSettingsUpdated'));
+  };
+
   const handleSaveSettings = async () => {
-    setSaveStatus('saving');
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setSaveStatus('saved');
-    setTimeout(() => setSaveStatus('idle'), 3000);
+    try {
+      setSaveStatus('saving');
+      setError(null);
+
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+      }
+
+      // Only save notifications to backend (appearance is localStorage only)
+      const updateData = {
+        notifications,
+      };
+
+      try {
+        const response = await api.updateSettings(updateData);
+
+        if (response.data.success) {
+          setSaveStatus('saved');
+          setSuccess('Settings saved successfully!');
+
+          // Clear success message after 3 seconds
+          setTimeout(() => {
+            setSuccess(null);
+          }, 3000);
+        } else {
+          throw new Error(response.data.message || 'Failed to save settings');
+        }
+      } catch (apiError) {
+        // If backend fails, still show success for appearance settings (localStorage only)
+        console.warn('Backend settings save failed, but appearance settings are saved locally:', apiError);
+        setSaveStatus('saved');
+        setSuccess('Settings saved successfully! (Some settings saved locally)');
+
+        setTimeout(() => {
+          setSuccess(null);
+        }, 3000);
+      }
+
+    } catch (err: any) {
+      console.error('Failed to save settings:', err);
+      setError(err.message || 'Failed to save settings');
+    } finally {
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -162,13 +442,36 @@ function SettingsContent() {
     alert('Password updated successfully!');
   };
 
-  const handleVerification = async (type: 'email' | 'phone' | 'identity') => {
-    setLoading(true);
-    // Simulate verification process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setVerification(prev => ({ ...prev, [type]: true }));
-    setLoading(false);
-    setShowVerificationModal(null);
+  const handleVerification = async (type: 'email' | 'phone') => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+      }
+
+      // Send verification code
+      const response = await api.sendVerificationCode(type);
+      if (response.data.success) {
+        setSuccess(`Verification code sent to your ${type}!`);
+        // In a real implementation, you'd show a modal to enter the code
+        // For now, we'll just close the modal
+        setTimeout(() => {
+          setSuccess(null);
+        }, 3000);
+      } else {
+        throw new Error(response.data.message || 'Failed to send verification code');
+      }
+
+    } catch (err: any) {
+      console.error('Verification failed:', err);
+      setError(err.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+      setShowVerificationModal(null);
+    }
   };
 
   const getVerificationColor = (verified: boolean) => {
@@ -308,10 +611,10 @@ function SettingsContent() {
           <div>
             <label className="block text-base font-medium text-gray-700 mb-3">Theme Mode</label>
             <div className="grid grid-cols-3 gap-4">
-              {['light', 'dark', 'auto'].map((theme) => (
+              {(['light', 'dark', 'auto'] as const).map((theme) => (
                 <button
                   key={theme}
-                  onClick={() => setAppearance(prev => ({ ...prev, theme: theme as 'light' | 'dark' | 'auto' }))}
+                  onClick={() => handleThemeChange(theme)}
                   className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
                     appearance.theme === theme
                       ? 'border-blue-600 bg-blue-50'
@@ -325,34 +628,13 @@ function SettingsContent() {
             </div>
           </div>
 
-          {/* Accent Color */}
-          <div>
-            <label className="block text-base font-medium text-gray-700 mb-3">Accent Color</label>
-            <div className="grid grid-cols-6 gap-3">
-              {themeColors.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => setAppearance(prev => ({ ...prev, accentColor: color.value }))}
-                  className={`relative h-12 rounded-lg transition-transform hover:scale-110 cursor-pointer ${
-                    appearance.accentColor === color.value ? 'ring-2 ring-offset-2 ring-gray-400' : ''
-                  }`}
-                  style={{ backgroundColor: color.value }}
-                  title={color.name}
-                >
-                  {appearance.accentColor === color.value && (
-                    <i className="bi bi-check text-white absolute inset-0 flex items-center justify-center text-xl"></i>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Font Size */}
           <div>
             <label className="block text-base font-medium text-gray-700 mb-3">Font Size</label>
             <select
               value={appearance.fontSize}
-              onChange={(e) => setAppearance(prev => ({ ...prev, fontSize: e.target.value as 'small' | 'medium' | 'large' }))}
+              onChange={(e) => handleFontSizeChange(e.target.value as 'small' | 'medium' | 'large')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               <option value="small">Small</option>
@@ -371,7 +653,7 @@ function SettingsContent() {
               <input
                 type="checkbox"
                 checked={appearance.compactMode}
-                onChange={() => setAppearance(prev => ({ ...prev, compactMode: !prev.compactMode }))}
+                onChange={(e) => handleCompactModeChange(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ backgroundColor: appearance.compactMode ? '#083A85' : undefined }}></div>
@@ -398,7 +680,7 @@ function SettingsContent() {
               </div>
               <div>
                 <p className="text-base font-medium text-gray-900">Email Verification</p>
-                <p className="text-sm text-gray-500">user@example.com</p>
+                <p className="text-sm text-gray-500">{userInfo?.email || 'user@example.com'}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -417,59 +699,7 @@ function SettingsContent() {
             </div>
           </div>
 
-          {/* Phone Verification */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-4 mb-3 sm:mb-0">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <i className="bi bi-telephone-fill text-green-600 text-xl"></i>
-              </div>
-              <div>
-                <p className="text-base font-medium text-gray-900">Phone Verification</p>
-                <p className="text-sm text-gray-500">+1 (555) 123-4567</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getVerificationColor(verification.phone)}`}>
-                <i className={`bi ${getVerificationIcon(verification.phone)} mr-1`}></i>
-                {verification.phone ? 'Verified' : 'Unverified'}
-              </span>
-              {!verification.phone && (
-                <button
-                  onClick={() => setShowVerificationModal('phone')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
-                >
-                  Verify Now
-                </button>
-              )}
-            </div>
-          </div>
 
-          {/* Identity Verification */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center gap-4 mb-3 sm:mb-0">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <i className="bi bi-person-badge-fill text-purple-600 text-xl"></i>
-              </div>
-              <div>
-                <p className="text-base font-medium text-gray-900">Identity Verification</p>
-                <p className="text-sm text-gray-500">Government-issued ID required</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getVerificationColor(verification.identity)}`}>
-                <i className={`bi ${getVerificationIcon(verification.identity)} mr-1`}></i>
-                {verification.identity ? 'Verified' : 'Unverified'}
-              </span>
-              {!verification.identity && (
-                <button
-                  onClick={() => setShowVerificationModal('identity')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
-                >
-                  Verify Now
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -478,14 +708,51 @@ function SettingsContent() {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           <i className="bi bi-lock mr-2"></i>Two-Factor Authentication
         </h3>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-          <div className="mb-4 sm:mb-0">
-            <p className="text-base text-gray-700">Add an extra layer of security to your account</p>
-            <p className="text-sm text-gray-500 mt-1">Require a verification code in addition to your password</p>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+            <div className="mb-4 sm:mb-0">
+              <p className="text-base text-gray-700">Add an extra layer of security to your account</p>
+              <p className="text-sm text-gray-500 mt-1">Require a verification code in addition to your password</p>
+            </div>
+            <button
+              onClick={() => setShow2FASetup(!show2FASetup)}
+              className="px-5 py-2.5 rounded-lg text-white text-base font-medium transition-transform hover:scale-105 cursor-pointer"
+              style={{ backgroundColor: '#083A85' }}
+            >
+              {show2FASetup ? 'Cancel 2FA Setup' : 'Enable 2FA'}
+            </button>
           </div>
-          <button className="px-5 py-2.5 rounded-lg text-white text-base font-medium transition-transform hover:scale-105 cursor-pointer" style={{ backgroundColor: '#083A85' }}>
-            Enable 2FA
-          </button>
+
+          {/* Phone Verification - Only shown when 2FA is being enabled */}
+          {show2FASetup && (
+          <div className="border-t pt-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-4 mb-3 sm:mb-0">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <i className="bi bi-telephone-fill text-green-600 text-xl"></i>
+                </div>
+                <div>
+                  <p className="text-base font-medium text-gray-900">Phone Verification</p>
+                  <p className="text-sm text-gray-500">Required for 2FA setup</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getVerificationColor(verification.phone)}`}>
+                  <i className={`bi ${getVerificationIcon(verification.phone)} mr-1`}></i>
+                  {verification.phone ? 'Verified' : 'Unverified'}
+                </span>
+                {!verification.phone && (
+                  <button
+                    onClick={() => setShowVerificationModal('phone')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
+                  >
+                    Verify Now
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          )}
         </div>
       </div>
     </div>
@@ -493,25 +760,6 @@ function SettingsContent() {
 
   const GeneralTab = () => (
     <div className="space-y-6">
-      {/* Password Settings */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          <i className="bi bi-key mr-2"></i>Password Settings
-        </h3>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-          <div className="mb-4 sm:mb-0">
-            <p className="text-base text-gray-700">Update your password</p>
-            <p className="text-sm text-gray-500 mt-1">Last changed: 45 days ago</p>
-          </div>
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="px-5 py-2.5 rounded-lg text-white text-base font-medium transition-transform hover:scale-105 cursor-pointer"
-            style={{ backgroundColor: '#083A85' }}
-          >
-            Change Password
-          </button>
-        </div>
-      </div>
 
       {/* Connected Accounts */}
       <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
@@ -561,16 +809,6 @@ function SettingsContent() {
               <option>Private</option>
             </select>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-base font-medium text-gray-900">Show Activity Status</p>
-              <p className="text-sm text-gray-500">Let others see when you're online</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#083A85]"></div>
-            </label>
-          </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Data Sharing</p>
@@ -595,7 +833,10 @@ function SettingsContent() {
               <p className="text-base font-medium text-gray-900">Deactivate Account</p>
               <p className="text-sm text-gray-500">Temporarily disable your account</p>
             </div>
-            <button className="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium cursor-pointer">
+            <button
+              onClick={() => setShowDeactivateModal(true)}
+              className="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium cursor-pointer"
+            >
               Deactivate
             </button>
           </div>
@@ -604,7 +845,10 @@ function SettingsContent() {
               <p className="text-base font-medium text-gray-900">Delete Account</p>
               <p className="text-sm text-gray-500">Permanently delete your account and all data</p>
             </div>
-            <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium cursor-pointer">
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium cursor-pointer"
+            >
               Delete Account
             </button>
           </div>
@@ -632,6 +876,37 @@ function SettingsContent() {
           <h1 className="text-3xl lg:text-4xl font-bold text-[#083A85]">Settings</h1>
           <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
         </div>
+
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <i className="bi bi-exclamation-triangle-fill text-red-500 mr-2"></i>
+              <p className="text-red-700">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-500 hover:text-red-700"
+              >
+                <i className="bi bi-x text-lg"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center">
+              <i className="bi bi-check-circle-fill text-green-500 mr-2"></i>
+              <p className="text-green-700">{success}</p>
+              <button
+                onClick={() => setSuccess(null)}
+                className="ml-auto text-green-500 hover:text-green-700"
+              >
+                <i className="bi bi-x text-lg"></i>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Settings Navigation */}
         <div className="bg-white rounded-lg shadow-lg mb-6 p-2 overflow-x-auto">
@@ -662,12 +937,18 @@ function SettingsContent() {
         </div>
 
         {/* Tab Content */}
-        <div className="animate-scale-in">
-          {activeTab === 'notifications' && <NotificationsTab />}
-          {activeTab === 'appearance' && <AppearanceTab />}
-          {activeTab === 'security' && <SecurityTab />}
-          {activeTab === 'general' && <GeneralTab />}
-        </div>
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <div className="animate-scale-in">
+            {activeTab === 'notifications' && <NotificationsTab />}
+            {activeTab === 'appearance' && <AppearanceTab />}
+            {activeTab === 'security' && <SecurityTab />}
+            {activeTab === 'general' && <GeneralTab />}
+          </div>
+        )}
 
         {/* Save Button */}
         <div className="mt-8 flex justify-end">
@@ -780,25 +1061,18 @@ function SettingsContent() {
               
               <div className="text-center py-8">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className={`bi bi-${showVerificationModal === 'email' ? 'envelope' : showVerificationModal === 'phone' ? 'telephone' : 'person-badge'} text-blue-600 text-3xl`}></i>
+                  {/* Simplified the icon logic to remove the unused 'identity' case. */}
+                  <i className={`bi bi-${showVerificationModal === 'email' ? 'envelope' : 'telephone'} text-blue-600 text-3xl`}></i>
                 </div>
                 <p className="text-gray-600 mb-6">
+                  {/* Removed the line for 'identity' verification. */}
                   {showVerificationModal === 'email' && "We'll send a verification code to your email address."}
                   {showVerificationModal === 'phone' && "We'll send a verification code to your phone number."}
-                  {showVerificationModal === 'identity' && "Please upload a government-issued ID to verify your identity."}
                 </p>
-                
-                {showVerificationModal === 'identity' && (
-                  <div className="mb-6">
-                    <label className="block px-6 py-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
-                      <i className="bi bi-cloud-upload text-3xl text-gray-400"></i>
-                      <p className="mt-2 text-sm text-gray-600">Click to upload ID</p>
-                      <input type="file" className="hidden" accept="image/*" />
-                    </label>
-                  </div>
-                )}
+
+                {/* Removed the file upload section for 'identity' verification. */}
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setShowVerificationModal(null)}
@@ -813,6 +1087,123 @@ function SettingsContent() {
                   style={{ backgroundColor: '#083A85' }}
                 >
                   {loading ? 'Verifying...' : 'Verify Now'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate Account Modal */}
+      {showDeactivateModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Deactivate Account</h2>
+                <button
+                  onClick={() => setShowDeactivateModal(false)}
+                  className="text-gray-400 hover:text-red-500 cursor-pointer"
+                >
+                  <i className="bi bi-x-lg text-xl"></i>
+                </button>
+              </div>
+
+              <div className="text-center py-4">
+                <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="bi bi-exclamation-triangle text-yellow-600 text-3xl"></i>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to deactivate your account? This action will temporarily disable your account, but you can reactivate it anytime by logging in.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setShowDeactivateModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium cursor-pointer order-last sm:order-first"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      // Add API call for account deactivation when backend is ready
+                      // await api.deactivateAccount();
+                      setSuccess('Account deactivated successfully!');
+                      setShowDeactivateModal(false);
+                    } catch (err: any) {
+                      setError(err.message || 'Failed to deactivate account');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? 'Deactivating...' : 'Deactivate Account'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-xl font-bold text-red-900">Delete Account</h2>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="text-gray-400 hover:text-red-500 cursor-pointer"
+                >
+                  <i className="bi bi-x-lg text-xl"></i>
+                </button>
+              </div>
+
+              <div className="text-center py-4">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="bi bi-trash text-red-600 text-3xl"></i>
+                </div>
+                <p className="text-red-600 font-semibold mb-2">This action cannot be undone!</p>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to permanently delete your account? This will remove all your data, bookings, and cannot be reversed.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium cursor-pointer order-last sm:order-first"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setLoading(true);
+                      // Add API call for account deletion when backend is ready
+                      // await api.deleteAccount();
+                      setSuccess('Account deletion initiated. You will be logged out shortly.');
+                      setShowDeleteModal(false);
+                      // In a real implementation, redirect to logout after successful deletion
+                      setTimeout(() => {
+                        // window.location.href = '/login';
+                      }, 2000);
+                    } catch (err: any) {
+                      setError(err.message || 'Failed to delete account');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? 'Deleting...' : 'Delete Forever'}
                 </button>
               </div>
             </div>

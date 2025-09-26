@@ -1,3 +1,4 @@
+//app/pages/profile.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -413,20 +414,35 @@ export default function UserProfileSettingsPage() {
   const [postalCode, setPostalCode] = useState('');
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+
   // Fetch user data from API
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         setIsLoading(true);
         setError(null);
+
         const token = localStorage.getItem('authToken') || '';
         api.setAuth(token || '')
         const response = await api.get('auth/me');
-        
+
         if (response.data) {
           setUser(response.data);
           setOriginalUser(response.data);
-          
+
           // Set postal code from appropriate field
           const currentCountry = countryData[response.data.country];
           if (currentCountry) {
@@ -439,7 +455,7 @@ export default function UserProfileSettingsPage() {
       } catch (err: any) {
         console.error('Failed to fetch user data:', err);
         setError(err.response?.data?.message || err.message || 'Failed to load user profile');
-        
+
         // If unauthorized, handle logout
         if (err.response?.status === 401) {
           handleLogout();
@@ -486,9 +502,27 @@ export default function UserProfileSettingsPage() {
   const getUserTypeColor = (type: string) => {
     switch (type?.toLowerCase()) {
       case 'host': return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'agent': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'field agent': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'admin': return 'bg-red-100 text-red-700 border-red-200';
+      case 'user': return 'bg-green-100 text-green-700 border-green-200';
+      case 'guest': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'moderator': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const formatUserType = (type: string) => {
+    if (!type) return 'User';
+    switch (type.toLowerCase()) {
+      case 'agent': return 'Agent';
+      case 'field agent': return 'Field Agent';
+      case 'admin': return 'Administrator';
+      case 'user': return 'User';
+      case 'host': return 'Host';
+      case 'guest': return 'Guest';
+      case 'moderator': return 'Moderator';
+      default: return type.charAt(0).toUpperCase() + type.slice(1);
     }
   };
 
@@ -731,11 +765,12 @@ const handleSaveChanges = async () => {
 
     // Use the existing updateProfile method from API service
     const response = await api.put('auth/me', updateData);
-    
+
     if (response.data) {
-      const finalUser = { 
-        ...response.data, 
-        profile: updatedProfileUrl, 
+      const finalUser = {
+        ...user,
+        ...response.data,
+        profile: updatedProfileUrl,
         updated_at: new Date().toISOString(),
         name: `${response.data.firstName || ''} ${response.data.lastName || ''}`.trim()
       };
@@ -823,6 +858,7 @@ const handleSaveChanges = async () => {
     if (user) setUser({ ...user, [field]: value });
   };
 
+
   const handleCancelEdit = () => {
     if (originalUser) {
       setUser(originalUser);
@@ -836,6 +872,64 @@ const handleSaveChanges = async () => {
     }
     setIsEditing(false);
     setSaveMessage(null);
+  };
+
+  // Password change handler
+  // Password change handler
+  const handlePasswordChange = async () => {
+    // Validate all fields are filled
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setSaveMessage({ type: 'error', text: 'All password fields are required' });
+      return;
+    }
+
+    // Validate that the new passwords match
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setSaveMessage({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+
+    // Validate new password length (8 characters minimum)
+    if (passwordData.newPassword.length < 8) {
+      setSaveMessage({ type: 'error', text: 'New password must be at least 8 characters long' });
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      setSaveMessage(null); // Clear any previous messages
+
+      // The API service uses the token set on page load, no need to set it again here
+      const response = await api.changeUserPassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+        confirmPassword: passwordData.confirmPassword,
+      });
+
+      if (response.data.success) {
+        setSaveMessage({ type: 'success', text: 'Password changed successfully!' });
+        // Clear the form fields for security after a successful change
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        // Hide the success message after 5 seconds
+        setTimeout(() => setSaveMessage(null), 5000);
+      } else {
+        // Handle cases where the API call is successful but the operation failed
+        throw new Error(response.data.message || 'Failed to change password due to a server error.');
+      }
+    } catch (error: any) {
+      console.error('Password change failed:', error);
+      // Display a user-friendly error message from the API response
+      setSaveMessage({
+        type: 'error',
+        text: error.data?.message || error.response?.data?.message || error.message || 'An unexpected error occurred. Please try again.'
+      });
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const countryOptions = Object.entries(countryData)
@@ -884,8 +978,31 @@ const handleSaveChanges = async () => {
     );
   }
 
+  if (!user && !error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">No Profile Data</h2>
+          <p className="text-gray-600 mb-6">Unable to load your profile information</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) return null;
-  
+
+
   const currentCountry: CountryInfo | undefined = user.country ? countryData[user.country] : undefined;
   const postalCodeLabel = getPostalCodeLabel(currentCountry);
   const postalCodeField = getPostalCodeFieldName(currentCountry);
@@ -1003,7 +1120,7 @@ const handleSaveChanges = async () => {
               <div className="p-6">
                 <div className="text-center mb-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-1">{user.name}</h2>
-                  <p className="text-gray-500 mb-4">ID: USER-{user.id.toString().padStart(6, '0')}</p>
+                  <p className="text-gray-500 mb-4">ID: USER-{user?.id?.toString().padStart(6, '0') || 'Loading...'}</p>
                   <div className="flex items-center justify-center flex-wrap gap-2">
                     <div className={`inline-flex items-center gap-2 border px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(user.status || '')}`}>
                       <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
@@ -1013,7 +1130,7 @@ const handleSaveChanges = async () => {
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
-                      {user.userType === 'field agent' ? 'Field Agent' : (user.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User')}
+                      {formatUserType(user.userType || '')}
                     </div>
                   </div>
                 </div>
@@ -1115,7 +1232,7 @@ const handleSaveChanges = async () => {
                     <label className="block text-gray-700 font-semibold mb-2">User ID</label>
                     <input 
                       type="text" 
-                      value={`USER-${user.id.toString().padStart(6, '0')}`} 
+                      value={`USER-${user?.id?.toString().padStart(6, '0') || 'Loading...'}`} 
                       disabled 
                       className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-600 cursor-not-allowed" 
                     />
@@ -1260,6 +1377,143 @@ const handleSaveChanges = async () => {
                     </div>
                   )}
 
+                  {/* Security Settings */}
+                  <div className="md:col-span-2">
+                    <h4 className="text-gray-700 font-bold mb-4 border-b pb-2">Security Settings</h4>
+                  </div>
+
+                  {/* Change Password Form */}
+                  <div className="md:col-span-2">
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <h5 className="text-gray-800 font-semibold">Change Password</h5>
+                        <div className="text-xs text-gray-500">
+                          Password must be at least 8 characters
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-gray-700 font-semibold mb-2">Current Password</label>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.current ? "text" : "password"}
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                              disabled={!isEditing}
+                              placeholder="Enter current password"
+                              className={`w-full border rounded-lg px-3 py-2 pr-10 transition-colors ${
+                                isEditing
+                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                                  : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
+                              }`}
+                            />
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  {showPasswords.current ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                  ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  )}
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 font-semibold mb-2">New Password</label>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.new ? "text" : "password"}
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                              disabled={!isEditing}
+                              placeholder="Enter new password"
+                              className={`w-full border rounded-lg px-3 py-2 pr-10 transition-colors ${
+                                isEditing
+                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                                  : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
+                              }`}
+                            />
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  {showPasswords.new ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                  ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  )}
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-700 font-semibold mb-2">Confirm New Password</label>
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirm ? "text" : "password"}
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              disabled={!isEditing}
+                              placeholder="Confirm new password"
+                              className={`w-full border rounded-lg px-3 py-2 pr-10 transition-colors ${
+                                isEditing
+                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                                  : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
+                              }`}
+                            />
+                            {isEditing && (
+                              <button
+                                type="button"
+                                onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  {showPasswords.confirm ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                  ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  )}
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {isEditing && (
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            onClick={handlePasswordChange}
+                            disabled={passwordLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                            className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg font-medium transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {passwordLoading ? (
+                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                            )}
+                            {passwordLoading ? 'Changing Password...' : 'Change Password'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Account Settings */}
                   <div className="md:col-span-2">
                     <h4 className="text-gray-700 font-bold mb-4 border-b pb-2">Account Settings</h4>
@@ -1280,19 +1534,27 @@ const handleSaveChanges = async () => {
                   
                   <div>
                     <label className="block text-gray-700 font-semibold mb-2">User Type</label>
-                    <select 
-                      value={user.userType || 'host'} 
-                      disabled 
+                    <select
+                      value={user.userType || 'user'}
+                      disabled
                       className="w-full border rounded-lg px-3 py-2 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"
                     >
+                      <option value="user">User</option>
+                      <option value="guest">Guest</option>
                       <option value="host">Host</option>
+                      <option value="agent">Agent</option>
                       <option value="field agent">Field Agent</option>
-                      <option value="admin">Admin</option>
+                      <option value="moderator">Moderator</option>
+                      <option value="admin">Administrator</option>
                     </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Your user type is determined by your account role and cannot be changed here.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
+
 
             {/* Profile Activity */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
@@ -1366,7 +1628,7 @@ const handleSaveChanges = async () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-gray-900">
-                        {Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24))}
+                        {user.created_at ? Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0}
                       </div>
                       <div className="text-gray-600 text-sm">Days Active</div>
                     </div>
@@ -1377,6 +1639,7 @@ const handleSaveChanges = async () => {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

@@ -1,5 +1,4 @@
 // apiService.ts - Enhanced Frontend API service with automatic token refresh
-import authService from './authService';
 
 export interface APIConfig {
   method?: string;
@@ -373,27 +372,12 @@ class FrontendAPIService {
   }
 
   private setupAuthIntegration() {
-    // Listen for auth events and update headers
-    authService.on('login', (session) => {
-      if (session?.tokens?.accessToken) {
-        this.setAuth(session.tokens.accessToken, session.tokens.refreshToken);
+    // Initialize with token from localStorage if available (client-side only)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        this.setAuth(token);
       }
-    });
-
-    authService.on('logout', () => {
-      this.clearAuth();
-    });
-
-    authService.on('token_refreshed', (tokens) => {
-      if (tokens?.accessToken) {
-        this.setAuth(tokens.accessToken, tokens.refreshToken);
-      }
-    });
-
-    // Initialize with existing session if available
-    const session = authService.getSession();
-    if (session?.tokens?.accessToken) {
-      this.setAuth(session.tokens.accessToken, session.tokens.refreshToken);
     }
   }
 
@@ -557,40 +541,55 @@ class FrontendAPIService {
       
     } catch (error: any) {
       clearTimeout(timeoutId);
+
       if (error.name === 'AbortError') {
         throw new Error(`Request timeout after ${timeout}ms`);
       }
+
+      // Handle network errors
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error(`Unable to connect to the server at ${this.baseURL}. Please ensure the backend server is running and accessible.`);
+      }
+
+      // Handle other fetch errors
+      if (error.name === 'TypeError' || error.message.includes('fetch')) {
+        throw new Error(`Network error: ${error.message}. Check if the backend server at ${this.baseURL} is running.`);
+      }
+
       throw error;
     }
   }
 
   private async ensureValidToken(): Promise<void> {
-    const session = authService.getSession();
-    if (!session) return;
-
-    try {
-      // Check if token needs refresh
-      const tokenExpiryBuffer = 60 * 1000; // 1 minute buffer
-      const isExpiringSoon = session.tokens.expiresAt <= (Date.now() + tokenExpiryBuffer);
-      
-      if (isExpiringSoon && !this.tokenRefreshPromise) {
-        // Only one refresh at a time
-        this.tokenRefreshPromise = this.performTokenRefresh();
-        await this.tokenRefreshPromise;
-        this.tokenRefreshPromise = null;
-      } else if (this.tokenRefreshPromise) {
-        // Wait for ongoing refresh
-        await this.tokenRefreshPromise;
+    // Simple token validation - check if token exists (client-side only)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No auth token available');
       }
-    } catch (error) {
-      this.tokenRefreshPromise = null;
-      throw error;
     }
   }
 
   private async performTokenRefresh(): Promise<void> {
     try {
-      await authService.refreshTokens();
+      // Get refresh token from localStorage (client-side only)
+      if (typeof window === 'undefined' || !window.localStorage) {
+        throw new Error('localStorage not available');
+      }
+
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      // Call refresh token endpoint
+      const response = await this.refreshToken(refreshToken);
+      if (response.data.success) {
+        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        localStorage.setItem('authToken', accessToken);
+        localStorage.setItem('refreshToken', newRefreshToken);
+        this.setAuth(accessToken);
+      }
     } catch (error) {
       // If refresh fails, trigger logout
       this.handleLogout();
@@ -600,18 +599,20 @@ class FrontendAPIService {
 
   private handleLogout(): void {
     if (this.isLoggingOut) return; // Prevent multiple logout calls
-    
+
     this.isLoggingOut = true;
-    
+
     // Clear all local data immediately
     this.clearAuth();
-    
-    // Broadcast logout event
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('userLogout', { 
-        detail: { timestamp: Date.now() } 
-      }));
-    }, 0);
+
+    // Broadcast logout event (client-side only)
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('userLogout', {
+          detail: { timestamp: Date.now() }
+        }));
+      }, 0);
+    }
   }
 
   // HTTP method shortcuts
@@ -1694,6 +1695,294 @@ async getWithdrawalInfo(): Promise<APIResponse<BackendResponse<{
   currency: string;
 }>>> {
   return this.get<BackendResponse<any>>('/payments/withdrawal/info');
+  }
+
+  // ============ SETTINGS API METHODS ============
+
+  /**
+   * Get all user settings
+   *
+   * Expected backend response structure:
+   * {
+   *   success: true,
+   *   data: {
+   *     notifications: { sms: boolean, email: boolean, pushNotifications: boolean, ... },
+   *     security: { twoFactorEnabled: boolean, loginAlerts: boolean, sessionTimeout: number },
+   *     general: { language: string, timezone: string, currency: string }
+   *   }
+   * }
+   * Note: appearance settings are handled client-side via localStorage
+   */
+  async getUserSettings(): Promise<APIResponse<BackendResponse<{
+    notifications: {
+      sms: boolean;
+      email: boolean;
+      pushNotifications: boolean;
+      marketingEmails: boolean;
+      propertyAlerts: boolean;
+      priceDropAlerts: boolean;
+    };
+    security: {
+      twoFactorEnabled: boolean;
+      loginAlerts: boolean;
+      sessionTimeout: number;
+    };
+    general: {
+      language: string;
+      timezone: string;
+      currency: string;
+    };
+    appearance: {
+      theme: 'light' | 'dark' | 'auto';
+      fontSize: 'small' | 'medium' | 'large';
+      compactMode: boolean;
+    };
+  }>>> {
+    return this.get<BackendResponse<any>>('/settings');
+  }
+
+  /**
+   * Update user settings (supports partial updates)
+   */
+  async updateSettings(settings: {
+    notifications?: {
+      sms?: boolean;
+      email?: boolean;
+      pushNotifications?: boolean;
+      marketingEmails?: boolean;
+      propertyAlerts?: boolean;
+      priceDropAlerts?: boolean;
+    };
+    security?: {
+      twoFactorEnabled?: boolean;
+      loginAlerts?: boolean;
+      sessionTimeout?: number;
+    };
+    general?: {
+      language?: string;
+      timezone?: string;
+      currency?: string;
+    };
+    appearance?: {
+      theme?: 'light' | 'dark' | 'auto';
+      fontSize?: 'small' | 'medium' | 'large';
+      compactMode?: boolean;
+    };
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.put<BackendResponse<any>>('/settings', settings);
+  }
+
+  /**
+   * Get connected accounts (social logins)
+   */
+  async getConnectedAccounts(): Promise<APIResponse<BackendResponse<{
+    id: string;
+    provider: string;
+    email: string;
+    connected: boolean;
+    connectedAt?: string;
+  }[]>>> {
+    return this.get<BackendResponse<any>>('/settings/connected-accounts');
+  }
+
+  /**
+   * Connect a social account
+   */
+  async connectAccount(provider: string): Promise<APIResponse<BackendResponse<{
+    redirectUrl: string;
+  }>>> {
+    return this.post<BackendResponse<any>>('/settings/connected-accounts/connect', { provider });
+  }
+
+  /**
+   * Disconnect a social account
+   */
+  async disconnectAccount(provider: string): Promise<APIResponse<BackendResponse<any>>> {
+    return this.delete<BackendResponse<any>>(`/settings/connected-accounts/${provider}`);
+  }
+
+
+  /**
+   * Change password with current password validation
+   */
+  async changeUserPassword(passwordData: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/settings/security/password', passwordData);
+  }
+
+  /**
+   * Get verification status for email and phone
+   *
+   * Expected backend response structure:
+   * {
+   *   success: true,
+   *   data: {
+   *     email: { verified: boolean, verifiedAt?: string, email: string },
+   *     phone: { verified: boolean, verifiedAt?: string, phone?: string }
+   *   }
+   * }
+   */
+  async getVerificationStatus(): Promise<APIResponse<BackendResponse<{
+    email: {
+      verified: boolean;
+      verifiedAt?: string;
+      email: string;
+    };
+    phone: {
+      verified: boolean;
+      verifiedAt?: string;
+      phone?: string;
+    };
+  }>>> {
+    return this.get<BackendResponse<any>>('/settings/verification/status');
+  }
+
+  /**
+   * Send verification code for email or phone
+   */
+  async sendVerificationCode(type: 'email' | 'phone'): Promise<APIResponse<BackendResponse<{
+    sent: boolean;
+    destination: string;
+    expiresIn: number;
+    attemptsRemaining: number;
+  }>>> {
+    return this.post<BackendResponse<any>>('/settings/verification/send', { type });
+  }
+
+  /**
+   * Verify email or phone with code
+   */
+  async verifyCode(data: {
+    type: 'email' | 'phone';
+    code: string;
+  }): Promise<APIResponse<BackendResponse<{
+    verified: boolean;
+    type: string;
+    verifiedAt: string;
+  }>>> {
+    return this.post<BackendResponse<any>>('/settings/verification/verify', data);
+  }
+
+  /**
+   * Get current user profile with extended details
+   */
+  async getCurrentUser(): Promise<APIResponse<BackendResponse<{
+    id: number;
+    email: string;
+    name: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    phoneCountryCode?: string;
+    country?: string;
+    profile?: string;
+    status?: string;
+    userType?: string;
+    created_at: string;
+    updated_at: string;
+    last_login?: string;
+    total_sessions?: number;
+    // Address fields
+    street?: string;
+    city?: string;
+    state?: string;
+    province?: string;
+    district?: string;
+    zipCode?: string;
+    postalCode?: string;
+    postcode?: string;
+    pinCode?: string;
+    cep?: string;
+    county?: string;
+    region?: string;
+    prefecture?: string;
+    village?: string;
+    island?: string;
+    parish?: string;
+    blockNumber?: string;
+    dzongkhag?: string;
+    department?: string;
+    atoll?: string;
+    'flat/floor/block'?: string;
+    buildingName?: string;
+    eircode?: string;
+    town?: string;
+    building?: string;
+    governorate?: string;
+    'oblast/krai/republic'?: string;
+    quarter?: string;
+    zone?: string;
+    'sub-district'?: string;
+    suco?: string;
+    administrativePost?: string;
+    municipality?: string;
+    ward?: string;
+    township?: string;
+    'state/region'?: string;
+    hamlet?: string;
+    suburb?: string;
+    emirate?: string;
+    kingdom?: string;
+  }>>> {
+    return this.get<BackendResponse<any>>('/auth/me');
+  }
+
+  /**
+   * Update user profile information
+   */
+  async updateUserProfile(profileData: {
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    phoneCountryCode?: string;
+    country?: string;
+    // Address fields
+    street?: string;
+    city?: string;
+    state?: string;
+    province?: string;
+    district?: string;
+    zipCode?: string;
+    postalCode?: string;
+    postcode?: string;
+    pinCode?: string;
+    cep?: string;
+    county?: string;
+    region?: string;
+    prefecture?: string;
+    village?: string;
+    island?: string;
+    parish?: string;
+    blockNumber?: string;
+    dzongkhag?: string;
+    department?: string;
+    atoll?: string;
+    'flat/floor/block'?: string;
+    buildingName?: string;
+    eircode?: string;
+    town?: string;
+    building?: string;
+    governorate?: string;
+    'oblast/krai/republic'?: string;
+    quarter?: string;
+    zone?: string;
+    'sub-district'?: string;
+    suco?: string;
+    administrativePost?: string;
+    municipality?: string;
+    ward?: string;
+    township?: string;
+    'state/region'?: string;
+    hamlet?: string;
+    suburb?: string;
+    emirate?: string;
+    kingdom?: string;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.put<BackendResponse<any>>('/auth/me', profileData);
   }
 }
 

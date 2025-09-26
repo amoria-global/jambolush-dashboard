@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -26,4 +27,46 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: #083A85 #FFFF;
+}
+
+/* Font Size Settings */
+html.font-small {
+  font-size: 14px;
+}
+
+html.font-medium {
+  font-size: 16px;
+}
+
+html.font-large {
+  font-size: 18px;
+}
+
+/* Compact Mode Settings */
+html.compact {
+  --spacing-unit: 0.75rem;
+}
+
+html.compact .p-4 { padding: 0.5rem !important; }
+html.compact .p-6 { padding: 0.75rem !important; }
+html.compact .p-8 { padding: 1rem !important; }
+html.compact .py-8 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+html.compact .py-6 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+html.compact .py-4 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+html.compact .mb-8 { margin-bottom: 1rem !important; }
+html.compact .mb-6 { margin-bottom: 0.75rem !important; }
+html.compact .mb-4 { margin-bottom: 0.5rem !important; }
+html.compact .gap-6 { gap: 0.75rem !important; }
+html.compact .gap-4 { gap: 0.5rem !important; }
+html.compact .space-y-6 > * + * { margin-top: 0.75rem !important; }
+html.compact .space-y-4 > * + * { margin-top: 0.5rem !important; }
+
+/* Dark Mode Support */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #1f2937;
+  color: #f9fafb;
 }
