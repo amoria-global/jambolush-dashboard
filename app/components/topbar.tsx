@@ -87,7 +87,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const router = useRouter();
 
-  const [frontend_url, setFrontEnd] = useState<string>('http://localhost:3000');
+  const [frontend_url, setFrontEnd] = useState<string>('https://jambolush.com');
 
   useEffect(() => { 
     if (process.env.FRONTEND_URL) {
