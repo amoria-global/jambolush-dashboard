@@ -385,7 +385,7 @@ const HostDashboard = () => {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+          <h1 className="text-xl lg:text-3xl font-semibold text-[#083A85] mb-3">
             {getTimeBasedGreeting()}, {userName}
           </h1>
           <p className="text-gray-600 text-md">Here's what's happening with your property business</p>

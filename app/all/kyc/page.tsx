@@ -11,7 +11,12 @@ interface User {
   email: string;
   names: string;
   phone: string;
-  address: string;
+  district?: string;
+  sector?: string;
+  street: string;
+  province?: string;
+  state: string;
+  country?: string;
   userType: string;
 }
 
@@ -19,7 +24,12 @@ interface PersonalDetails {
   fullName: string;
   dateOfBirth: string;
   nationality: string;
-  address: string;
+  district: string;
+  sector: string;
+  street: string;
+  province: string;
+  state: string;
+  country: string;
   phoneNumber: string;
   email: string;
   documentType: 'passport' | 'id' | 'both';
@@ -135,7 +145,12 @@ const KYCUploadPage: React.FC = () => {
       fullName: '',
       dateOfBirth: '',
       nationality: '',
-      address: '',
+      district: '',
+      sector: '',
+      street: '',
+      province: '',
+      state: '',
+      country: '',
       phoneNumber: '',
       email: '',
       documentType: 'passport'
@@ -223,8 +238,7 @@ const KYCUploadPage: React.FC = () => {
             ...prev.personalDetails,
             fullName: user.names || '',
             email: user.email || '',
-            phoneNumber: user.phone || '',
-            address: user.address || ''
+            phoneNumber: user.phone || ''
           }
         }));
       }
@@ -472,7 +486,7 @@ const handleDocumentUpload = (documentType: keyof KYCDocuments, file: File | nul
       addressDocumentUrl: uploadedUrls.addressDocument
     };
 
-    const response = await api.post('/auth/kyc/submit', kycData);
+    const response = await api.submitKYC(kycData);
 
     if (response.data.success) {
       setSubmitSuccess('KYC documents submitted successfully! Your account is under review.');
@@ -521,7 +535,12 @@ const resetForm = () => {
       fullName: '',
       dateOfBirth: '',
       nationality: '',
-      address: '',
+      district: '',
+      sector: '',
+      street: '',
+      province: '',
+      state: '',
+      country: '',
       phoneNumber: '',
       email: '',
       documentType: 'passport'
@@ -542,15 +561,20 @@ const resetForm = () => {
 
 const isStepValid = (): boolean => {
   if (currentStep === 1) {
-    const { fullName, dateOfBirth, nationality, address, phoneNumber, email } = formData.personalDetails;
+    const { fullName, dateOfBirth, nationality, district, sector, street, province, state, country, phoneNumber, email } = formData.personalDetails;
     return !!(
       fullName && fullName.trim().length >= 2 &&
       dateOfBirth &&
       nationality &&
-      address && address.trim().length >= 10 &&
+      district && district.trim().length >= 2 &&
+      sector && sector.trim().length >= 2 &&
+      street && street.trim().length >= 2 &&
+      province && province.trim().length >= 2 &&
+      state && state.trim().length >= 2 &&
+      country && country.trim().length >= 2 &&
       phoneNumber && phoneNumber.trim().length >= 10 &&
       email && isValidEmail(email) &&
-      formData.documents.addressDocument // Add this requirement
+      formData.documents.addressDocument
     );
   }
   
@@ -785,23 +809,126 @@ const isStepValid = (): boolean => {
                         )}
                       </div>
 
+                      {/* Location Fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                            District <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="district"
+                            value={formData.personalDetails.district}
+                            onChange={handlePersonalDetailsChange}
+                            placeholder="Enter district"
+                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
+                              validationErrors.district ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {validationErrors.district && (
+                            <p className="mt-1 text-sm text-red-600">{validationErrors.district}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                            Sector <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="sector"
+                            value={formData.personalDetails.sector}
+                            onChange={handlePersonalDetailsChange}
+                            placeholder="Enter sector"
+                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
+                              validationErrors.sector ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {validationErrors.sector && (
+                            <p className="mt-1 text-sm text-red-600">{validationErrors.sector}</p>
+                          )}
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
-                          Full Address <span className="text-red-500">*</span>
+                          Street <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
-                          name="address"
-                          value={formData.personalDetails.address}
+                          name="street"
+                          value={formData.personalDetails.street}
                           onChange={handlePersonalDetailsChange}
-                          placeholder="District, Sector, Street, City, Province, State, Country, ZIP Code"
+                          placeholder="Enter street address"
                           className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
-                            validationErrors.address ? 'border-red-500' : 'border-gray-300'
+                            validationErrors.street ? 'border-red-500' : 'border-gray-300'
                           }`}
                         />
-                        {validationErrors.address && (
-                          <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
+                        {validationErrors.street && (
+                          <p className="mt-1 text-sm text-red-600">{validationErrors.street}</p>
                         )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                            Province <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="province"
+                            value={formData.personalDetails.province}
+                            onChange={handlePersonalDetailsChange}
+                            placeholder="Enter province"
+                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
+                              validationErrors.province ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {validationErrors.province && (
+                            <p className="mt-1 text-sm text-red-600">{validationErrors.province}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                            State 
+                          </label>
+                          <input
+                            type="text"
+                            name="state"
+                            value={formData.personalDetails.state}
+                            onChange={handlePersonalDetailsChange}
+                            placeholder="Enter state"
+                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all placeholder:font-bold ${
+                              validationErrors.state ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          />
+                          {validationErrors.state && (
+                            <p className="mt-1 text-sm text-red-600">{validationErrors.state}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                            Country <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            name="country"
+                            value={formData.personalDetails.country}
+                            onChange={handlePersonalDetailsChange}
+                            className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all appearance-none bg-white cursor-pointer ${
+                              validationErrors.country ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                          >
+                            <option value="">Select country</option>
+                            {countries.map(country => (
+                              <option key={country} value={country}>{country}</option>
+                            ))}
+                          </select>
+                          {validationErrors.country && (
+                            <p className="mt-1 text-sm text-red-600">{validationErrors.country}</p>
+                          )}
+                        </div>
                       </div>
                       
                       {/* Address Verification Document Upload */}

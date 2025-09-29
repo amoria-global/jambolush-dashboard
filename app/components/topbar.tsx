@@ -699,15 +699,33 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                   setIsNotificationsOpen(false);
                 }}
               >
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] to-[#F20C8F] border-2 border-gray-300">
-                  {user.profile ? (
-                    <img
-                      src={user.profile}
-                      alt="Profile"
-                      className="object-cover w-full h-full"
-                    />
-                  ) : (
-                    <span className="text-white font-semibold text-sm">{getUserAvatar()}</span>
+                <div className="relative">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] to-[#F20C8F] border-2 border-gray-300">
+                    {user.profile ? (
+                      <img
+                        src={user.profile}
+                        alt="Profile"
+                        className="object-cover w-full h-full"
+                      />
+                    ) : (
+                      <span className="text-white font-semibold text-sm">{getUserAvatar()}</span>
+                    )}
+                  </div>
+                  {/* Verification Badge for KYC users (agent, host, tourguide) */}
+                  {(user.userType === 'agent' || user.userType === 'host' || user.userType === 'tourguide') && (
+                    <div
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                      style={{
+                        background: user.kycStatus === 'approved'
+                          ? 'linear-gradient(135deg, #0a66c2 70%, #ffffff 100%)' // Approved: blue mixed with white
+                          : 'linear-gradient(135deg, #9a9b9c 10%, #ffffff 100%)' // Pending/null: gray mixed with white
+                      }}
+                    >
+                      <i
+                        className={`bi ${user.kycStatus === 'approved' ? 'bi-check' : 'bi-check'} text-2xl`}
+                        style={{ color: '#ffffff' }}
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -715,7 +733,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                   <span className="font-semibold" style={{ color: "#083A85" }}>
                     {getUserDisplayName()}
                   </span>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-base text-gray-600">
                     {userSession.role === 'host' || userSession.role === 'agent' 
                       ? `$${balance.toFixed(2)}` 
                       : getRoleDisplayName(userSession.role, user.tourGuideType)

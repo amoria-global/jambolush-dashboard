@@ -318,7 +318,7 @@ const GuestDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
+            <h1 className="text-xl lg:text-3xl font-semibold text-[#083A85] mb-3">
               {getTimeBasedGreeting()}, {userName}
             </h1>
             <p className="text-gray-600 text-md">Here's your dashboard summary</p>
