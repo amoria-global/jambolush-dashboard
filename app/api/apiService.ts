@@ -1212,7 +1212,20 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
  * Submit KYC data
  */
 async submitKYC(kycData: {
-  personalDetails: any;
+  personalDetails: {
+    fullName: string;
+    dateOfBirth: string;
+    nationality: string;
+    district: string;
+    sector: string;
+    street: string;
+    province: string;
+    state: string;
+    country: string;
+    phoneNumber: string;
+    email: string;
+    documentType: string;
+  };
   addressDocumentUrl?: string;
 }): Promise<APIResponse<BackendResponse<any>>> {
   return this.post<BackendResponse<any>>('/auth/kyc/submit', kycData);
