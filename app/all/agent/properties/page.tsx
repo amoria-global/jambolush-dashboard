@@ -490,10 +490,6 @@ const PropertiesPage: React.FC = () => {
     }
 
     return (
-    <>
-        <head>
-            <title>My Properties - Jambolush</title>
-        </head>
         <div className="pt-14 font-sans">
             <style jsx>{`
                 @keyframes scale-in {
@@ -860,8 +856,6 @@ const PropertiesPage: React.FC = () => {
 
             </div>
         </div>
-    </>
-
     );
 };
 
