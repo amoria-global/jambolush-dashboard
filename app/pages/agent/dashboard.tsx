@@ -17,6 +17,22 @@ const EnhancedAgentDashboard = () => {
     const [loading, setLoading] = useState<any>(true);
     const [error, setError] = useState<any>(null);
     const [userName, setUserName] = useState('Agent');
+    const [showReferralModal, setShowReferralModal] = useState(false);
+    const [referralData, setReferralData] = useState<any>({
+        referrals: [],
+        totalPages: 1,
+        currentPage: 1,
+        totalReferrals: 0
+    });
+    const [referralLoading, setReferralLoading] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
+
+    // Load referral data when modal opens
+    useEffect(() => {
+        if (showReferralModal) {
+            fetchReferralData();
+        }
+    }, [showReferralModal]);
 
     // Fetch all dashboard data
     useEffect(() => {
@@ -408,6 +424,218 @@ const EnhancedAgentDashboard = () => {
         return pickRandom(nightMessages);
     };
 
+    // Generate referral link based on agent ID
+    const generateReferralLink = () => {
+        const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+        const agentId = user.id || user.userId || 'default';
+        return `https://jambolush.com/all/become-host?ref=${agentId}`;
+    };
+
+    // Copy referral link to clipboard
+    const copyReferralLink = async () => {
+        try {
+            await navigator.clipboard.writeText(generateReferralLink());
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    };
+
+    // Fetch referral data
+    const fetchReferralData = async (page = 1) => {
+        setReferralLoading(true);
+        try {
+            const response = await api.get(`/auth/agent/referrals?page=${page}&limit=10`);
+            setReferralData(response.data.data);
+        } catch (error: any) {
+            console.error('Error fetching referral data:', error);
+
+            // Handle 404 specifically - endpoint not implemented yet
+            if (error.response?.status === 404) {
+                console.log('Referrals endpoint not implemented yet');
+            }
+
+            // Set empty data on error
+            setReferralData({
+                referrals: [],
+                totalPages: 1,
+                currentPage: page,
+                totalReferrals: 0
+            });
+        } finally {
+            setReferralLoading(false);
+        }
+    };
+
+    // Referral Modal Component
+    const ReferralModal = () => {
+        if (!showReferralModal) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                    {/* Modal Header */}
+                    <div className="p-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold text-[#083A85] flex items-center gap-2">
+                                <i className="bi bi-person-plus" />
+                                Refer a Friend
+                            </h2>
+                            <button
+                                onClick={() => setShowReferralModal(false)}
+                                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                            >
+                                <i className="bi bi-x-lg text-xl" />
+                            </button>
+                        </div>
+                        <p className="text-gray-600 mt-2">
+                            Share your referral link and earn rewards when friends join as hosts!
+                        </p>
+                    </div>
+
+                    {/* Modal Content */}
+                    <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                        {/* Referral Link Section */}
+                        <div className="mb-8">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Your Referral Link</h3>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={generateReferralLink()}
+                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                                />
+                                <button
+                                    onClick={copyReferralLink}
+                                    className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+                                        copySuccess
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-[#083A85] text-white hover:bg-[#062a63]'
+                                    }`}
+                                >
+                                    <i className={`bi ${copySuccess ? 'bi-check-lg' : 'bi-copy'}`} />
+                                    {copySuccess ? 'Copied!' : 'Copy'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Referred Users Table */}
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-800">Referred Users</h3>
+                                <span className="text-sm text-gray-600">
+                                    Total: {referralData.totalReferrals} referrals
+                                </span>
+                            </div>
+
+                            {referralLoading ? (
+                                <div className="flex justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#083A85]"></div>
+                                </div>
+                            ) : (
+                                <>
+                                    {referralData.referrals.length > 0 ? (
+                                        <>
+                                            {/* Table */}
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Name
+                                                            </th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Email
+                                                            </th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Phone Number
+                                                            </th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Status
+                                                            </th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                                Joined Date
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                        {referralData.referrals.map((referral: any) => (
+                                                            <tr key={referral.id} className="hover:bg-gray-50">
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <div className="text-sm font-medium text-gray-900">
+                                                                        {referral.fullName}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <div className="text-sm text-gray-900">{referral.email}</div>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <div className="text-sm text-gray-900">{referral.phone}</div>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                                                        referral.status === 'Active'
+                                                                            ? 'bg-green-100 text-green-800'
+                                                                            : referral.status === 'Pending'
+                                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                                            : 'bg-gray-100 text-gray-800'
+                                                                    }`}>
+                                                                        {referral.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {new Date(referral.joinedAt).toLocaleDateString()}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            {/* Pagination */}
+                                            {referralData.totalPages > 1 && (
+                                                <div className="flex items-center justify-between mt-6">
+                                                    <div className="text-sm text-gray-700">
+                                                        Page {referralData.currentPage} of {referralData.totalPages}
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => fetchReferralData(referralData.currentPage - 1)}
+                                                            disabled={referralData.currentPage === 1}
+                                                            className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                        >
+                                                            Previous
+                                                        </button>
+                                                        <button
+                                                            onClick={() => fetchReferralData(referralData.currentPage + 1)}
+                                                            disabled={referralData.currentPage === referralData.totalPages}
+                                                            className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                        >
+                                                            Next
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="text-center py-12">
+                                            <i className="bi bi-person-plus text-4xl text-gray-400 mb-4" />
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No referrals yet</h3>
+                                            <p className="text-gray-500">
+                                                Share your referral link to start earning rewards!
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="mt-20">
             <div className="max-w-7xl mx-auto">
@@ -418,6 +646,17 @@ const EnhancedAgentDashboard = () => {
                         {getTimeBasedGreeting()}, {userName}
                     </h1>
                     <p className="text-gray-600 text-md">Here's what's happening with your real estate business</p>
+                </div>
+
+                {/* Header with Refer a friend button */}
+                <div className="flex justify-end mb-2">
+                    <button
+                        onClick={() => setShowReferralModal(true)}
+                        className="absolute top-20 right-12 m-4 px-6 py-4 text-base font-medium bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors flex items-center gap-2 cursor-pointer"
+                    >
+                        <i className="bi bi-person-plus" />
+                        Refer a friend
+                    </button>
                 </div>
 
                 {/* Summary Cards */}
@@ -695,6 +934,9 @@ const EnhancedAgentDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Referral Modal */}
+            <ReferralModal />
         </div>
     );
 };
