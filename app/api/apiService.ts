@@ -1226,6 +1226,7 @@ async submitKYC(kycData: {
     email: string;
     documentType: string;
   };
+  passportPhotoUrl?: string;
   addressDocumentUrl?: string;
 }): Promise<APIResponse<BackendResponse<any>>> {
   return this.post<BackendResponse<any>>('/auth/kyc/submit', kycData);

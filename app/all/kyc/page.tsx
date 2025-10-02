@@ -378,21 +378,27 @@ const handleDocumentUpload = (documentType: keyof KYCDocuments, file: File | nul
 
   const processDocuments = async (): Promise<any> => {
     const uploadedUrls: any = {};
-    
-    // Upload passport photo if exists
+
+    // Upload passport photo (required) - This is the new passport image field under email
     if (formData.documents.passportPhoto) {
       try {
-        setUploadProgress(prev => ({ ...prev, passport: 0 }));
-        uploadedUrls.passport = await uploadDocumentToStorage(
+        setUploadProgress(prev => ({ ...prev, passportPhoto: 0 }));
+        uploadedUrls.passportPhoto = await uploadDocumentToStorage(
           formData.documents.passportPhoto.file,
-          'passport',
-          (progress) => setUploadProgress(prev => ({ ...prev, passport: progress }))
+          'passport_photo',
+          (progress) => setUploadProgress(prev => ({ ...prev, passportPhoto: progress }))
         );
       } catch (error) {
         console.error('Failed to upload passport photo:', error);
-        setUploadProgress(prev => ({ ...prev, passport: -1 }));
+        setUploadProgress(prev => ({ ...prev, passportPhoto: -1 }));
         throw error;
       }
+    }
+
+    // Upload passport document if exists (for document type selection in step 2)
+    if (formData.personalDetails.documentType === 'passport' || formData.personalDetails.documentType === 'both') {
+      // Note: The passport field in step 2 uses the same passportPhoto field
+      // No need to upload again
     }
 
     // Upload ID front if exists
@@ -483,6 +489,7 @@ const handleDocumentUpload = (documentType: keyof KYCDocuments, file: File | nul
     // Submit KYC to backend
     const kycData = {
       personalDetails: formData.personalDetails,
+      passportPhotoUrl: uploadedUrls.passportPhoto,
       addressDocumentUrl: uploadedUrls.addressDocument
     };
 
@@ -574,6 +581,7 @@ const isStepValid = (): boolean => {
       country && country.trim().length >= 2 &&
       phoneNumber && phoneNumber.trim().length >= 10 &&
       email && isValidEmail(email) &&
+      formData.documents.passportPhoto &&
       formData.documents.addressDocument
     );
   }
@@ -1078,6 +1086,71 @@ const isStepValid = (): boolean => {
                         {validationErrors.email && (
                           <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
                         )}
+                      </div>
+
+                      {/* Passport Image Upload */}
+                      <div>
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                          Passport Photo <span className="text-red-500">*</span>
+                        </label>
+                        <div className={`border-2 rounded-lg p-4 transition-all mb-2 ${
+                          formData.documents.passportPhoto ? 'border-green-400 bg-green-50' : 'border-orange-400 bg-orange-50'
+                        }`}>
+                          {!formData.documents.passportPhoto ? (
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => passportInputRef.current?.click()}
+                                className="w-full py-6 sm:py-8 border-2 border-dashed border-orange-300 rounded-lg flex flex-col items-center justify-center hover:border-orange-400 hover:bg-orange-100 transition-all cursor-pointer"
+                              >
+                                <svg className="w-8 h-8 sm:w-12 sm:h-12 text-orange-400 mb-2 sm:mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-xs sm:text-sm font-medium text-gray-700">Upload Passport Photo Page</span>
+                                <span className="text-xs sm:text-sm text-gray-500 mt-1">JPEG, PNG, WebP (Max 10MB)</span>
+                              </button>
+                              <input
+                                ref={passportInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleDocumentUpload('passportPhoto', e.target.files?.[0] || null)}
+                                className="hidden"
+                              />
+                            </div>
+                          ) : (
+                            <div className="bg-white rounded-lg p-3 sm:p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-3 min-w-0 flex-1">
+                                  <div className="w-16 h-12 sm:w-20 sm:h-16 rounded-lg overflow-hidden border border-gray-200">
+                                    <img
+                                      src={formData.documents.passportPhoto.url}
+                                      alt="Passport"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                                      {formData.documents.passportPhoto.name}
+                                    </p>
+                                    <p className="text-xs sm:text-sm text-gray-500">
+                                      {formatFileSize(formData.documents.passportPhoto.file.size)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeDocument('passportPhoto')}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">Upload a clear photo of your passport's identification page</p>
                       </div>
 
                       <div>
