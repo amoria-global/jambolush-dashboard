@@ -69,7 +69,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const pathname = usePathname();
     const router = useRouter();
 
-    const [frontend_url, setFrontEnd] = useState<string>('http://localhost:3000');
+    const [frontend_url, setFrontEnd] = useState<string>('https://app.jambolush.com');
 
     useEffect(() => { 
         if (process.env.FRONTEND_URL) {
