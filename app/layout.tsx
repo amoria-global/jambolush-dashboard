@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import SideBar from "./components/sidebar";
 import TopBar from "./components/topbar";
 import NotificationToast from "./components/NotificationToast";
+import SessionExpiredModal from "./components/SessionExpiredModal";
 import './styles/globals.css';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import authService from './api/authService';
@@ -259,8 +260,13 @@ export default function RootLayout({
         {/* Notification Toast Component */}
         <NotificationToast />
 
-        <main className={`md:ml-72 p-4 sm:p-2 md:p-4 `}>
-          {children}
+        {/* Session Expired Modal */}
+        <SessionExpiredModal />
+
+        <main className="transition-all duration-300" style={{ marginLeft: '0', paddingTop: '70px' }}>
+          <div className="md:ml-60 p-4 sm:p-2 md:p-6">
+            {children}
+          </div>
         </main>
       </body>
     </html>

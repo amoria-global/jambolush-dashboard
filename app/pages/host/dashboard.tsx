@@ -39,9 +39,9 @@ const HostDashboard = () => {
         const enhanced = enhancedResponse.data.data;
         setEnhancedData(enhanced);
 
-        // Fetch recent bookings
-        const bookingsResponse = await api.get('/properties/host/bookings');
-        setBookingsData(bookingsResponse.data.data.bookings);
+        // Fetch recent bookings (guest bookings for host's properties)
+        const bookingsResponse = await api.get('/bookings/host/guest-bookings');
+        setBookingsData(bookingsResponse.data.data.bookings || bookingsResponse.data.data);
 
         // Fetch earnings data
         const earningsResponse = await api.get('/properties/host/earnings');
@@ -153,8 +153,8 @@ const HostDashboard = () => {
     return (
       <div className="mt-20 flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F20C8F] mx-auto mb-2"></div>
+          <p className="text-gray-600 text-xs">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -163,15 +163,21 @@ const HostDashboard = () => {
   if (error) {
     return (
       <div className="mt-20 flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
-          <p>{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
-          >
-            Retry
-          </button>
+        <div className="text-center max-w-md">
+          <div className="bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 rounded-xl p-3 shadow-md">
+            <div className="flex items-center justify-center w-10 h-10 mx-auto mb-2 bg-red-100 rounded-xl">
+              <i className="bi bi-exclamation-triangle text-red-600 text-base" />
+            </div>
+            <h2 className="text-red-800 font-semibold mb-2 text-sm">Error Loading Dashboard</h2>
+            <p className="text-red-600 mb-2 text-xs">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gradient-to-r from-[#F20C8F] to-[#d10a7a] text-white px-3 py-2 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 font-medium text-xs focus:border-transparent"
+            >
+              <i className="bi bi-arrow-clockwise mr-2" />
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -381,34 +387,34 @@ const HostDashboard = () => {
 
   return (
     <div className="mt-20">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-3">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-xl lg:text-3xl font-semibold text-[#083A85] mb-3">
+        <div className="mb-3">
+          <h1 className="text-base lg:text-lg font-semibold text-[#083A85] mb-1">
             {getTimeBasedGreeting()}, {userName}
           </h1>
-          <p className="text-gray-600 text-md">Here's what's happening with your property business</p>
+          <p className="text-gray-600 text-xs">Here's what's happening with your property business</p>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           {summaryCards.map((card, index) => (
-            <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-              <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
+            <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 relative overflow-hidden border border-gray-100">
+              <div className="absolute top-1 right-1 opacity-5 text-2xl">
                 <i className={`bi bi-${card.icon}`} />
               </div>
-              <div className="flex items-center mb-3">
+              <div className="flex items-center mb-2">
                 <div
-                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
-                  style={{ backgroundColor: card.iconBg }}
+                  className="w-7 h-7 rounded-xl flex items-center justify-center mr-2 text-white shadow-md bg-gradient-to-br"
+                  style={{ background: `linear-gradient(to bottom right, ${card.iconBg}, ${card.iconBg}dd)` }}
                 >
-                  <i className={`bi bi-${card.icon} text-md sm:text-base`} />
+                  <i className={`bi bi-${card.icon} text-xs`} />
                 </div>
-                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
+                <span className="text-xs text-gray-600 font-semibold">{card.title}</span>
               </div>
-              <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-              <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
+              <div className="text-base lg:text-lg font-bold mb-1 text-gray-800">{card.value}</div>
+              <div className="text-xs text-green-600 flex items-center font-semibold">
                 <i className="bi bi-arrow-up mr-1" />
                 {card.change}
               </div>
@@ -417,30 +423,30 @@ const HostDashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
           {/* Earnings Chart */}
-          <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                <i className="bi bi-graph-up mr-2 text-pink-500" />
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center text-gray-800">
+                <i className="bi bi-graph-up mr-2 text-[#F20C8F]" />
                 Monthly Earnings
               </h3>
-              <div className="text-md text-gray-500">
+              <div className="text-xs text-gray-500">
                 <i className="bi bi-three-dots" />
               </div>
             </div>
-            <div className="h-48 sm:h-56 lg:h-64">
+            <div className="h-48 sm:h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontSize: '12px'
+                      borderRadius: '12px',
+                      fontSize: '11px'
                     }}
                   />
                   <Line
@@ -457,28 +463,28 @@ const HostDashboard = () => {
           </div>
 
           {/* Property Bookings Chart */}
-          <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                <i className="bi bi-bar-chart mr-2 text-blue-800" />
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center text-gray-800">
+                <i className="bi bi-bar-chart mr-2 text-[#083A85]" />
                 Weekly Property Bookings
               </h3>
-              <div className="text-md text-gray-500">
+              <div className="text-xs text-gray-500">
                 <i className="bi bi-three-dots" />
               </div>
             </div>
-            <div className="h-48 sm:h-56 lg:h-64">
+            <div className="h-48 sm:h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontSize: '12px'
+                      borderRadius: '12px',
+                      fontSize: '11px'
                     }}
                   />
                   <Bar dataKey="bookings" fill="#083A85" radius={[6, 6, 0, 0]} />
@@ -489,76 +495,76 @@ const HostDashboard = () => {
         </div>
 
         {/* Properties & Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
           {/* Today's Check-ins */}
-          <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center text-gray-800">
                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                 Upcoming Check-ins
               </h3>
-              <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/host/calendar') }}>
+              <button className="text-xs text-[#083A85] hover:text-blue-900 hover:shadow-md hover:-translate-y-0.5 font-semibold cursor-pointer transition-all duration-200 focus:border-transparent" onClick={() => { router.push('/host/calendar') }}>
                 View Calendar
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {upcomingCheckIns.length > 0 ? upcomingCheckIns.map((checkin: any, index: number) => (
-                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
+                  <div className="flex items-start justify-between mb-1">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-800 text-md">{checkin.title}</h4>
-                      <p className="text-md text-gray-600 mt-1">{checkin.guest}</p>
+                      <h4 className="font-semibold text-gray-800 text-xs">{checkin.title}</h4>
+                      <p className="text-xs text-gray-600 mt-1">{checkin.guest}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-md font-medium ${checkin.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${checkin.status === 'confirmed' ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800' : 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800'
                       }`}>
                       {checkin.status}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-md text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>{checkin.time} • {checkin.duration}</span>
                     <span>{checkin.guests} guests</span>
                   </div>
                 </div>
               )) : (
-                <div className="text-center py-8 text-gray-500">
-                  <i className="bi bi-calendar-x text-3xl mb-2" />
-                  <p>No upcoming check-ins</p>
+                <div className="text-center py-6 text-gray-500">
+                  <i className="bi bi-calendar-x text-xl mb-2" />
+                  <p className="text-xs">No upcoming check-ins</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center text-gray-800">
                 <i className="bi bi-chat-dots mr-2 text-blue-600" />
                 Recent Activity
               </h3>
-              <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/host/bookings') }}>
+              <button className="text-xs text-[#083A85] hover:text-blue-900 hover:shadow-md hover:-translate-y-0.5 font-semibold cursor-pointer transition-all duration-200 focus:border-transparent" onClick={() => { router.push('/host/bookings') }}>
                 View All
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recentActivity.length > 0 ? recentActivity.map((activity: any, index: number) => (
-                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
+                  <div className="flex items-start justify-between mb-1">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-800 text-md">{activity.guest}</h4>
-                      <p className="text-md text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
+                      <h4 className="font-semibold text-gray-800 text-xs">{activity.guest}</h4>
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-md font-medium ${activity.type === 'booking' ? 'bg-green-100 text-green-800' :
-                        activity.type === 'inquiry' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${activity.type === 'booking' ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800' :
+                        activity.type === 'inquiry' ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800' : 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800'
                       }`}>
                       {activity.type}
                     </span>
                   </div>
-                  <div className="text-md text-gray-500">{activity.time}</div>
+                  <div className="text-xs text-gray-500">{activity.time}</div>
                 </div>
               )) : (
-                <div className="text-center py-8 text-gray-500">
-                  <i className="bi bi-chat-square-dots text-3xl mb-2" />
-                  <p>No recent activity</p>
+                <div className="text-center py-6 text-gray-500">
+                  <i className="bi bi-chat-square-dots text-xl mb-2" />
+                  <p className="text-xs">No recent activity</p>
                 </div>
               )}
             </div>
@@ -566,16 +572,16 @@ const HostDashboard = () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Property Types */}
-          <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center text-gray-800">
                 <i className="bi bi-pie-chart mr-2 text-gray-600" />
                 Property Types
               </h3>
             </div>
-            <div className="h-48 sm:h-56">
+            <div className="h-44 sm:h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -595,11 +601,11 @@ const HostDashboard = () => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="flex flex-wrap justify-center gap-3 mt-3">
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
               {propertyTypes.map((type: any, index) => (
-                <div key={index} className="flex items-center text-md font-medium">
+                <div key={index} className="flex items-center text-xs font-semibold">
                   <div
-                    className="w-3 h-3 mr-2 rounded-sm"
+                    className="w-3 h-3 mr-1 rounded-sm"
                     style={{ backgroundColor: type.color }}
                   ></div>
                   {type.name} ({type.value})
@@ -609,31 +615,31 @@ const HostDashboard = () => {
           </div>
 
           {/* Recent Reviews */}
-          <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 lg:col-span-2 border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold flex items-center text-gray-800">
                 <i className="bi bi-star mr-2 text-amber-500" />
                 Recent Reviews
               </h3>
-              <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/host/reviews') }}>
+              <button className="text-xs text-[#083A85] hover:text-blue-900 hover:shadow-md hover:-translate-y-0.5 font-semibold cursor-pointer transition-all duration-200 focus:border-transparent" onClick={() => { router.push('/host/reviews') }}>
                 View All
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {recentReviews.length > 0 ? recentReviews.map((review: any, index: number) => (
-                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
+                  <div className="flex items-start justify-between mb-1">
                     <div className="flex-1">
                       <div className="flex items-center mb-1">
-                        <h4 className="font-medium text-gray-800 text-md mr-2">{review.guest}</h4>
+                        <h4 className="font-semibold text-gray-800 text-xs mr-2">{review.guest}</h4>
                         <div className="flex items-center">
                           {[...Array(review.rating)].map((_, i) => (
-                            <i key={i} className="bi bi-star-fill text-yellow-500 text-md" />
+                            <i key={i} className="bi bi-star-fill text-yellow-500 text-xs" />
                           ))}
                         </div>
                       </div>
-                      <p className="text-md text-gray-600 mb-1">{review.comment}</p>
-                      <div className="flex items-center justify-between text-md text-gray-500">
+                      <p className="text-xs text-gray-600 mb-1">{review.comment}</p>
+                      <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>{review.property}</span>
                         <span>{review.date}</span>
                       </div>
@@ -641,9 +647,9 @@ const HostDashboard = () => {
                   </div>
                 </div>
               )) : (
-                <div className="text-center py-8 text-gray-500">
-                  <i className="bi bi-star text-3xl mb-2" />
-                  <p>No reviews yet</p>
+                <div className="text-center py-6 text-gray-500">
+                  <i className="bi bi-star text-xl mb-2" />
+                  <p className="text-xs">No reviews yet</p>
                 </div>
               )}
             </div>
@@ -651,16 +657,16 @@ const HostDashboard = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-          <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Stats</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
+        <div className="mt-3 bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+          <h3 className="text-sm font-semibold mb-2 text-gray-800">Performance Stats</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {quickStats.map((stat, index) => (
-              <div key={index} className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
+              <div key={index} className="text-center p-2 rounded-xl hover:bg-gray-50/80 transition-all duration-200">
+                <div className="text-lg lg:text-xl mb-1 text-gray-600">
                   <i className={`bi bi-${stat.icon}`} />
                 </div>
-                <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
+                <div className="text-sm lg:text-base font-bold text-gray-800 mb-1">{stat.value}</div>
+                <div className="text-xs text-gray-600 font-semibold">{stat.label}</div>
               </div>
             ))}
           </div>

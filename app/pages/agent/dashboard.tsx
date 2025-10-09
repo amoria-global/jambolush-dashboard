@@ -59,9 +59,12 @@ const EnhancedAgentDashboard = () => {
                 const transactionsResponse = await api.get('/properties/agent/transactions/monitoring');
                 setTransactionsData(transactionsResponse.data.data);
 
-                // Fetch earnings data with transactions
-                const earningsResponse = await api.get('/properties/agent/earnings');
+                // Fetch earnings/commission data
+                const earningsResponse = await api.get('/bookings/agent/commissions');
                 setEarningsData(earningsResponse.data.data);
+
+                // Fetch client bookings
+                const clientBookingsResponse = await api.get('/bookings/agent/clients').catch(() => null);
 
                 // Fetch agent's properties
                 const propertiesResponse = await api.get('/properties/agent/properties');
@@ -69,7 +72,7 @@ const EnhancedAgentDashboard = () => {
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
-                setError('Failed to load dashboard data ' + JSON.stringify(error));
+                setError('Failed to load dashboard data');
             } finally {
                 setLoading(false);
             }
@@ -81,7 +84,6 @@ const EnhancedAgentDashboard = () => {
     // Transform earnings data for chart
     const transformEarningsData = (monthlyCommissions: any) => {
         if (!monthlyCommissions || monthlyCommissions.length === 0) {
-            // Fallback data if no earnings data
             return [
                 { month: 'Jan', earnings: 0 },
                 { month: 'Feb', earnings: 0 },
@@ -101,7 +103,6 @@ const EnhancedAgentDashboard = () => {
     // Transform transaction performance data for chart
     const transformTransactionData = (transactionBreakdown: any) => {
         if (!transactionBreakdown || !transactionBreakdown.escrowTransactions) {
-            // Fallback weekly data
             return [
                 { day: 'Mon', transactions: 0 },
                 { day: 'Tue', transactions: 0 },
@@ -113,7 +114,6 @@ const EnhancedAgentDashboard = () => {
             ];
         }
 
-        // Group transactions by day of week from the last 7 days
         const transactions = [
             ...(transactionBreakdown.escrowTransactions || []),
             ...(transactionBreakdown.paymentTransactions || [])
@@ -198,8 +198,8 @@ const EnhancedAgentDashboard = () => {
         return (
             <div className="mt-20 flex items-center justify-center min-h-screen">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading dashboard...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F20C8F] mx-auto mb-3"></div>
+                    <p className="text-gray-600 text-xs">Loading dashboard...</p>
                 </div>
             </div>
         );
@@ -208,15 +208,21 @@ const EnhancedAgentDashboard = () => {
     if (error) {
         return (
             <div className="mt-20 flex items-center justify-center min-h-screen">
-                <div className="text-center text-red-600">
-                    <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
-                    <p>{error}</p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
-                    >
-                        Retry
-                    </button>
+                <div className="text-center max-w-md">
+                    <div className="bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200 rounded-xl p-3 shadow-md">
+                        <div className="flex items-center justify-center w-10 h-10 mx-auto mb-2 bg-red-100 rounded-xl">
+                            <i className="bi bi-exclamation-triangle text-red-600 text-sm" />
+                        </div>
+                        <h2 className="text-red-800 font-semibold mb-2 text-sm">Error Loading Dashboard</h2>
+                        <p className="text-red-600 mb-2 text-xs">{error}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="bg-gradient-to-r from-[#F20C8F] to-[#d10a7a] text-white px-3 py-2 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 font-medium text-xs focus:outline-none focus:ring-2 focus:ring-[#F20C8F]/20 focus:border-transparent"
+                        >
+                            <i className="bi bi-arrow-clockwise mr-2" />
+                            Retry
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -236,7 +242,6 @@ const EnhancedAgentDashboard = () => {
             value: dashboardData?.activeProperties?.toString() || '0',
             change: `${dashboardData?.totalProperties || 0} total properties`,
             icon: 'house',
-            bgColor: 'bg-pink-500',
             iconBg: '#F20C8F',
         },
         {
@@ -244,7 +249,6 @@ const EnhancedAgentDashboard = () => {
             value: dashboardData?.totalClients?.toString() || '0',
             change: `${dashboardData?.activeClients || 0} active clients`,
             icon: 'people',
-            bgColor: 'bg-blue-800',
             iconBg: '#083A85',
         },
         {
@@ -252,7 +256,6 @@ const EnhancedAgentDashboard = () => {
             value: `$${dashboardData?.totalCommissions?.toLocaleString() || '0'}`,
             change: 'All time earnings',
             icon: 'currency-dollar',
-            bgColor: 'bg-green-500',
             iconBg: '#10B981',
         },
         {
@@ -260,12 +263,11 @@ const EnhancedAgentDashboard = () => {
             value: `${dashboardData?.successRate?.toFixed(1) || '85.0'}%`,
             change: `${dashboardData?.pendingDeals || 0} pending deals`,
             icon: 'graph-up-arrow',
-            bgColor: 'bg-amber-500',
             iconBg: '#F59E0B',
         },
     ];
 
-    // Recent reviews/feedback (from recent transactions with feedback)
+    // Recent reviews/feedback
     const recentFeedback = (transactionsData?.transactionBreakdown?.escrowTransactions || [])
         .filter((transaction: any) => transaction.feedback || transaction.rating)
         .slice(0, 3)
@@ -286,12 +288,12 @@ const EnhancedAgentDashboard = () => {
         },
         {
             label: 'Response Rate',
-            value: '98%', // This might need a separate endpoint
+            value: '98%',
             icon: 'chat-dots'
         },
         {
             label: 'Repeat Clients',
-            value: '34%', // This might need calculation from transactions
+            value: '34%',
             icon: 'arrow-repeat'
         },
         {
@@ -304,117 +306,14 @@ const EnhancedAgentDashboard = () => {
     const getTimeBasedGreeting = () => {
         const hour = new Date().getHours();
 
-        // Early Morning (5-7 AM)
-        const earlyMorningMessages = [
-            `🌅 Rise and shine, early bird!`,
-            `☕ First coffee, first victory!`,
-            `🐦 The world is yours this early!`,
-            `🌄 Conquer mountains today!`,
-            `⏰ Early start, early success!`,
-            `🌤 Dawn brings new possibilities!`,
-            `💪 Power up for greatness!`,
-            `🔥 Ignite your potential now!`,
-            `✨ Magic happens in the morning!`,
-            `🎯 Aim high from the start!`
-        ];
+        const earlyMorningMessages = [`🌅 Rise and shine, early bird!`, `☕ First coffee, first victory!`, `🐦 The world is yours this early!`, `🌄 Conquer mountains today!`, `⏰ Early start, early success!`, `🌤 Dawn brings new possibilities!`, `💪 Power up for greatness!`, `🔥 Ignite your potential now!`, `✨ Magic happens in the morning!`, `🎯 Aim high from the start!`];
+        const morningMessages = [`🌅 Good morning!`, `☕ Coffee time!`, `💡 Fresh ideas start now!`, `🏃 Start strong today!`, `📅 New goals, new wins!`, `🌞 Shine bright today!`, `🤝 Connect and grow!`, `📈 Progress starts early!`, `🎨 Paint your day beautiful!`, `🚀 Launch into excellence!`, `🌱 Plant seeds of success!`, `⭐ Half the day, full potential!`, `🎪 Make today spectacular!`, `🏆 Champion mindset activated!`, `🎵 Start with good vibes!`];
+        const afternoonMessages = [`☀️ Good afternoon!`, `🚀 Keep the momentum!`, `🔥 Stay on fire!`, `🌱 Keep growing strong!`, `📊 Productivity boost!`, `💪 Power through the day!`, `🎯 Focus on your targets!`, `⚡ Energy check—stay sharp!`, `🌻 Bloom where you're planted!`, `🎪 Make magic happen now!`, `🏃‍♂️ Sprint to your goals!`, `🎨 Create something amazing!`, `🔮 Afternoon gems await you!`, `🌊 Flow with the rhythm!`, `🎭 Performance time!`, `🏅 Excellence is calling!`];
+        const eveningMessages = [`🌇 Good evening!`, `📖 Reflect and recharge!`, `🌟 You did amazing today!`, `🎶 Relax with good vibes!`, `🍵 Slow down, breathe easy!`, `🙌 Celebrate small wins!`, `🛋 Enjoy your comfort zone!`, `🌌 Night is settling in—peace ahead!`, `🍷 Unwind and appreciate!`, `🎨 Evening creativity flows!`, `🧘‍♀️ Find your inner calm!`, `🎬 Enjoy life's moments!`, `🌹 Beauty in the twilight!`, `📚 Knowledge before rest!`, `🕯 Light up the evening!`, `🎭 Evening entertainment!`];
+        const nightMessages = [`🌙 Good night!`, `🛌 Rest well, dream big!`, `✨ Tomorrow holds magic!`, `😴 Recharge your soul!`, `🔕 Disconnect and rest!`, `💤 Deep sleep matters!`, `🌠 Drift into dreams!`, `🛡 Safe and sound tonight!`, `🌜 Let the moon guide your dreams!`, `🎶 Lullabies of the night!`, `🏰 Build castles in your sleep!`, `🌌 Cosmic dreams await!`, `🛏 Home sweet dreams!`, `🔮 Crystal clear rest ahead!`];
+        const lateNightMessages = [`🌃 Burning the midnight oil?`, `🦉 Night owl vibes!`, `⭐ Stars are your companions!`, `🌙 Midnight magic hour!`, `💻 Late night productivity!`, `🎧 Night sounds and focus!`, `🔥 Burning bright at night!`, `🌌 Limitless night energy!`, `☕ Midnight fuel running!`, `🎯 Sharp focus in the dark!`, `🚀 Launch into the night!`, `🎪 Night circus performance!`, `🔬 Deep dive discoveries!`, `🎨 Creative night sessions!`];
 
-        // Morning (7-12 PM)
-        const morningMessages = [
-            `🌅 Good morning!`,
-            `☕ Coffee time!`,
-            `💡 Fresh ideas start now!`,
-            `🏃 Start strong today!`,
-            `📅 New goals, new wins!`,
-            `🌞 Shine bright today!`,
-            `🤝 Connect and grow!`,
-            `📈 Progress starts early!`,
-            `🎨 Paint your day beautiful!`,
-            `🚀 Launch into excellence!`,
-            `🌱 Plant seeds of success!`,
-            `⭐ Half the day, full potential!`,
-            `🎪 Make today spectacular!`,
-            `🏆 Champion mindset activated!`,
-            `🎵 Start with good vibes!`
-        ];
-
-        // Afternoon (12-17 PM)
-        const afternoonMessages = [
-            `☀️ Good afternoon!`,
-            `🚀 Keep the momentum!`,
-            `🔥 Stay on fire!`,
-            `🌱 Keep growing strong!`,
-            `📊 Productivity boost!`,
-            `💪 Power through the day!`,
-            `🎯 Focus on your targets!`,
-            `⚡ Energy check—stay sharp!`,
-            `🌻 Bloom where you're planted!`,
-            `🎪 Make magic happen now!`,
-            `🏃‍♂️ Sprint to your goals!`,
-            `🎨 Create something amazing!`,
-            `🔮 Afternoon gems await you!`,
-            `🌊 Flow with the rhythm!`,
-            `🎭 Performance time!`,
-            `🏅 Excellence is calling!`
-        ];
-
-        // Evening (17-21 PM)
-        const eveningMessages = [
-            `🌇 Good evening!`,
-            `📖 Reflect and recharge!`,
-            `🌟 You did amazing today!`,
-            `🎶 Relax with good vibes!`,
-            `🍵 Slow down, breathe easy!`,
-            `🙌 Celebrate small wins!`,
-            `🛋 Enjoy your comfort zone!`,
-            `🌌 Night is settling in—peace ahead!`,
-            `🍷 Unwind and appreciate!`,
-            `🎨 Evening creativity flows!`,
-            `🧘‍♀️ Find your inner calm!`,
-            `🎬 Enjoy life's moments!`,
-            `🌹 Beauty in the twilight!`,
-            `📚 Knowledge before rest!`,
-            `🕯 Light up the evening!`,
-            `🎭 Evening entertainment!`
-        ];
-
-        // Night (21-24 PM)
-        const nightMessages = [
-            `🌙 Good night!`,
-            `🛌 Rest well, dream big!`,
-            `✨ Tomorrow holds magic!`,
-            `😴 Recharge your soul!`,
-            `🔕 Disconnect and rest!`,
-            `💤 Deep sleep matters!`,
-            `🌠 Drift into dreams!`,
-            `🛡 Safe and sound tonight!`,
-            `🌜 Let the moon guide your dreams!`,
-            `🎶 Lullabies of the night!`,
-            `🏰 Build castles in your sleep!`,
-            `🌌 Cosmic dreams await!`,
-            `🛏 Home sweet dreams!`,
-            `🔮 Crystal clear rest ahead!`
-        ];
-
-        // Late Night/Midnight (0-5 AM)
-        const lateNightMessages = [
-            `🌃 Burning the midnight oil?`,
-            `🦉 Night owl vibes!`,
-            `⭐ Stars are your companions!`,
-            `🌙 Midnight magic hour!`,
-            `💻 Late night productivity!`,
-            `🎧 Night sounds and focus!`,
-            `🔥 Burning bright at night!`,
-            `🌌 Limitless night energy!`,
-            `☕ Midnight fuel running!`,
-            `🎯 Sharp focus in the dark!`,
-            `🚀 Launch into the night!`,
-            `🎪 Night circus performance!`,
-            `🔬 Deep dive discoveries!`,
-            `🎨 Creative night sessions!`
-        ];
-
-        const pickRandom = (messages: string[]) =>
-            messages[Math.floor(Math.random() * messages.length)];
+        const pickRandom = (messages: string[]) => messages[Math.floor(Math.random() * messages.length)];
 
         if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
         if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
@@ -424,14 +323,14 @@ const EnhancedAgentDashboard = () => {
         return pickRandom(nightMessages);
     };
 
-    // Generate referral link based on agent ID
+    // Generate referral link
     const generateReferralLink = () => {
         const user = JSON.parse(localStorage.getItem('userSession') || '{}');
         const agentId = user.id || user.userId || 'default';
         return `https://jambolush.com/all/become-host?ref=${agentId}`;
     };
 
-    // Copy referral link to clipboard
+    // Copy referral link
     const copyReferralLink = async () => {
         try {
             await navigator.clipboard.writeText(generateReferralLink());
@@ -450,13 +349,6 @@ const EnhancedAgentDashboard = () => {
             setReferralData(response.data.data);
         } catch (error: any) {
             console.error('Error fetching referral data:', error);
-
-            // Handle 404 specifically - endpoint not implemented yet
-            if (error.response?.status === 404) {
-                console.log('Referrals endpoint not implemented yet');
-            }
-
-            // Set empty data on error
             setReferralData({
                 referrals: [],
                 totalPages: 1,
@@ -473,45 +365,42 @@ const EnhancedAgentDashboard = () => {
         if (!showReferralModal) return null;
 
         return (
-            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-                    {/* Modal Header */}
-                    <div className="p-6 border-b border-gray-200">
+            <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-3 z-50">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-100">
+                    <div className="p-3 border-b border-gray-200/50 bg-gradient-to-r from-gray-50 to-gray-100/50">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-bold text-[#083A85] flex items-center gap-2">
+                            <h2 className="text-base font-bold text-[#083A85] flex items-center gap-2">
                                 <i className="bi bi-person-plus" />
                                 Refer a Friend
                             </h2>
                             <button
                                 onClick={() => setShowReferralModal(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                className="text-gray-400 hover:text-gray-600 transition-all duration-200"
                             >
-                                <i className="bi bi-x-lg text-xl" />
+                                <i className="bi bi-x-lg text-sm" />
                             </button>
                         </div>
-                        <p className="text-gray-600 mt-2">
+                        <p className="text-gray-600 mt-1 text-xs">
                             Share your referral link and earn rewards when friends join as hosts!
                         </p>
                     </div>
 
-                    {/* Modal Content */}
-                    <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                        {/* Referral Link Section */}
-                        <div className="mb-8">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Your Referral Link</h3>
+                    <div className="p-3 overflow-y-auto max-h-[calc(90vh-140px)]">
+                        <div className="mb-5">
+                            <h3 className="text-sm font-semibold text-gray-800 mb-2">Your Referral Link</h3>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     readOnly
                                     value={generateReferralLink()}
-                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-xl bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#083A85]/20 focus:border-transparent text-xs transition-all duration-200"
                                 />
                                 <button
                                     onClick={copyReferralLink}
-                                    className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer ${
+                                    className={`px-3 py-2 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 text-xs hover:-translate-y-0.5 ${
                                         copySuccess
-                                            ? 'bg-green-500 text-white'
-                                            : 'bg-[#083A85] text-white hover:bg-[#062a63]'
+                                            ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md'
+                                            : 'bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white hover:shadow-lg'
                                     }`}
                                 >
                                     <i className={`bi ${copySuccess ? 'bi-check-lg' : 'bi-copy'}`} />
@@ -520,71 +409,51 @@ const EnhancedAgentDashboard = () => {
                             </div>
                         </div>
 
-                        {/* Referred Users Table */}
                         <div>
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-800">Referred Users</h3>
-                                <span className="text-sm text-gray-600">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-sm font-semibold text-gray-800">Referred Users</h3>
+                                <span className="text-xs text-gray-600 font-medium">
                                     Total: {referralData.totalReferrals} referrals
                                 </span>
                             </div>
 
                             {referralLoading ? (
-                                <div className="flex justify-center py-8">
+                                <div className="flex justify-center py-6">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#083A85]"></div>
                                 </div>
                             ) : (
                                 <>
                                     {referralData.referrals.length > 0 ? (
                                         <>
-                                            {/* Table */}
                                             <div className="overflow-x-auto">
-                                                <table className="min-w-full bg-white border border-gray-200 rounded-lg">
-                                                    <thead className="bg-gray-50">
+                                                <table className="min-w-full bg-white border border-gray-100 rounded-xl shadow-md">
+                                                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50">
                                                         <tr>
-                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                Name
-                                                            </th>
-                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                Email
-                                                            </th>
-                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                Phone Number
-                                                            </th>
-                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                Status
-                                                            </th>
-                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                                Joined Date
-                                                            </th>
+                                                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Name</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Email</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Phone</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Status</th>
+                                                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700">Joined</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                    <tbody className="divide-y divide-gray-200">
                                                         {referralData.referrals.map((referral: any) => (
-                                                            <tr key={referral.id} className="hover:bg-gray-50">
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <div className="text-sm font-medium text-gray-900">
-                                                                        {referral.fullName}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <div className="text-sm text-gray-900">{referral.email}</div>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <div className="text-sm text-gray-900">{referral.phone}</div>
-                                                                </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                                            <tr key={referral.id} className="hover:bg-gray-50/80 transition-all duration-200">
+                                                                <td className="px-3 py-2 text-xs font-medium text-gray-900">{referral.fullName}</td>
+                                                                <td className="px-3 py-2 text-xs text-gray-900">{referral.email}</td>
+                                                                <td className="px-3 py-2 text-xs text-gray-900">{referral.phone}</td>
+                                                                <td className="px-3 py-2">
+                                                                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                                                                         referral.status === 'Active'
-                                                                            ? 'bg-green-100 text-green-800'
+                                                                            ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800'
                                                                             : referral.status === 'Pending'
-                                                                            ? 'bg-yellow-100 text-yellow-800'
-                                                                            : 'bg-gray-100 text-gray-800'
+                                                                            ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800'
+                                                                            : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-800'
                                                                     }`}>
                                                                         {referral.status}
                                                                     </span>
                                                                 </td>
-                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                <td className="px-3 py-2 text-xs text-gray-900">
                                                                     {new Date(referral.joinedAt).toLocaleDateString()}
                                                                 </td>
                                                             </tr>
@@ -593,24 +462,23 @@ const EnhancedAgentDashboard = () => {
                                                 </table>
                                             </div>
 
-                                            {/* Pagination */}
                                             {referralData.totalPages > 1 && (
-                                                <div className="flex items-center justify-between mt-6">
-                                                    <div className="text-sm text-gray-700">
+                                                <div className="flex items-center justify-between mt-3">
+                                                    <div className="text-xs text-gray-700">
                                                         Page {referralData.currentPage} of {referralData.totalPages}
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => fetchReferralData(referralData.currentPage - 1)}
                                                             disabled={referralData.currentPage === 1}
-                                                            className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                            className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                                         >
                                                             Previous
                                                         </button>
                                                         <button
                                                             onClick={() => fetchReferralData(referralData.currentPage + 1)}
                                                             disabled={referralData.currentPage === referralData.totalPages}
-                                                            className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                            className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                                         >
                                                             Next
                                                         </button>
@@ -619,10 +487,12 @@ const EnhancedAgentDashboard = () => {
                                             )}
                                         </>
                                     ) : (
-                                        <div className="text-center py-12">
-                                            <i className="bi bi-person-plus text-4xl text-gray-400 mb-4" />
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">No referrals yet</h3>
-                                            <p className="text-gray-500">
+                                        <div className="text-center py-10">
+                                            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-2 bg-gray-100 rounded-xl">
+                                                <i className="bi bi-person-plus text-gray-400 text-lg" />
+                                            </div>
+                                            <h3 className="text-sm font-medium text-gray-900 mb-1">No referrals yet</h3>
+                                            <p className="text-gray-500 text-xs">
                                                 Share your referral link to start earning rewards!
                                             </p>
                                         </div>
@@ -638,45 +508,42 @@ const EnhancedAgentDashboard = () => {
 
     return (
         <div className="mt-20">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto px-3">
 
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-xl lg:text-3xl font-semibold text-[#083A85] mb-3">
+                <div className="mb-3">
+                    <h1 className="text-base lg:text-lg font-semibold text-[#083A85] mb-1">
                         {getTimeBasedGreeting()}, {userName}
                     </h1>
-                    <p className="text-gray-600 text-md">Here's what's happening with your real estate business</p>
+                    <p className="text-gray-600 text-xs">Here's what's happening with your real estate business</p>
                 </div>
 
-                {/* Header with Refer a friend button */}
                 <div className="flex justify-end mb-2">
                     <button
                         onClick={() => setShowReferralModal(true)}
-                        className="absolute top-20 right-12 m-4 px-6 py-4 text-base font-medium bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors flex items-center gap-2 cursor-pointer"
+                        className="px-3 py-2 text-xs font-semibold bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#083A85]/20 focus:border-transparent"
                     >
                         <i className="bi bi-person-plus" />
                         Refer a friend
                     </button>
                 </div>
 
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                     {summaryCards.map((card, index) => (
-                        <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                            <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
+                        <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 relative overflow-hidden border border-gray-100">
+                            <div className="absolute top-1 right-1 opacity-5 text-2xl">
                                 <i className={`bi bi-${card.icon}`} />
                             </div>
-                            <div className="flex items-center mb-3">
+                            <div className="flex items-center mb-2">
                                 <div
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
-                                    style={{ backgroundColor: card.iconBg }}
+                                    className="w-7 h-7 rounded-xl flex items-center justify-center mr-2 text-white shadow-sm bg-gradient-to-br"
+                                    style={{ background: `linear-gradient(to bottom right, ${card.iconBg}, ${card.iconBg}dd)` }}
                                 >
-                                    <i className={`bi bi-${card.icon} text-md sm:text-base`} />
+                                    <i className={`bi bi-${card.icon} text-xs`} />
                                 </div>
-                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
+                                <span className="text-xs text-gray-600 font-semibold">{card.title}</span>
                             </div>
-                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
+                            <div className="text-base lg:text-lg font-bold mb-1 text-gray-800">{card.value}</div>
+                            <div className="text-xs text-green-600 flex items-center font-semibold">
                                 <i className="bi bi-arrow-up mr-1" />
                                 {card.change}
                             </div>
@@ -684,71 +551,47 @@ const EnhancedAgentDashboard = () => {
                     ))}
                 </div>
 
-                {/* Charts Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
-                    {/* Earnings Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-graph-up mr-2 text-pink-500" />
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold flex items-center text-gray-800">
+                                <i className="bi bi-graph-up mr-2 text-[#F20C8F]" />
                                 Monthly Commissions
                             </h3>
-                            <div className="text-md text-gray-500">
+                            <div className="text-xs text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
-                        <div className="h-48 sm:h-56 lg:h-64">
+                        <div className="h-44 sm:h-48">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            fontSize: '12px'
-                                        }}
-                                    />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="earnings"
-                                        stroke="#F20C8F"
-                                        strokeWidth={3}
-                                        dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }}
-                                        activeDot={{ r: 6, stroke: '#F20C8F', strokeWidth: 2 }}
-                                    />
+                                    <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '10px' }} />
+                                    <Line type="monotone" dataKey="earnings" stroke="#F20C8F" strokeWidth={3} dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, stroke: '#F20C8F', strokeWidth: 2 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
 
-                    {/* Transaction Activity Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-bar-chart mr-2 text-blue-800" />
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold flex items-center text-gray-800">
+                                <i className="bi bi-bar-chart mr-2 text-[#083A85]" />
                                 Weekly Transaction Activity
                             </h3>
-                            <div className="text-md text-gray-500">
+                            <div className="text-xs text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
-                        <div className="h-48 sm:h-56 lg:h-64">
+                        <div className="h-44 sm:h-48">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartTransactionData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '8px',
-                                            fontSize: '12px'
-                                        }}
-                                    />
+                                    <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '10px' }} />
                                     <Bar dataKey="transactions" fill="#083A85" radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -756,105 +599,90 @@ const EnhancedAgentDashboard = () => {
                     </div>
                 </div>
 
-                {/* Appointments & Activity */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
-                    {/* Today's Appointments */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                                 Today's Schedule
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/agent/schedule') }}>
+                            <button className="text-xs text-[#083A85] hover:text-blue-900 font-semibold transition-all duration-200 hover:-translate-y-0.5" onClick={() => router.push('/agent/schedule')}>
                                 View Calendar
                             </button>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {upcomingAppointments.length > 0 ? upcomingAppointments.map((appointment: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-start justify-between mb-2">
+                                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
+                                    <div className="flex items-start justify-between mb-1">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{appointment.title}</h4>
-                                            <p className="text-md text-gray-600 mt-1">{appointment.location}</p>
+                                            <h4 className="font-semibold text-gray-800 text-xs">{appointment.title}</h4>
+                                            <p className="text-xs text-gray-600 mt-0.5">{appointment.location}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                                            }`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${appointment.status === 'confirmed' ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800' : 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800'}`}>
                                             {appointment.status}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between text-md text-gray-500">
+                                    <div className="flex items-center justify-between text-xs text-gray-500">
                                         <span>{appointment.time} • {appointment.duration}</span>
                                         <span>{appointment.client}</span>
                                     </div>
                                 </div>
                             )) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-calendar-x text-3xl mb-2" />
-                                    <p>No appointments scheduled for today</p>
+                                <div className="text-center py-6 text-gray-500">
+                                    <i className="bi bi-calendar-x text-lg mb-2" />
+                                    <p className="text-xs">No appointments scheduled</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Recent Activity */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibiled flex items-center text-gray-800">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-chat-dots mr-2 text-blue-600" />
                                 Recent Activity
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium">
+                            <button className="text-xs text-[#083A85] hover:text-blue-900 font-semibold transition-all duration-200 hover:-translate-y-0.5">
                                 View All
                             </button>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {recentActivity.length > 0 ? recentActivity.map((activity: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-start justify-between mb-2">
+                                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
+                                    <div className="flex items-start justify-between mb-1">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{activity.client}</h4>
-                                            <p className="text-md text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
+                                            <h4 className="font-semibold text-gray-800 text-xs">{activity.client}</h4>
+                                            <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{activity.message}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${activity.type === 'commission' ? 'bg-green-100 text-green-800' :
-                                                activity.type === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
-                                            }`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${activity.type === 'commission' ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800' :
+                                            activity.type === 'PENDING' ? 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800' : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800'}`}>
                                             {activity.type}
                                         </span>
                                     </div>
-                                    <div className="text-md text-gray-500">{activity.time}</div>
+                                    <div className="text-xs text-gray-500">{activity.time}</div>
                                 </div>
                             )) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-chat-square-dots text-3xl mb-2" />
-                                    <p>No recent activity</p>
+                                <div className="text-center py-6 text-gray-500">
+                                    <i className="bi bi-chat-square-dots text-lg mb-2" />
+                                    <p className="text-xs">No recent activity</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* Bottom Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-                    {/* Transaction Types */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-pie-chart mr-2 text-gray-600" />
                                 Transaction Types
                             </h3>
                         </div>
-                        <div className="h-48 sm:h-56">
+                        <div className="h-40 sm:h-44">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
-                                    <Pie
-                                        data={transactionTypes}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={30}
-                                        outerRadius={70}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
+                                    <Pie data={transactionTypes} cx="50%" cy="50%" innerRadius={25} outerRadius={60} paddingAngle={5} dataKey="value">
                                         {transactionTypes.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
@@ -863,45 +691,41 @@ const EnhancedAgentDashboard = () => {
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="flex flex-wrap justify-center gap-3 mt-3">
+                        <div className="flex flex-wrap justify-center gap-2 mt-2">
                             {transactionTypes.map((type: any, index) => (
-                                <div key={index} className="flex items-center text-md font-medium">
-                                    <div
-                                        className="w-3 h-3 mr-2 rounded-sm"
-                                        style={{ backgroundColor: type.color }}
-                                    ></div>
+                                <div key={index} className="flex items-center text-xs font-semibold">
+                                    <div className="w-2.5 h-2.5 mr-1 rounded-sm" style={{ backgroundColor: type.color }}></div>
                                     {type.name} ({type.value})
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Recent Client Feedback */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 lg:col-span-2 border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-star mr-2 text-amber-500" />
                                 Recent Client Feedback
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/agent/reviews') }}>
+                            <button className="text-xs text-[#083A85] hover:text-blue-900 font-semibold transition-all duration-200 hover:-translate-y-0.5" onClick={() => router.push('/agent/reviews')}>
                                 View All
                             </button>
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             {recentFeedback.length > 0 ? recentFeedback.map((feedback: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-start justify-between mb-2">
+                                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
+                                    <div className="flex items-start justify-between mb-1">
                                         <div className="flex-1">
                                             <div className="flex items-center mb-1">
-                                                <h4 className="font-medium text-gray-800 text-md mr-2">{feedback.client}</h4>
+                                                <h4 className="font-semibold text-gray-800 text-xs mr-2">{feedback.client}</h4>
                                                 <div className="flex items-center">
                                                     {[...Array(feedback.rating)].map((_, i) => (
-                                                        <i key={i} className="bi bi-star-fill text-yellow-500 text-md" />
+                                                        <i key={i} className="bi bi-star-fill text-yellow-500 text-xs" />
                                                     ))}
                                                 </div>
                                             </div>
-                                            <p className="text-md text-gray-600 mb-1">{feedback.comment}</p>
-                                            <div className="flex items-center justify-between text-md text-gray-500">
+                                            <p className="text-xs text-gray-600 mb-1">{feedback.comment}</p>
+                                            <div className="flex items-center justify-between text-xs text-gray-500">
                                                 <span>{feedback.property}</span>
                                                 <span>{feedback.date}</span>
                                             </div>
@@ -909,33 +733,31 @@ const EnhancedAgentDashboard = () => {
                                     </div>
                                 </div>
                             )) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-star text-3xl mb-2" />
-                                    <p>No feedback yet</p>
+                                <div className="text-center py-6 text-gray-500">
+                                    <i className="bi bi-star text-lg mb-2" />
+                                    <p className="text-xs">No feedback yet</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Stats</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
+                <div className="mt-3 bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+                    <h3 className="text-sm font-semibold mb-2 text-gray-800">Performance Stats</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {quickStats.map((stat, index) => (
-                            <div key={index} className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                                <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
+                            <div key={index} className="text-center p-2 rounded-xl hover:bg-gray-50/80 transition-all duration-200">
+                                <div className="text-base lg:text-lg mb-1 text-gray-600">
                                     <i className={`bi bi-${stat.icon}`} />
                                 </div>
-                                <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                                <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
+                                <div className="text-sm lg:text-base font-bold text-gray-800 mb-1">{stat.value}</div>
+                                <div className="text-xs text-gray-600 font-semibold">{stat.label}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* Referral Modal */}
             <ReferralModal />
         </div>
     );

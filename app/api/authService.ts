@@ -5,6 +5,8 @@ export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
   expiresAt: number;
+  sessionStartedAt: number; // Track when the session was first created
+  lastRefreshedAt: number; // Track when the token was last refreshed
 }
 
 export interface UserProfile {
@@ -54,6 +56,12 @@ class AuthService {
   private eventListeners: Map<AuthEventType, AuthEventListener[]> = new Map();
   private isInitialized = false;
   private isLoggingOut = false;
+  private refreshIntervalId: NodeJS.Timeout | null = null;
+
+  // Session configuration
+  private readonly MAX_SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+  private readonly TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000; // Refresh every 10 minutes
+  private readonly TOKEN_EXPIRY_BUFFER = 2 * 60 * 1000; // Refresh if token expires within 2 minutes
 
   // Comprehensive storage keys - all possible locations
   private readonly STORAGE_KEYS = {
@@ -163,30 +171,34 @@ class AuthService {
     try {
       // Clear any existing session first
       this.clearAllStorageData();
-      
-      // Store tokens
+
+      // Store tokens with session tracking
+      const now = Date.now();
       const authTokens: AuthTokens = {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
-        expiresAt: this.calculateTokenExpiry(tokens.accessToken)
+        expiresAt: this.calculateTokenExpiry(tokens.accessToken),
+        sessionStartedAt: now,
+        lastRefreshedAt: now
       };
-      
+
       this.storeTokens(authTokens);
-      
+
       // Set API auth and fetch user profile
       const api = (await import('../api/apiService')).default;
       api.setAuth(tokens.accessToken, tokens.refreshToken);
-      
+
       const response = await api.get('auth/me');
-      
+
       if (response.data) {
         const session: UserSession = {
           user: response.data,
           tokens: authTokens,
           role: response.data.userType
         };
-        
+
         this.setCurrentSession(session);
+        this.startTokenRefreshTimer();
         this.emit('login', session);
       }
     } catch (error) {
@@ -218,6 +230,13 @@ class AuthService {
         return null;
       }
 
+      // Check if session has exceeded maximum duration (4 hours)
+      if (this.hasSessionExpired(tokens.sessionStartedAt)) {
+        console.log('Session exceeded maximum duration (4 hours). Logging out...');
+        this.handleSessionExpired();
+        return null;
+      }
+
       // Check if token is expired and refresh if needed
       if (this.isTokenExpired(tokens.expiresAt)) {
         await this.refreshTokens();
@@ -231,17 +250,18 @@ class AuthService {
       // Fetch current user profile
       const api = (await import('../api/apiService')).default;
       api.setAuth(tokens.accessToken, tokens.refreshToken);
-      
+
       const response = await api.get('auth/me');
-      
+
       if (response.data) {
         const session: UserSession = {
           user: response.data,
           tokens: tokens,
           role: response.data.userType
         };
-        
+
         this.setCurrentSession(session);
+        this.startTokenRefreshTimer();
         return session;
       } else {
         throw new Error('Invalid session');
@@ -283,6 +303,13 @@ class AuthService {
       throw new Error('No refresh token available');
     }
 
+    // Check if session has exceeded maximum duration
+    if (this.hasSessionExpired(tokens.sessionStartedAt)) {
+      console.log('Session exceeded maximum duration during refresh. Logging out...');
+      this.handleSessionExpired();
+      throw new Error('Session expired');
+    }
+
     try {
       const api = (await import('../api/apiService')).default;
       const response = await api.post('/auth/refresh-token', {
@@ -291,16 +318,18 @@ class AuthService {
 
       if (response.data.success && response.data.data) {
         const { accessToken, refreshToken } = response.data.data;
-        
+
         const newTokens: AuthTokens = {
           accessToken,
           refreshToken: refreshToken || tokens.refreshToken,
-          expiresAt: this.calculateTokenExpiry(accessToken)
+          expiresAt: this.calculateTokenExpiry(accessToken),
+          sessionStartedAt: tokens.sessionStartedAt, // Preserve original session start time
+          lastRefreshedAt: Date.now() // Update last refresh time
         };
 
         this.storeTokens(newTokens);
         api.setAuth(accessToken, refreshToken || tokens.refreshToken);
-        
+
         // Update current session tokens
         if (this.currentSession) {
           this.currentSession.tokens = newTokens;
@@ -358,21 +387,32 @@ class AuthService {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEYS.TOKENS);
       if (stored) {
-        return JSON.parse(stored);
+        const tokens = JSON.parse(stored);
+        // Ensure all required fields exist
+        if (!tokens.sessionStartedAt) {
+          tokens.sessionStartedAt = Date.now();
+        }
+        if (!tokens.lastRefreshedAt) {
+          tokens.lastRefreshedAt = tokens.sessionStartedAt;
+        }
+        return tokens;
       }
-      
+
       // Fallback to legacy format
       const accessToken = localStorage.getItem(this.STORAGE_KEYS.AUTH_TOKEN);
       const refreshToken = localStorage.getItem(this.STORAGE_KEYS.REFRESH_TOKEN);
-      
+
       if (accessToken && refreshToken) {
+        const now = Date.now();
         return {
           accessToken,
           refreshToken,
-          expiresAt: this.calculateTokenExpiry(accessToken)
+          expiresAt: this.calculateTokenExpiry(accessToken),
+          sessionStartedAt: now,
+          lastRefreshedAt: now
         };
       }
-      
+
       return null;
     } catch {
       return null;
@@ -501,7 +541,94 @@ class AuthService {
    */
   private cleanup() {
     this.refreshPromise = null;
+    this.stopTokenRefreshTimer();
     this.eventListeners.clear();
+  }
+
+  /**
+   * Check if session has exceeded maximum duration (4 hours)
+   */
+  private hasSessionExpired(sessionStartedAt: number): boolean {
+    const sessionDuration = Date.now() - sessionStartedAt;
+    return sessionDuration >= this.MAX_SESSION_DURATION;
+  }
+
+  /**
+   * Handle session expiration
+   */
+  private handleSessionExpired() {
+    console.log('Session expired after 4 hours. Logging out...');
+    this.stopTokenRefreshTimer();
+    this.handleLogout(true);
+
+    // Emit session expired event
+    this.emit('session_expired');
+
+    // Trigger session expired modal
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('sessionExpired', {
+          detail: { reason: 'max_duration_exceeded', timestamp: Date.now() }
+        }));
+      }, 0);
+    }
+  }
+
+  /**
+   * Start automatic token refresh timer
+   */
+  private startTokenRefreshTimer() {
+    // Clear any existing timer
+    this.stopTokenRefreshTimer();
+
+    // Set up periodic token refresh
+    this.refreshIntervalId = setInterval(() => {
+      this.checkAndRefreshToken();
+    }, this.TOKEN_REFRESH_INTERVAL);
+
+    // Also check immediately
+    this.checkAndRefreshToken();
+  }
+
+  /**
+   * Stop automatic token refresh timer
+   */
+  private stopTokenRefreshTimer() {
+    if (this.refreshIntervalId) {
+      clearInterval(this.refreshIntervalId);
+      this.refreshIntervalId = null;
+    }
+  }
+
+  /**
+   * Check token status and refresh if needed
+   */
+  private async checkAndRefreshToken() {
+    if (this.isLoggingOut) return;
+
+    try {
+      const tokens = this.getStoredTokens();
+      if (!tokens) {
+        this.handleLogout(true);
+        return;
+      }
+
+      // Check if session has exceeded maximum duration
+      if (this.hasSessionExpired(tokens.sessionStartedAt)) {
+        this.handleSessionExpired();
+        return;
+      }
+
+      // Check if token will expire soon (within buffer time)
+      const timeUntilExpiry = tokens.expiresAt - Date.now();
+      if (timeUntilExpiry <= this.TOKEN_EXPIRY_BUFFER) {
+        console.log('Token expiring soon, refreshing...');
+        await this.refreshTokens();
+      }
+    } catch (error) {
+      console.error('Error checking token status:', error);
+      // Don't logout on check errors, will retry on next interval
+    }
   }
 
   /**

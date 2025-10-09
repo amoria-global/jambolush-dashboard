@@ -90,9 +90,13 @@ const WishlistPage: React.FC = () => {
         // Fetch data from GET /bookings/wishlist
         const response: any = await api.get('/bookings/wishlist');
 
-        if (response.success) {
+        if (response.success || response.data?.success) {
+          // Handle nested response structure
+          const responseData = response.data?.data || response.data || response;
+          const items = responseData.items || [];
+
           // Map API response to the frontend's WishlistItem interface
-          const mappedData = response.data.data.items.map((item: any): WishlistItem => ({
+          const mappedData = items.map((item: any): WishlistItem => ({
             id: item.id, // The unique ID of the wishlist entry
             propertyId: item.itemId,
             title: item.itemDetails.name || 'N/A',

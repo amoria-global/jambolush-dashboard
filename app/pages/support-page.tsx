@@ -284,7 +284,7 @@ const HelpSupportCenter: React.FC = () => {
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Help & Support Center</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-[#083A85]">Help & Support Center</h1>
           <p className="text-gray-600 mt-2">Find answers to your questions or get in touch with our support team.</p>
         </div>
 
@@ -321,9 +321,9 @@ const HelpSupportCenter: React.FC = () => {
                   setSearchTerm('');
                   setError(null);
                 }}
-                className={`flex items-center cursor-pointer gap-2 px-4 py-2 rounded-lg transition-colors font-medium text-sm sm:text-base ${
-                  activeView === tab.key 
-                    ? 'bg-[#083A85] text-white' 
+                className={`flex items-center cursor-pointer gap-2 px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
+                  activeView === tab.key
+                    ? 'bg-[#083A85] text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -382,7 +382,7 @@ const HelpSupportCenter: React.FC = () => {
               {activeView === 'tickets' && (
                 <button
                   onClick={() => setShowTicketModal(true)}
-                  className="px-4 py-2 w-full sm:w-auto cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium"
+                  className="px-4 py-2 w-full sm:w-auto cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm"
                 >
                   <i className="bi bi-plus mr-2"></i>
                   New Ticket
@@ -408,7 +408,7 @@ const HelpSupportCenter: React.FC = () => {
                 {currentContent.length === 0 ? (
                   <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                     <i className="bi bi-question-circle text-6xl text-gray-300"></i>
-                    <h3 className="text-xl font-medium text-gray-900 mt-4">No FAQS found</h3>
+                    <h3 className="text-xl text-gray-900 mt-4">No FAQS found</h3>
                     <p className="text-gray-600 mt-2">Try adjusting your search or filters</p>
                   </div>
                 ) : (
@@ -420,11 +420,11 @@ const HelpSupportCenter: React.FC = () => {
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1 pr-4">
-                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+                            <h3 className="text-base sm:text-lg text-gray-900 mb-2">
                               {highlightText(faq.question, searchTerm)}
                             </h3>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-500">
-                              <span className={`px-2 py-0.5 rounded-full font-medium ${getPriorityColor(faq.priority)}`}>
+                              <span className={`px-2 py-0.5 rounded-full ${getPriorityColor(faq.priority)}`}>
                                 {faq.priority}
                               </span>
                               <span>{faq.category}</span>
@@ -480,14 +480,14 @@ const HelpSupportCenter: React.FC = () => {
                 {currentContent.length === 0 ? (
                   <div className="col-span-full bg-white rounded-lg shadow-sm p-12 text-center">
                     <i className="bi bi-file-text text-6xl text-gray-300"></i>
-                    <h3 className="text-xl font-medium text-gray-900 mt-4">No articles found</h3>
+                    <h3 className="text-xl text-gray-900 mt-4">No articles found</h3>
                     <p className="text-gray-600 mt-2">Try adjusting your search or filters</p>
                   </div>
                 ) : (
                   (currentContent as Article[]).map((article: Article) => (
                     <div key={article.id} className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
                       <div className="p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        <h3 className="text-lg text-gray-900 mb-2">
                           {highlightText(article.title, searchTerm)}
                         </h3>
                         <p className="text-sm text-gray-600 mb-4 line-clamp-3">
@@ -500,9 +500,9 @@ const HelpSupportCenter: React.FC = () => {
                             <span><i className="bi bi-eye mr-1"></i>{article.views} views</span>
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => handleArticleClick(article.id)}
-                          className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium"
+                          className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm"
                         >
                           Read Article
                         </button>
@@ -517,12 +517,12 @@ const HelpSupportCenter: React.FC = () => {
             {activeView === 'contact' && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Get in Touch</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Get in Touch</h2>
                   <div className="space-y-4">
                     <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
                       <i className="bi bi-envelope text-[#083A85] text-xl"></i>
                       <div>
-                        <h3 className="font-medium text-gray-900">Email Support</h3>
+                        <h3 className="text-gray-900">Email Support</h3>
                         <p className="text-sm text-gray-600">support@jambolush.com</p>
                         <p className="text-xs text-gray-500">Response within 24 hours</p>
                       </div>
@@ -530,7 +530,7 @@ const HelpSupportCenter: React.FC = () => {
                     <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
                       <i className="bi bi-telephone text-[#083A85] text-xl"></i>
                       <div>
-                        <h3 className="font-medium text-gray-900">Phone Support</h3>
+                        <h3 className="text-gray-900">Phone Support</h3>
                         <p className="text-sm text-gray-600">+250 788 437 347</p>
                         <p className="text-xs text-gray-500">Mon-Fri, 9 AM - 6 PM EAT</p>
                       </div>
@@ -538,7 +538,7 @@ const HelpSupportCenter: React.FC = () => {
                     <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
                       <i className="bi bi-chat-dots text-[#083A85] text-xl"></i>
                       <div>
-                        <h3 className="font-medium text-gray-900">Live Chat</h3>
+                        <h3 className="text-gray-900">Live Chat</h3>
                         <p className="text-sm text-gray-600">Available on website</p>
                         <p className="text-xs text-gray-500">Mon-Fri, 9 AM - 6 PM EAT</p>
                       </div>
@@ -547,10 +547,10 @@ const HelpSupportCenter: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Contact Form</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Contact Form</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                      <label className="block text-sm text-gray-700 mb-2">Subject</label>
                       <input
                         type="text"
                         value={contactForm.subject}
@@ -560,8 +560,8 @@ const HelpSupportCenter: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                      <select 
+                      <label className="block text-sm text-gray-700 mb-2">Category</label>
+                      <select
                         value={contactForm.category}
                         onChange={(e) => setContactForm(prev => ({ ...prev, category: e.target.value }))}
                         className="w-full px-3 py-2 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] text-sm sm:text-base"
@@ -574,7 +574,7 @@ const HelpSupportCenter: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                      <label className="block text-sm text-gray-700 mb-2">Message</label>
                       <textarea
                         rows={4}
                         value={contactForm.message}
@@ -586,7 +586,7 @@ const HelpSupportCenter: React.FC = () => {
                     <button
                       onClick={handleContactSubmit}
                       disabled={!contactForm.subject || !contactForm.message || contactForm.loading}
-                      className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {contactForm.loading ? (
                         <>
@@ -608,11 +608,11 @@ const HelpSupportCenter: React.FC = () => {
                 {currentContent.length === 0 ? (
                   <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                     <i className="bi bi-ticket text-6xl text-gray-300"></i>
-                    <h3 className="text-xl font-medium text-gray-900 mt-4">No support tickets</h3>
+                    <h3 className="text-xl text-gray-900 mt-4">No support tickets</h3>
                     <p className="text-gray-600 mt-2">Create your first support ticket to get help</p>
                     <button
                       onClick={() => setShowTicketModal(true)}
-                      className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium"
+                      className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors"
                     >
                       Create Ticket
                     </button>
@@ -623,15 +623,15 @@ const HelpSupportCenter: React.FC = () => {
                       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                         <div className="flex-1">
                           <div className="flex flex-wrap items-center gap-2 mb-2">
-                            <h3 className="text-base sm:text-lg font-semibold text-gray-900">{ticket.subject}</h3>
+                            <h3 className="text-base sm:text-lg text-gray-900">{ticket.subject}</h3>
                             <span className="text-sm text-gray-500">#{ticket.id}</span>
                           </div>
                           <p className="text-sm text-gray-600 mb-3">{ticket.description}</p>
                           <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <span className={`px-2 py-1 rounded-full font-medium ${getStatusColor(ticket.status)}`}>
+                            <span className={`px-2 py-1 rounded-full ${getStatusColor(ticket.status)}`}>
                               {ticket.status}
                             </span>
-                            <span className={`px-2 py-1 rounded-full font-medium ${getPriorityColor(ticket.priority)}`}>
+                            <span className={`px-2 py-1 rounded-full ${getPriorityColor(ticket.priority)}`}>
                               {ticket.priority}
                             </span>
                             <span className="text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{ticket.category}</span>
@@ -655,7 +655,7 @@ const HelpSupportCenter: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <i className="bi bi-chevron-left"></i>
                   </button>
@@ -668,9 +668,9 @@ const HelpSupportCenter: React.FC = () => {
                         <button
                           key={i}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            currentPage === pageNum 
-                              ? 'bg-[#083A85] text-white' 
+                          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                            currentPage === pageNum
+                              ? 'bg-[#083A85] text-white'
                               : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                           }`}
                         >
@@ -683,7 +683,7 @@ const HelpSupportCenter: React.FC = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <i className="bi bi-chevron-right"></i>
                   </button>
@@ -705,7 +705,7 @@ const HelpSupportCenter: React.FC = () => {
           <div className="flex items-center justify-center min-h-screen p-4">
             <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl">
               <div className="flex items-center justify-between p-6 border-b">
-                <h2 className="text-xl font-semibold text-gray-900">Create Support Ticket</h2>
+                <h2 className="text-xl text-gray-900">Create Support Ticket</h2>
                 <button
                   onClick={() => setShowTicketModal(false)}
                   className="p-2 text-gray-400 cursor-pointer hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
@@ -716,7 +716,7 @@ const HelpSupportCenter: React.FC = () => {
               
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject *</label>
+                  <label className="block text-sm text-gray-700 mb-2">Subject *</label>
                   <input
                     type="text"
                     value={newTicket.subject}
@@ -728,7 +728,7 @@ const HelpSupportCenter: React.FC = () => {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <label className="block text-sm text-gray-700 mb-2">Category</label>
                     <select
                       value={newTicket.category}
                       onChange={(e) => setNewTicket(prev => ({ ...prev, category: e.target.value }))}
@@ -741,9 +741,9 @@ const HelpSupportCenter: React.FC = () => {
                       <option value="account">Account</option>
                     </select>
                   </div>
-                  
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                    <label className="block text-sm text-gray-700 mb-2">Priority</label>
                     <select
                       value={newTicket.priority}
                       onChange={(e) => setNewTicket(prev => ({ ...prev, priority: e.target.value as any }))}
@@ -756,9 +756,9 @@ const HelpSupportCenter: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                  <label className="block text-sm text-gray-700 mb-2">Description *</label>
                   <textarea
                     rows={5}
                     value={newTicket.description}
@@ -772,14 +772,14 @@ const HelpSupportCenter: React.FC = () => {
               <div className="flex justify-end gap-3 p-6 border-t">
                 <button
                   onClick={() => setShowTicketModal(false)}
-                  className="px-4 py-2 text-gray-700 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm sm:text-base"
+                  className="px-4 py-2 text-gray-700 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors text-sm sm:text-base"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleTicketSubmit}
                   disabled={!newTicket.subject || !newTicket.description}
-                  className="px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                  className="px-4 py-2 cursor-pointer bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   Create Ticket
                 </button>
