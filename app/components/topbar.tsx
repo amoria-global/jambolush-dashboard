@@ -553,25 +553,25 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   return (
-    <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
+    <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-30 transition-all duration-300" style={{ left: '240px' }}>
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
-          className="lg:hidden p-2 text-gray-600 rounded-md hover:text-[#083A85] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+          className="lg:hidden p-2 text-gray-600 rounded-xl hover:text-[#083A85] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#083A85]/20 transition-all"
         >
           <i className="bi bi-list text-2xl"></i>
         </button>
-        <h1 className="text-xl font-bold text-gray-900 tracking-wide sm:text-2xl">
+        <h1 className="text-lg font-bold text-gray-900 tracking-tight sm:text-xl">
           {getPageTitle()}
         </h1>
       </div>
 
-      <div className="flex items-center gap-x-4 sm:gap-x-6">
+      <div className="flex items-center gap-x-3 sm:gap-x-5">
         {/* Show loading state */}
         {(isLoading || isRedirecting) && (
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-gray-300 rounded-full animate-pulse"></div>
-            <div className="w-20 h-4 bg-gray-300 rounded animate-pulse"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full animate-pulse"></div>
+            <div className="w-20 h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg animate-pulse"></div>
           </div>
         )}
 
@@ -580,65 +580,66 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           <>
             {/* KYC Notice in TopBar */}
             {user && !user.kycCompleted && (user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
-              <div className="hidden md:flex items-center bg-yellow-50 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                <i className="bi bi-exclamation-triangle mr-1"></i>
-                <span>Complete KYC</span>
+              <div className="hidden md:flex items-center bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-900 px-3.5 py-1.5 rounded-full text-xs font-medium border border-yellow-300/50 shadow-sm">
+                <i className="bi bi-exclamation-triangle-fill mr-2 text-yellow-600"></i>
+                <span className="font-semibold">Complete KYC</span>
                 <button
                   onClick={() => router.push('/all/kyc')}
-                  className="ml-2 text-yellow-700 hover:text-yellow-900 underline"
+                  className="ml-2 text-yellow-700 hover:text-yellow-900 transition-colors"
                 >
-                  →
+                  <i className="bi bi-arrow-right"></i>
                 </button>
               </div>
             )}
 
-            <div className="relative cursor-pointer hidden sm:block">
-              <i className="bi bi-chat-left-text text-2xl text-gray-600 hover:text-[#083A85]"></i>
-              {messagesCount > 0 && (
-                <span className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full bg-red-500">
-                  {messagesCount > 99 ? '99+' : messagesCount}
-                </span>
-              )}
+            <div className="relative cursor-pointer hidden sm:block group">
+              <div className="p-2 rounded-xl hover:bg-gray-50 transition-all">
+                <i className="bi bi-chat-left-text text-xl text-gray-600 group-hover:text-[#083A85] transition-colors"></i>
+                {messagesCount > 0 && (
+                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-md ring-2 ring-white">
+                    {messagesCount > 99 ? '99+' : messagesCount}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="relative" ref={notificationsRef}>
-              <div 
-                className="relative cursor-pointer" 
+              <div
+                className="relative cursor-pointer group"
                 onClick={() => {
                   setIsNotificationsOpen(!isNotificationsOpen);
                   setIsProfileOpen(false);
                 }}
               >
-                <i className="bi bi-bell text-2xl text-gray-600 hover:text-[#083A85]"></i>
-                {unreadCount > 0 && (
-                  <span
-                    className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
-                    style={{ backgroundColor: "#F20C8F" }}
-                  >
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
+                <div className="p-2 rounded-xl hover:bg-gray-50 transition-all">
+                  <i className="bi bi-bell text-xl text-gray-600 group-hover:text-[#083A85] transition-colors"></i>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full bg-gradient-to-br from-[#F20C8F] to-[#d10a78] shadow-md ring-2 ring-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
-                  <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
-                    <h6 className="font-semibold text-gray-800">Notifications</h6>
+                <div className="absolute right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden backdrop-blur-sm">
+                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200/50 flex items-center justify-between">
+                    <h6 className="font-bold text-gray-900 text-base tracking-tight">Notifications</h6>
                     {notificationsLoading && (
-                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-[#083A85] border-t-transparent rounded-full animate-spin"></div>
                     )}
                   </div>
-                  <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
+                  <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
-                        <i className="bi bi-bell-slash text-2xl mb-2"></i>
-                        <p>No notifications yet</p>
+                      <div className="p-8 text-center text-gray-500">
+                        <i className="bi bi-bell-slash text-4xl mb-3 text-gray-400"></i>
+                        <p className="text-sm font-medium">No notifications yet</p>
                       </div>
                     ) : (
                       notifications.map(notification => (
-                        <div 
-                          key={notification.id} 
-                          className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''}`}
+                        <div
+                          key={notification.id}
+                          className={`flex items-start gap-3 p-3.5 transition-all duration-200 hover:bg-gray-50/80 cursor-pointer ${!notification.isRead ? 'bg-gradient-to-r from-blue-50/50 to-indigo-50/30' : ''}`}
                           onClick={() => {
                             markNotificationAsRead(notification.id);
                             if (notification.actionUrl) {
@@ -646,45 +647,45 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                             }
                           }}
                         >
-                          <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
-                            !notification.isRead ? 'bg-blue-500/20' : 'bg-gray-200'
+                          <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center shadow-sm ${
+                            !notification.isRead ? 'bg-gradient-to-br from-blue-100 to-indigo-100' : 'bg-gray-100'
                           }`}>
-                            <i className={`bi ${getNotificationIcon(notification.type)} text-lg ${
+                            <i className={`bi ${getNotificationIcon(notification.type)} text-base ${
                               !notification.isRead ? getNotificationColor(notification.type) : 'text-gray-600'
                             }`}></i>
                           </div>
                           <div className="flex-grow">
-                            <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                            <p className={`text-sm ${!notification.isRead ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
                               {notification.title}
                             </p>
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
                             <div className="flex items-center justify-between mt-2">
-                              <p className="text-xs text-gray-500">{timeAgo(notification.timestamp)}</p>
+                              <p className="text-[11px] font-medium text-gray-500">{timeAgo(notification.timestamp)}</p>
                               {notification.priority === 'urgent' && (
-                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
+                                <span className="text-[10px] bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-2 py-0.5 rounded-full font-bold shadow-sm">
                                   Urgent
                                 </span>
                               )}
                             </div>
                           </div>
                           {!notification.isRead && (
-                            <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>
+                            <div className="w-2 h-2 mt-1.5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 shadow-sm"></div>
                           )}
                         </div>
                       ))
                     )}
                   </div>
                   {notifications.length > 0 && (
-                    <a 
-                      href="/all/notifications" 
-                      className="block text-center p-2 text-sm font-medium text-blue-600 hover:bg-gray-100 transition-colors"
+                    <a
+                      href="/all/notifications"
+                      className="block text-center px-4 py-3 text-sm font-semibold text-[#083A85] hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 transition-all border-t border-gray-200/50"
                       onClick={(e) => {
                         e.preventDefault();
                         router.push('/all/notifications');
                         setIsNotificationsOpen(false);
                       }}
                     >
-                      View All Notifications
+                      View All Notifications →
                     </a>
                   )}
                 </div>
@@ -692,15 +693,15 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
             </div>
 
             <div className="relative" ref={profileRef}>
-              <div 
-                className="flex items-center gap-3 cursor-pointer" 
+              <div
+                className="flex items-center gap-2.5 cursor-pointer p-2 rounded-xl hover:bg-gray-50 transition-all group"
                 onClick={() => {
                   setIsProfileOpen(!isProfileOpen);
                   setIsNotificationsOpen(false);
                 }}
               >
                 <div className="relative">
-                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] to-[#F20C8F] border-2 border-gray-300">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] via-[#0a4fa0] to-[#F20C8F] shadow-md ring-2 ring-white ring-offset-2">
                     {user.profile ? (
                       <img
                         src={user.profile}
@@ -708,21 +709,21 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                         className="object-cover w-full h-full"
                       />
                     ) : (
-                      <span className="text-white font-semibold text-sm">{getUserAvatar()}</span>
+                      <span className="text-white font-bold text-sm">{getUserAvatar()}</span>
                     )}
                   </div>
                   {/* Verification Badge for KYC users (agent, host, tourguide) */}
                   {(user.userType === 'agent' || user.userType === 'host' || user.userType === 'tourguide') && (
                     <div
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-md"
                       style={{
                         background: user.kycStatus === 'approved'
-                          ? 'linear-gradient(135deg, #0a66c2 70%, #ffffff 100%)' // Approved: blue mixed with white
-                          : 'linear-gradient(135deg, #9a9b9c 10%, #ffffff 100%)' // Pending/null: gray mixed with white
+                          ? 'linear-gradient(135deg, #0a66c2 0%, #0052a3 100%)'
+                          : 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
                       }}
                     >
                       <i
-                        className={`bi ${user.kycStatus === 'approved' ? 'bi-check' : 'bi-check'} text-2xl`}
+                        className="bi bi-check-lg text-xs font-bold"
                         style={{ color: '#ffffff' }}
                       />
                     </div>
@@ -730,73 +731,73 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                 </div>
 
                 <div className="hidden sm:flex flex-col leading-tight">
-                  <span className="font-semibold" style={{ color: "#083A85" }}>
+                  <span className="font-bold text-sm text-gray-900 tracking-tight">
                     {getUserDisplayName()}
                   </span>
-                  <span className="text-base text-gray-600">
-                    {userSession.role === 'host' || userSession.role === 'agent' 
-                      ? `$${balance.toFixed(2)}` 
+                  <span className="text-xs font-medium text-gray-500">
+                    {userSession.role === 'host' || userSession.role === 'agent'
+                      ? `$${balance.toFixed(2)}`
                       : getRoleDisplayName(userSession.role, user.tourGuideType)
                     }
                   </span>
                 </div>
 
-                <i className={`bi bi-chevron-down text-gray-500 transition-transform duration-200 ${
+                <i className={`bi bi-chevron-down text-gray-500 text-xs transition-transform duration-300 group-hover:text-[#083A85] ${
                   isProfileOpen ? 'rotate-180' : ''
                 }`}></i>
               </div>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                  <div className="p-3 border-b">
-                    <p className="font-bold text-gray-800">{getUserDisplayName()}</p>
-                    <p className="text-sm text-gray-700">
+                <div className="absolute right-0 mt-3 w-56 sm:w-64 bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden backdrop-blur-sm">
+                  <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 border-b border-gray-200/50">
+                    <p className="font-bold text-gray-900 text-base tracking-tight">{getUserDisplayName()}</p>
+                    <p className="text-xs font-semibold text-[#083A85] mt-0.5">
                       {getRoleDisplayName(userSession.role, user.tourGuideType)} Account
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                    <p className="text-[11px] text-gray-500 mt-1 font-medium">{user.email}</p>
                   </div>
                   <div className="py-2">
-                    <a 
-                      href="/all/profile" 
-                      className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                    <a
+                      href="/all/profile"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 transition-all"
                       onClick={(e) => { e.preventDefault(); router.push('/all/profile'); setIsProfileOpen(false); }}
                     >
-                      <i className="bi bi-person-circle w-5 text-black"></i>
+                      <i className="bi bi-person-circle text-lg text-gray-600"></i>
                       <span>Profile</span>
                     </a>
                     {(userSession.role === 'host' || userSession.role === 'agent') && (
-                      <a 
+                      <a
                         href={`/all/${userSession.role}/earnings`}
-                        className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 transition-all"
                         onClick={(e) => { e.preventDefault(); router.push(`/all/${userSession.role}/earnings`); setIsProfileOpen(false); }}
                       >
-                        <i className="bi bi-wallet2 w-5 text-black"></i>
+                        <i className="bi bi-wallet2 text-lg text-gray-600"></i>
                         <span>Balance & Payments</span>
                       </a>
                     )}
-                    <a 
-                      href="/all/settings" 
-                      className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                    <a
+                      href="/all/settings"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 transition-all"
                       onClick={(e) => { e.preventDefault(); router.push('/all/settings'); setIsProfileOpen(false); }}
                     >
-                      <i className="bi bi-gear w-5 text-black"></i>
+                      <i className="bi bi-gear text-lg text-gray-600"></i>
                       <span>Settings</span>
                     </a>
                   </div>
-                  <div className="border-t p-2">
+                  <div className="border-t border-gray-200/50 p-2">
                     <button
                       onClick={() => {
                         setIsProfileOpen(false);
                         handleLogout();
                       }}
                       disabled={isLoggingOut}
-                      className={`flex items-center gap-3 px-4 py-2 text-base rounded-md transition-colors w-full text-left cursor-pointer ${
-                        isLoggingOut 
-                          ? 'text-gray-400 cursor-not-allowed' 
-                          : 'text-red-600 hover:bg-red-50'
+                      className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all w-full text-left ${
+                        isLoggingOut
+                          ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                          : 'text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 cursor-pointer'
                       }`}
                     >
-                      <i className={`bi ${isLoggingOut ? 'bi-arrow-clockwise animate-spin' : 'bi-box-arrow-right'} w-5`}></i>
+                      <i className={`bi ${isLoggingOut ? 'bi-arrow-clockwise animate-spin' : 'bi-box-arrow-right'} text-lg`}></i>
                       <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                     </button>
                   </div>
@@ -810,13 +811,13 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push(frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href))}
-                className="px-4 py-2 text-sm font-medium text-[#083A85] hover:text-[#062a63] transition-colors"
+                className="px-4 py-2 text-sm font-semibold text-[#083A85] hover:text-[#062a63] hover:bg-gray-50 rounded-xl transition-all"
               >
                 Login
               </button>
               <button
                 onClick={() => router.push(frontend_url + `/all/signup`)}
-                className="px-4 py-2 text-sm font-medium bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
+                className="px-4 py-2 text-sm font-semibold bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white rounded-xl hover:shadow-lg transition-all duration-200"
               >
                 Sign Up
               </button>

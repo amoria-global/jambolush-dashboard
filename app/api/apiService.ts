@@ -463,16 +463,20 @@ class FrontendAPIService {
 
   async request<T = any>(endpoint: string, config: APIConfig = {}): Promise<APIResponse<T>> {
     const { method = 'GET', headers = {}, body, params, timeout = 50000 } = config;
-    
-    // Don't attempt token refresh if we're logging out or calling auth endpoints
-    if (!this.isLoggingOut && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register') && !endpoint.includes('/auth/logout')) {
+
+    // Don't attempt token validation if we're logging out or calling auth endpoints
+    const authEndpoints = ['/auth/login', '/auth/register', '/auth/logout', '/auth/refresh-token'];
+    const isAuthEndpoint = authEndpoints.some(ep => endpoint.includes(ep));
+
+    if (!this.isLoggingOut && !isAuthEndpoint) {
       try {
         await this.ensureValidToken();
       } catch (error) {
         // Token validation failed, continue with request - will get 401 and trigger logout
+        console.error('Token validation failed:', error);
       }
     }
-    
+
     const url = this.buildURL(endpoint, params);
     const mergedHeaders = { ...this.defaultHeaders, ...headers };
     const preparedBody = this.prepareBody(body);
@@ -605,10 +609,18 @@ class FrontendAPIService {
     // Clear all local data immediately
     this.clearAuth();
 
-    // Broadcast logout event (client-side only)
+    // Clear all storage (client-side only)
     if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userSession');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('userSession');
+
+      // Broadcast session expired event
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('userLogout', {
+        window.dispatchEvent(new CustomEvent('sessionExpired', {
           detail: { timestamp: Date.now() }
         }));
       }, 0);

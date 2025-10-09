@@ -155,7 +155,7 @@ const TourGuideDashboard = () => {
             <div className="mt-20 flex items-center justify-center min-h-screen">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading dashboard...</p>
+                    <p className="text-gray-600 text-xs sm:text-sm">Loading dashboard...</p>
                 </div>
             </div>
         );
@@ -165,11 +165,11 @@ const TourGuideDashboard = () => {
         return (
             <div className="mt-20 flex items-center justify-center min-h-screen">
                 <div className="text-center text-red-600">
-                    <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
-                    <p>{error}</p>
+                    <i className="bi bi-exclamation-triangle text-3xl mb-4"></i>
+                    <p className="text-xs sm:text-sm">{error}</p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600 text-xs sm:text-sm hover:shadow-md transition-all duration-200"
                     >
                         Retry
                     </button>
@@ -387,31 +387,31 @@ const TourGuideDashboard = () => {
             <div className="max-w-7xl mx-auto">
 
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-xl lg:text-3xl font-semibold text-[#083A85] mb-3">
+                <div className="mb-5 lg:mb-6">
+                    <h1 className="text-base lg:text-xl font-semibold text-[#083A85] mb-3">
                         {getTimeBasedGreeting()}, {userName}
                     </h1>
-                    <p className="text-gray-600 text-md">Here's what's happening with your tours experience</p>
+                    <p className="text-gray-600 text-xs sm:text-sm">Here's what's happening with your tours experience</p>
                 </div>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-5 lg:mb-6">
                     {summaryCards.map((card, index) => (
-                        <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                            <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
+                        <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 relative overflow-hidden border border-gray-100">
+                            <div className="absolute top-2 right-2 opacity-5 text-3xl sm:text-4xl lg:text-5xl">
                                 <i className={`bi bi-${card.icon}`} />
                             </div>
                             <div className="flex items-center mb-3">
                                 <div
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
+                                    className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center mr-3 text-white"
                                     style={{ backgroundColor: card.iconBg }}
                                 >
-                                    <i className={`bi bi-${card.icon} text-md sm:text-base`} />
+                                    <i className={`bi bi-${card.icon} text-xs sm:text-sm`} />
                                 </div>
-                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
+                                <span className="text-xs sm:text-sm text-gray-600 font-medium">{card.title}</span>
                             </div>
-                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
+                            <div className="text-base sm:text-lg lg:text-xl font-bold mb-1 text-gray-800">{card.value}</div>
+                            <div className="text-xs sm:text-sm text-green-600 flex items-center font-medium">
                                 <i className="bi bi-arrow-up mr-1" />
                                 {card.change}
                             </div>
@@ -420,15 +420,15 @@ const TourGuideDashboard = () => {
                 </div>
 
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 lg:gap-5 mb-5 lg:mb-6">
                     {/* Earnings Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                            <h3 className="text-sm lg:text-base font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-graph-up mr-2 text-pink-500" />
                                 Monthly Earnings
                             </h3>
-                            <div className="text-md text-gray-500">
+                            <div className="text-xs text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
@@ -436,14 +436,14 @@ const TourGuideDashboard = () => {
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <Tooltip
                                         contentStyle={{
                                             backgroundColor: 'white',
                                             border: '1px solid #e5e7eb',
                                             borderRadius: '8px',
-                                            fontSize: '12px'
+                                            fontSize: '10px'
                                         }}
                                     />
                                     <Line
@@ -460,13 +460,13 @@ const TourGuideDashboard = () => {
                     </div>
 
                     {/* Tour Bookings Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                            <h3 className="text-sm lg:text-base font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-bar-chart mr-2 text-blue-800" />
                                 Weekly Tour Bookings
                             </h3>
-                            <div className="text-md text-gray-500">
+                            <div className="text-xs text-gray-500">
                                 <i className="bi bi-three-dots" />
                             </div>
                         </div>
@@ -474,14 +474,14 @@ const TourGuideDashboard = () => {
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                    <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                                     <Tooltip
                                         contentStyle={{
                                             backgroundColor: 'white',
                                             border: '1px solid #e5e7eb',
                                             borderRadius: '8px',
-                                            fontSize: '12px'
+                                            fontSize: '10px'
                                         }}
                                     />
                                     <Bar dataKey="tours" fill="#083A85" radius={[6, 6, 0, 0]} />
@@ -492,76 +492,76 @@ const TourGuideDashboard = () => {
                 </div>
 
                 {/* Tours & Messages */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-5 mb-5 lg:mb-6">
                     {/* Today's Tours */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
+                    <div className="bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                            <h3 className="text-sm lg:text-base font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                                 Today's Schedule
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/tourguide/schedule') }}>
+                            <button className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer hover:shadow-md" onClick={() => { router.push('/tourguide/schedule') }}>
                                 View Calendar
                             </button>
                         </div>
                         <div className="space-y-3">
                             {upcomingTours.length > 0 ? upcomingTours.map((tour: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                <div key={index} className="p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-all duration-200">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{tour.title}</h4>
-                                            <p className="text-md text-gray-600 mt-1">{tour.meetingPoint}</p>
+                                            <h4 className="font-medium text-gray-800 text-xs sm:text-sm">{tour.title}</h4>
+                                            <p className="text-xs text-gray-600 mt-1">{tour.meetingPoint}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${tour.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${tour.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                                             }`}>
                                             {tour.status}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between text-md text-gray-500">
+                                    <div className="flex items-center justify-between text-xs text-gray-500">
                                         <span>{tour.time} • {tour.duration}</span>
                                         <span>{tour.guests} guests</span>
                                     </div>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-calendar-x text-3xl mb-2" />
-                                    <p>No tours scheduled for today</p>
+                                    <i className="bi bi-calendar-x text-xl mb-2" />
+                                    <p className="text-xs sm:text-sm">No tours scheduled for today</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Recent Messages */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                            <h3 className="text-sm lg:text-base font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-chat-dots mr-2 text-blue-600" />
                                 Recent Activity
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium">
+                            <button className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium hover:shadow-md">
                                 View All
                             </button>
                         </div>
                         <div className="space-y-3">
                             {recentMessages.length > 0 ? recentMessages.map((message: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                <div key={index} className="p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-all duration-200">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{message.guest}</h4>
-                                            <p className="text-md text-gray-600 mt-1 line-clamp-2">{message.message}</p>
+                                            <h4 className="font-medium text-gray-800 text-xs sm:text-sm">{message.guest}</h4>
+                                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{message.message}</p>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${message.type === 'review' ? 'bg-green-100 text-green-800' :
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${message.type === 'review' ? 'bg-green-100 text-green-800' :
                                                 message.type === 'inquiry' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
                                             }`}>
                                             {message.type}
                                         </span>
                                     </div>
-                                    <div className="text-md text-gray-500">{message.time}</div>
+                                    <div className="text-xs text-gray-500">{message.time}</div>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-chat-square-dots text-3xl mb-2" />
-                                    <p>No recent activity</p>
+                                    <i className="bi bi-chat-square-dots text-xl mb-2" />
+                                    <p className="text-xs sm:text-sm">No recent activity</p>
                                 </div>
                             )}
                         </div>
@@ -569,11 +569,11 @@ const TourGuideDashboard = () => {
                 </div>
 
                 {/* Bottom Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-5">
                     {/* Tour Types */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
+                    <div className="bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                            <h3 className="text-sm lg:text-base font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-pie-chart mr-2 text-gray-600" />
                                 Tour Types
                             </h3>
@@ -600,7 +600,7 @@ const TourGuideDashboard = () => {
                         </div>
                         <div className="flex flex-wrap justify-center gap-3 mt-3">
                             {tourTypes.map((type: any, index) => (
-                                <div key={index} className="flex items-center text-md font-medium">
+                                <div key={index} className="flex items-center text-xs font-medium">
                                     <div
                                         className="w-3 h-3 mr-2 rounded-sm"
                                         style={{ backgroundColor: type.color }}
@@ -612,31 +612,31 @@ const TourGuideDashboard = () => {
                     </div>
 
                     {/* Recent Reviews */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
+                    <div className="bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 lg:col-span-2 border border-gray-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
+                            <h3 className="text-sm lg:text-base font-semibold flex items-center text-gray-800">
                                 <i className="bi bi-star mr-2 text-amber-500" />
                                 Recent Reviews
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer" onClick={() => { router.push('/tourguide/reviews') }}>
+                            <button className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer hover:shadow-md" onClick={() => { router.push('/tourguide/reviews') }}>
                                 View All
                             </button>
                         </div>
                         <div className="space-y-4">
                             {recentReviews.length > 0 ? recentReviews.map((review: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                <div key={index} className="p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-all duration-200">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
                                             <div className="flex items-center mb-1">
-                                                <h4 className="font-medium text-gray-800 text-md mr-2">{review.guest}</h4>
+                                                <h4 className="font-medium text-gray-800 text-xs sm:text-sm mr-2">{review.guest}</h4>
                                                 <div className="flex items-center">
                                                     {[...Array(review.rating)].map((_, i) => (
-                                                        <i key={i} className="bi bi-star-fill text-yellow-500 text-md" />
+                                                        <i key={i} className="bi bi-star-fill text-yellow-500 text-xs" />
                                                     ))}
                                                 </div>
                                             </div>
-                                            <p className="text-md text-gray-600 mb-1">{review.comment}</p>
-                                            <div className="flex items-center justify-between text-md text-gray-500">
+                                            <p className="text-xs text-gray-600 mb-1">{review.comment}</p>
+                                            <div className="flex items-center justify-between text-xs text-gray-500">
                                                 <span>{review.tour}</span>
                                                 <span>{review.date}</span>
                                             </div>
@@ -645,8 +645,8 @@ const TourGuideDashboard = () => {
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-star text-3xl mb-2" />
-                                    <p>No reviews yet</p>
+                                    <i className="bi bi-star text-xl mb-2" />
+                                    <p className="text-xs sm:text-sm">No reviews yet</p>
                                 </div>
                             )}
                         </div>
@@ -654,16 +654,16 @@ const TourGuideDashboard = () => {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Stats</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
+                <div className="mt-5 lg:mt-6 bg-white rounded-xl p-3 lg:p-5 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
+                    <h3 className="text-sm lg:text-base font-semibold mb-4 text-gray-800">Performance Stats</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 lg:gap-6">
                         {quickStats.map((stat, index) => (
-                            <div key={index} className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                                <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
+                            <div key={index} className="text-center p-3 rounded-xl hover:bg-gray-50 transition-all duration-200">
+                                <div className="text-lg lg:text-xl mb-2 text-gray-600">
                                     <i className={`bi bi-${stat.icon}`} />
                                 </div>
-                                <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                                <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
+                                <div className="text-sm lg:text-base font-bold text-gray-800 mb-1">{stat.value}</div>
+                                <div className="text-xs sm:text-sm text-gray-600 font-medium">{stat.label}</div>
                             </div>
                         ))}
                     </div>

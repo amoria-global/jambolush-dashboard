@@ -69,7 +69,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const pathname = usePathname();
     const router = useRouter();
 
-    const [frontend_url, setFrontEnd] = useState<string>('https://jambolush.com');
+    const [frontend_url, setFrontEnd] = useState<string>('https://app.jambolush.com');
 
     useEffect(() => { 
         if (process.env.FRONTEND_URL) {
@@ -420,20 +420,21 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
             <div
                 id="sidebar"
-                className={`fixed top-0 left-0 w-72 h-full bg-white border-r border-gray-200 shadow-lg overflow-y-auto z-40 transition-transform duration-300 ease-in-out
+                className={`fixed top-0 left-0 w-72 h-full bg-gradient-to-b from-white to-gray-50/50 border-r border-gray-200/50 shadow-xl overflow-y-auto z-40 transition-transform duration-300 ease-in-out backdrop-blur-sm
                 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
                 md:translate-x-0`}
+                style={{ width: '240px' }}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-gray-100">
+                <div className="px-5 pt-6 pb-5 border-b border-gray-200/60">
                     <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#083A85] to-[#F20C8F] flex items-center justify-center">
-                            <img src="/favicon.ico" alt="logo" className='w-full h-full object-cover rounded-lg'/>
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#083A85] via-[#0a4fa0] to-[#F20C8F] flex items-center justify-center shadow-lg ring-2 ring-white ring-offset-2">
+                            <img src="/favicon.ico" alt="logo" className='w-7 h-7 object-cover rounded-lg'/>
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-black">Jambolush</h1>
-                            <p className="text-base text-gray-600">
-                                {isLoading || isRedirecting ? 'Loading...' : currentDashboardTitle}
+                            <h1 className="text-lg font-bold text-gray-900 tracking-tight leading-tight">Jambolush</h1>
+                            <p className="text-[11px] font-medium text-gray-500 tracking-wide uppercase">
+                                {isLoading || isRedirecting ? 'Loading...' : currentDashboardTitle.replace(' Dashboard', '')}
                             </p>
                         </div>
                     </div>
@@ -443,8 +444,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 {(isLoading || isRedirecting) && (
                     <div className="flex items-center justify-center py-12">
                         <div className="flex flex-col items-center space-y-3">
-                            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-sm text-gray-600">
+                            <div className="w-8 h-8 border-3 border-[#083A85] border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-xs font-medium text-gray-500">
                                 {isRedirecting ? 'Redirecting...' : 'Loading...'}
                             </p>
                         </div>
@@ -454,25 +455,28 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 {/* Main Navigation */}
                 {!isLoading && !isRedirecting && (
                     <>
-                        <div className="p-4">
+                        <div className="px-4 py-4">
                             <nav className="space-y-1">
                                 {currentNavItems.map((item: NavigationItem, index: number) => (
                                     <Link
                                         key={index}
                                         href={item.path}
-                                        className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
+                                        className={`group relative w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-200 ${
                                             isActive(item.path)
-                                                ? 'text-white font-medium'
-                                                : 'text-gray-900 hover:text-black font-medium'
+                                                ? 'text-white font-semibold shadow-md'
+                                                : 'text-gray-700 font-medium hover:text-gray-900 hover:bg-white/80 hover:shadow-sm'
                                         }`}
                                         style={{
                                             backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
                                         }}
                                     >
+                                        {isActive(item.path) && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#F20C8F] rounded-r-full"></div>
+                                        )}
                                         <i className={`bi ${item.icon} text-lg ${
-                                            isActive(item.path) ? 'text-white' : 'text-gray-500'
+                                            isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-[#083A85]'
                                         }`} />
-                                        <span className="text-base">{item.label}</span>
+                                        <span className="text-sm tracking-wide">{item.label}</span>
                                     </Link>
                                 ))}
                             </nav>
@@ -481,47 +485,55 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                         {/* Show additional sections only for authenticated users */}
                         {isAuthenticated && (
                             <>
-                                <div className="mx-4 border-t border-gray-200" />
+                                <div className="mx-4 my-2">
+                                    <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                                </div>
 
-                                <div className="p-4">
+                                <div className="px-4 py-2">
                                     <nav className="space-y-1">
                                         {commonItems.map((item, index) => (
                                             <Link
                                                 key={index}
                                                 href={item.path}
-                                                className={`w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-50 ${
+                                                className={`group relative w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-200 ${
                                                     isActive(item.path)
-                                                        ? 'text-white font-medium'
-                                                        : 'text-gray-700 hover:text-black'
+                                                        ? 'text-white font-semibold shadow-md'
+                                                        : 'text-gray-700 font-medium hover:text-gray-900 hover:bg-white/80 hover:shadow-sm'
                                                 }`}
                                                 style={{
                                                     backgroundColor: isActive(item.path) ? '#083A85' : 'transparent'
                                                 }}
                                             >
+                                                {isActive(item.path) && (
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#F20C8F] rounded-r-full"></div>
+                                                )}
                                                 <i className={`bi ${item.icon} text-lg ${
-                                                    isActive(item.path) ? 'text-white' : 'text-gray-500'
+                                                    isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-[#083A85]'
                                                 }`} />
-                                                <span className="text-base">{item.label}</span>
+                                                <span className="text-sm tracking-wide">{item.label}</span>
                                             </Link>
                                         ))}
                                     </nav>
                                 </div>
 
-                                <div className="mx-4 border-t border-gray-200" />
+                                <div className="mx-4 my-2">
+                                    <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+                                </div>
 
-                                <div className="p-4">
+                                <div className="px-4 pb-4">
                                     {/* KYC Notice */}
                                     {user && !user.kycCompleted && (user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
-                                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                            <div className="flex items-center">
-                                                <i className="bi bi-exclamation-triangle text-yellow-600 mr-2"></i>
-                                                <p className="text-sm text-yellow-800">Complete your KYC verification</p>
+                                        <div className="mb-3 p-3 bg-gradient-to-br from-yellow-50 to-amber-50 border border-yellow-300/50 rounded-xl shadow-sm">
+                                            <div className="flex items-center mb-1.5">
+                                                <i className="bi bi-exclamation-triangle-fill text-yellow-600 mr-2 text-base"></i>
+                                                <p className="text-xs font-semibold text-yellow-900">Complete KYC Verification</p>
                                             </div>
                                             <Link
                                                 href="/all/kyc"
-                                                className="mt-2 text-xs text-yellow-700 hover:text-yellow-900 underline"
+                                                className="inline-flex items-center text-xs font-medium text-yellow-700 hover:text-yellow-900 transition-colors"
                                             >
-                                                Complete now →
+                                                Complete now
+                                                <i className="bi bi-arrow-right ml-1"></i>
                                             </Link>
                                         </div>
                                     )}
@@ -530,14 +542,14 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                                     <button
                                         onClick={handleLogout}
                                         disabled={isLoggingOut}
-                                        className={`w-full flex items-center space-x-3 px-3 py-3 mt-2 rounded-lg text-left transition-all duration-200 ${
-                                            isLoggingOut 
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                                : 'hover:bg-red-50 text-gray-700 hover:text-red-600 cursor-pointer'
+                                        className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-200 font-medium ${
+                                            isLoggingOut
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                : 'hover:bg-red-50 text-gray-700 hover:text-red-600 cursor-pointer hover:shadow-sm'
                                         }`}
                                     >
-                                        <i className={`bi ${isLoggingOut ? 'bi-arrow-clockwise animate-spin' : 'bi-box-arrow-right'} text-lg text-gray-500`} />
-                                        <span className="text-base">{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+                                        <i className={`bi ${isLoggingOut ? 'bi-arrow-clockwise animate-spin' : 'bi-box-arrow-right'} text-lg`} />
+                                        <span className="text-sm tracking-wide">{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                                     </button>
                                 </div>
                             </>
@@ -545,17 +557,18 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
                         {/* Show login prompt for unauthenticated users */}
                         {!isAuthenticated && (
-                            <div className="p-4">
-                                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <p className="text-sm text-gray-600 mb-3">
+                            <div className="px-4 pb-4">
+                                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 text-center border border-blue-200/50 shadow-sm">
+                                    <i className="bi bi-shield-lock text-3xl text-[#083A85] mb-2"></i>
+                                    <p className="text-xs font-medium text-gray-700 mb-3">
                                         Please log in to access all features
                                     </p>
-                                    <Link 
+                                    <Link
                                         href={frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href)}
-                                        className="inline-flex items-center px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
+                                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
                                     >
                                         <i className="bi bi-box-arrow-in-right mr-2"></i>
-                                        Login
+                                        Login Now
                                     </Link>
                                 </div>
                             </div>
