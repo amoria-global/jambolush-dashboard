@@ -1,4 +1,5 @@
 import api from '@/app/api/apiService';
+import uploadDocumentToSupabase, {  deleteDocumentFromSupabase } from '@/app/api/storage';
 import React, { useState } from 'react';
 
 interface TourItineraryItem {
@@ -51,16 +52,20 @@ interface CreateTourDto {
   schedules: TourSchedule[];
 }
 
-type ActiveTab = 'basic' | 'location' | 'details' | 'itinerary' | 'schedule';
+type ActiveTab = 'basic' | 'images' | 'location' | 'details' | 'itinerary' | 'schedule';
 
 interface AddTourModalProps {
-    onClose: () => void;
+  onClose: () => void;
 }
 
 const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('basic');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [mainImagePreviews, setMainImagePreviews] = useState<string[]>([]);
+  const [galleryImagePreviews, setGalleryImagePreviews] = useState<string[]>([]);
+  const [mainImages, setMainImages] = useState<File[]>([]);
+  const [galleryImages, setGalleryImages] = useState<File[]>([]);
 
   const [tourData, setTourData] = useState<CreateTourDto>({
     title: '',
@@ -100,6 +105,45 @@ const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
   const categories = ['History', 'Food', 'Photography', 'Adventure', 'Culture', 'Nature', 'Art', 'Architecture', 'Music', 'Shopping'];
   const tourTypes = ['walking', 'driving', 'cycling', 'boat', 'bus', 'train', 'hiking', 'virtual'];
   const difficulties = ['easy', 'moderate', 'challenging', 'extreme'];
+
+  const resizeImage = async (file: File): Promise<File> => {
+    const scale = 0.8; // 20% off
+    const maxDim = 672; // Equivalent to Tailwind's 2xl (42rem at 16px/rem)
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        let targetWidth = img.width * scale;
+        let targetHeight = img.height * scale;
+        if (targetWidth > maxDim || targetHeight > maxDim) {
+          const ratio = Math.min(maxDim / targetWidth, maxDim / targetHeight);
+          targetWidth *= ratio;
+          targetHeight *= ratio;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(new File([blob], file.name, { type: file.type }));
+              } else {
+                reject(new Error('Failed to resize image'));
+              }
+            },
+            file.type,
+            0.9
+          );
+        } else {
+          reject(new Error('Failed to get canvas context'));
+        }
+      };
+      img.onerror = reject;
+    });
+  };
 
   const validateTour = (): string[] => {
     const validationErrors: string[] = [];
@@ -146,6 +190,9 @@ const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
     if (tourData.longitude && (tourData.longitude < -180 || tourData.longitude > 180)) {
       validationErrors.push('Longitude must be between -180 and 180');
     }
+
+    // Images validation
+    if (mainImages.length === 0) validationErrors.push('At least one main image is required');
 
     // Itinerary validation
     tourData.itinerary.forEach((item, index) => {
@@ -195,15 +242,41 @@ const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
     }
 
     setLoading(true);
+    let uploadedPaths: string[] = [];
     try {
-      await api.post('/tours', tourData);
-      setTimeout(() => {
-        //onClose();
-      }, 3000);;
+      const mainUrls: string[] = [];
+      for (const file of mainImages) {
+        const resized = await resizeImage(file);
+        const newPublicUrl = await uploadDocumentToSupabase(resized, file.name, 'tour_images/main');
+        mainUrls.push(newPublicUrl);
+        uploadedPaths.push(newPublicUrl);
+      }
+
+      const galleryUrls: string[] = [];
+      for (const file of galleryImages) {
+        const resized = await resizeImage(file);
+        const publicUrl = await uploadDocumentToSupabase(resized, file.name, 'tour_images/gallery');
+        galleryUrls.push(publicUrl);
+        uploadedPaths.push(publicUrl);
+      }
+
+      const finalData = {
+        ...tourData,
+        images: {
+          main: mainUrls,
+          gallery: galleryUrls,
+        },
+      };
+
+      await api.post('/tours', finalData);
       resetForm();
       alert('Tour created successfully!');
-    } catch (error) {
+      onClose();
+    } catch (error: any) {
       setErrors(['Failed to create tour. Please try again.']);
+      for (const path of uploadedPaths) {
+        await deleteDocumentFromSupabase(path);
+      }
     } finally {
       setLoading(false);
     }
@@ -238,6 +311,10 @@ const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
       tags: [],
       schedules: []
     });
+    setMainImages([]);
+    setGalleryImages([]);
+    setMainImagePreviews([]);
+    setGalleryImagePreviews([]);
     setActiveTab('basic');
     setErrors([]);
   };
@@ -326,8 +403,33 @@ const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
     }));
   };
 
+  const handleMainImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(e.target.files || []);
+    setMainImages((prev) => [...prev, ...newFiles]);
+    const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
+    setMainImagePreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const handleGalleryImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = Array.from(e.target.files || []);
+    setGalleryImages((prev) => [...prev, ...newFiles]);
+    const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
+    setGalleryImagePreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const removeMainImage = (index: number) => {
+    setMainImages((prev) => prev.filter((_, i) => i !== index));
+    setMainImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeGalleryImage = (index: number) => {
+    setGalleryImages((prev) => prev.filter((_, i) => i !== index));
+    setGalleryImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const tabs = [
     { id: 'basic' as ActiveTab, label: 'Basic Info', icon: '📝' },
+    { id: 'images' as ActiveTab, label: 'Images', icon: '📸' },
     { id: 'location' as ActiveTab, label: 'Location', icon: '📍' },
     { id: 'details' as ActiveTab, label: 'Details', icon: '⚙️' },
     { id: 'itinerary' as ActiveTab, label: 'Itinerary', icon: '📋' },
@@ -335,756 +437,830 @@ const AddTourModal: React.FC<AddTourModalProps> = ({ onClose }) => {
   ];
 
   return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            {/* Header */}
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">Create New Tour</h2>
-              <button
-                onClick={onClose}
-                disabled={loading}
-                className="text-gray-600 hover:text-red-600 text-2xl cursor-pointer disabled:opacity-50"
-              >
-                x
-              </button>
-            </div>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-5xl max-h-[94vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex justify-between items-center px-8 py-6 border-b border-gray-200">
+          <h2 className="text-3xl font-semibold text-gray-900">Create your tour</h2>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="text-gray-500 hover:text-gray-700 text-2xl font-light disabled:opacity-50 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
 
-            {/* Error Display */}
-            {errors.length > 0 && (
-              <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h4 className="text-red-800 font-medium mb-2">Please fix the following errors:</h4>
-                <ul className="text-red-600 text-sm space-y-1">
-                  {errors.map((error, index) => (
-                    <li key={index}>• {error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Tabs */}
-            <div className="flex overflow-x-auto border-b bg-gray-50 px-6">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  disabled={loading}
-                  className={`px-4 py-3 whitespace-nowrap text-sm font-medium border-b-2 cursor-pointer disabled:opacity-50 ${
-                    activeTab === tab.id
-                      ? 'border-[#F20C8F] text-[#F20C8F] bg-white'
-                      : 'border-transparent text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <span className="mr-2">{tab.icon}</span>
-                  {tab.label}
-                </button>
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
+            <h4 className="text-red-800 font-medium mb-2">Please fix these issues:</h4>
+            <ul className="text-red-600 text-sm space-y-1 list-disc pl-5">
+              {errors.map((error, index) => (
+                <li key={index}>{error}</li>
               ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 bg-white px-8">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              disabled={loading}
+              className={`px-6 py-4 whitespace-nowrap text-base font-medium transition-colors disabled:opacity-50 ${
+                activeTab === tab.id
+                  ? 'border-b-2 border-[#083A85] text-[#083A85]'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className="mr-2">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="p-8 overflow-y-auto flex-1">
+          {activeTab === 'basic' && (
+            <div className="space-y-8">
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Tour title
+                </label>
+                <input
+                  type="text"
+                  value={tourData.title}
+                  onChange={(e) => setTourData(prev => ({ ...prev, title: e.target.value }))}
+                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  placeholder="Give your tour a catchy title"
+                  maxLength={200}
+                />
+                <div className="text-sm text-gray-500 mt-2">{tourData.title.length}/200</div>
+              </div>
+
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Description
+                </label>
+                <textarea
+                  value={tourData.description}
+                  onChange={(e) => setTourData(prev => ({ ...prev, description: e.target.value }))}
+                  disabled={loading}
+                  rows={6}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  placeholder="Tell guests what makes your tour special"
+                  maxLength={5000}
+                />
+                <div className="text-sm text-gray-500 mt-2">{tourData.description.length}/5000</div>
+              </div>
+
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Short description
+                </label>
+                <textarea
+                  value={tourData.shortDescription}
+                  onChange={(e) => setTourData(prev => ({ ...prev, shortDescription: e.target.value }))}
+                  disabled={loading}
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  placeholder="A quick summary for search results"
+                  maxLength={500}
+                />
+                <div className="text-sm text-gray-500 mt-2">{tourData.shortDescription.length}/500</div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Category
+                  </label>
+                  <select
+                    value={tourData.category}
+                    onChange={(e) => setTourData(prev => ({ ...prev, category: e.target.value }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all appearance-none bg-white"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Tour type
+                  </label>
+                  <select
+                    value={tourData.type}
+                    onChange={(e) => setTourData(prev => ({ ...prev, type: e.target.value }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all appearance-none bg-white"
+                  >
+                    {tourTypes.map(type => (
+                      <option key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Duration (hours)
+                  </label>
+                  <input
+                    type="number"
+                    value={tourData.duration}
+                    onChange={(e) => setTourData(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                    disabled={loading}
+                    min="0.5"
+                    max="168"
+                    step="0.5"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Price (USD)
+                  </label>
+                  <input
+                    type="number"
+                    value={tourData.price}
+                    onChange={(e) => setTourData(prev => ({ ...prev, price: Number(e.target.value) }))}
+                    disabled={loading}
+                    min="1"
+                    max="50000"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Difficulty
+                  </label>
+                  <select
+                    value={tourData.difficulty}
+                    onChange={(e) => setTourData(prev => ({ ...prev, difficulty: e.target.value as any }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all appearance-none bg-white"
+                  >
+                    {difficulties.map(diff => (
+                      <option key={diff} value={diff}>
+                        {diff.charAt(0).toUpperCase() + diff.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Max group size
+                  </label>
+                  <input
+                    type="number"
+                    value={tourData.maxGroupSize}
+                    onChange={(e) => setTourData(prev => ({ ...prev, maxGroupSize: Number(e.target.value) }))}
+                    disabled={loading}
+                    min="1"
+                    max="100"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Min group size (optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={tourData.minGroupSize || ''}
+                    onChange={(e) => setTourData(prev => ({ ...prev, minGroupSize: e.target.value ? Number(e.target.value) : undefined }))}
+                    disabled={loading}
+                    min="1"
+                    max={tourData.maxGroupSize}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  />
+                </div>
+              </div>
             </div>
+          )}
 
-            {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-96">
-              {activeTab === 'basic' && (
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tour Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={tourData.title}
-                      onChange={(e) => setTourData(prev => ({ ...prev, title: e.target.value }))}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      placeholder="Enter tour title (max 200 characters)"
-                      maxLength={200}
-                    />
-                    <div className="text-xs text-gray-500 mt-1">{tourData.title.length}/200 characters</div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description *
-                    </label>
-                    <textarea
-                      value={tourData.description}
-                      onChange={(e) => setTourData(prev => ({ ...prev, description: e.target.value }))}
-                      disabled={loading}
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      placeholder="Detailed description of your tour (max 5000 characters)"
-                      maxLength={5000}
-                    />
-                    <div className="text-xs text-gray-500 mt-1">{tourData.description.length}/5000 characters</div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Short Description *
-                    </label>
-                    <textarea
-                      value={tourData.shortDescription}
-                      onChange={(e) => setTourData(prev => ({ ...prev, shortDescription: e.target.value }))}
-                      disabled={loading}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      placeholder="Brief summary for listings (max 500 characters)"
-                      maxLength={500}
-                    />
-                    <div className="text-xs text-gray-500 mt-1">{tourData.shortDescription.length}/500 characters</div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Category *
-                      </label>
-                      <select
-                        value={tourData.category}
-                        onChange={(e) => setTourData(prev => ({ ...prev, category: e.target.value }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50 cursor-pointer"
+          {activeTab === 'images' && (
+            <div className="space-y-8">
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Main images (at least 1 required)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer hover:border-[#083A85] transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleMainImageUpload}
+                    disabled={loading}
+                    className="hidden"
+                    id="main-images"
+                  />
+                  <label htmlFor="main-images" className="cursor-pointer">
+                    <div className="text-[#083A85] text-4xl mb-2">↑</div>
+                    <p className="text-gray-900 font-medium">Click to upload main images</p>
+                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB each</p>
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  {mainImagePreviews.map((preview, index) => (
+                    <div key={index} className="relative">
+                      <img src={preview} alt="preview" className="w-full h-32 object-cover rounded-xl" />
+                      <button
+                        onClick={() => removeMainImage(index)}
+                        className="absolute top-2 right-2 bg-white rounded-full p-1 text-gray-600 hover:text-red-600"
                       >
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
+                        ✕
+                      </button>
                     </div>
+                  ))}
+                </div>
+              </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tour Type *
-                      </label>
-                      <select
-                        value={tourData.type}
-                        onChange={(e) => setTourData(prev => ({ ...prev, type: e.target.value }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50 cursor-pointer"
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Gallery images (optional)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center cursor-pointer hover:border-[#083A85] transition-colors">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleGalleryImageUpload}
+                    disabled={loading}
+                    className="hidden"
+                    id="gallery-images"
+                  />
+                  <label htmlFor="gallery-images" className="cursor-pointer">
+                    <div className="text-[#083A85] text-4xl mb-2">↑</div>
+                    <p className="text-gray-900 font-medium">Click to upload gallery images</p>
+                    <p className="text-sm text-gray-500">PNG, JPG up to 10MB each</p>
+                  </label>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  {galleryImagePreviews.map((preview, index) => (
+                    <div key={index} className="relative">
+                      <img src={preview} alt="preview" className="w-full h-32 object-cover rounded-xl" />
+                      <button
+                        onClick={() => removeGalleryImage(index)}
+                        className="absolute top-2 right-2 bg-white rounded-full p-1 text-gray-600 hover:text-red-600"
                       >
-                        {tourTypes.map(type => (
-                          <option key={type} value={type}>
-                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                          </option>
-                        ))}
-                      </select>
+                        ✕
+                      </button>
                     </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Duration (hours) *
-                      </label>
-                      <input
-                        type="number"
-                        value={tourData.duration}
-                        onChange={(e) => setTourData(prev => ({ ...prev, duration: Number(e.target.value) }))}
+          {activeTab === 'location' && (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    value={tourData.locationCountry}
+                    onChange={(e) => setTourData(prev => ({ ...prev, locationCountry: e.target.value }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., United States"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={tourData.locationCity}
+                    onChange={(e) => setTourData(prev => ({ ...prev, locationCity: e.target.value }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., New York"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    State/Province (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={tourData.locationState}
+                    onChange={(e) => setTourData(prev => ({ ...prev, locationState: e.target.value }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., New York"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Zip code (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={tourData.locationZipCode}
+                    onChange={(e) => setTourData(prev => ({ ...prev, locationZipCode: e.target.value }))}
+                    disabled={loading}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., 10001"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={tourData.locationAddress}
+                  onChange={(e) => setTourData(prev => ({ ...prev, locationAddress: e.target.value }))}
+                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  placeholder="e.g., 123 Main St"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Meeting point
+                </label>
+                <input
+                  type="text"
+                  value={tourData.meetingPoint}
+                  onChange={(e) => setTourData(prev => ({ ...prev, meetingPoint: e.target.value }))}
+                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                  placeholder="Where guests should meet you"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Latitude (optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={tourData.latitude || ''}
+                    onChange={(e) => setTourData(prev => ({ ...prev, latitude: e.target.value ? Number(e.target.value) : undefined }))}
+                    disabled={loading}
+                    step="0.000001"
+                    min="-90"
+                    max="90"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., 40.7128"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-base font-medium text-gray-900 mb-3">
+                    Longitude (optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={tourData.longitude || ''}
+                    onChange={(e) => setTourData(prev => ({ ...prev, longitude: e.target.value ? Number(e.target.value) : undefined }))}
+                    disabled={loading}
+                    step="0.000001"
+                    min="-180"
+                    max="180"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., -74.0060"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'details' && (
+            <div className="space-y-8">
+              {/* Inclusions */}
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  What’s included
+                </label>
+                <div className="flex gap-3 mb-4">
+                  <input
+                    type="text"
+                    value={tempInclusion}
+                    onChange={(e) => setTempInclusion(e.target.value)}
+                    disabled={loading}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., Professional guide"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addArrayItem('inclusions', tempInclusion))}
+                  />
+                  <button
+                    onClick={() => addArrayItem('inclusions', tempInclusion)}
+                    disabled={loading || !tempInclusion.trim()}
+                    className="px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {tourData.inclusions.map((item, index) => (
+                    <span key={index} className="bg-gray-100 text-gray-900 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                      {item}
+                      <button
+                        onClick={() => removeArrayItem('inclusions', index)}
                         disabled={loading}
-                        min="0.5"
-                        max="168"
-                        step="0.5"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
+                        className="text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Exclusions */}
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  What’s not included
+                </label>
+                <div className="flex gap-3 mb-4">
+                  <input
+                    type="text"
+                    value={tempExclusion}
+                    onChange={(e) => setTempExclusion(e.target.value)}
+                    disabled={loading}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., Meals and drinks"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addArrayItem('exclusions', tempExclusion))}
+                  />
+                  <button
+                    onClick={() => addArrayItem('exclusions', tempExclusion)}
+                    disabled={loading || !tempExclusion.trim()}
+                    className="px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {tourData.exclusions.map((item, index) => (
+                    <span key={index} className="bg-gray-100 text-gray-900 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                      {item}
+                      <button
+                        onClick={() => removeArrayItem('exclusions', index)}
+                        disabled={loading}
+                        className="text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Requirements */}
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Guest requirements
+                </label>
+                <div className="flex gap-3 mb-4">
+                  <input
+                    type="text"
+                    value={tempRequirement}
+                    onChange={(e) => setTempRequirement(e.target.value)}
+                    disabled={loading}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., Comfortable walking shoes"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addArrayItem('requirements', tempRequirement))}
+                  />
+                  <button
+                    onClick={() => addArrayItem('requirements', tempRequirement)}
+                    disabled={loading || !tempRequirement.trim()}
+                    className="px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {tourData.requirements.map((item, index) => (
+                    <span key={index} className="bg-gray-100 text-gray-900 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                      {item}
+                      <button
+                        onClick={() => removeArrayItem('requirements', index)}
+                        disabled={loading}
+                        className="text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-base font-medium text-gray-900 mb-3">
+                  Tags
+                </label>
+                <div className="flex gap-3 mb-4">
+                  <input
+                    type="text"
+                    value={tempTag}
+                    onChange={(e) => setTempTag(e.target.value)}
+                    disabled={loading}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                    placeholder="e.g., family-friendly"
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addArrayItem('tags', tempTag))}
+                  />
+                  <button
+                    onClick={() => addArrayItem('tags', tempTag)}
+                    disabled={loading || !tempTag.trim()}
+                    className="px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {tourData.tags.map((item, index) => (
+                    <span key={index} className="bg-gray-100 text-gray-900 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                      {item}
+                      <button
+                        onClick={() => removeArrayItem('tags', index)}
+                        disabled={loading}
+                        className="text-gray-500 hover:text-red-500 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'itinerary' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900">Itinerary</h3>
+                <button
+                  onClick={addItineraryItem}
+                  disabled={loading}
+                  className="px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+                >
+                  Add stop
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {tourData.itinerary.map((item, index) => (
+                  <div key={index} className="border border-gray-200 rounded-2xl p-6 bg-white">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-medium text-gray-900">Stop {index + 1}</h4>
+                      <button
+                        onClick={() => removeItineraryItem(index)}
+                        disabled={loading}
+                        className="text-gray-500 hover:text-red-500 transition-colors font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-base font-medium text-gray-900 mb-3">
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          value={item.title}
+                          onChange={(e) => updateItineraryItem(index, 'title', e.target.value)}
+                          disabled={loading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                          placeholder="e.g., Explore the historic district"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-base font-medium text-gray-900 mb-3">
+                          Duration (hours)
+                        </label>
+                        <input
+                          type="number"
+                          value={item.duration}
+                          onChange={(e) => updateItineraryItem(index, 'duration', Number(e.target.value))}
+                          disabled={loading}
+                          min="0.25"
+                          step="0.25"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <label className="block text-base font-medium text-gray-900 mb-3">
+                        Description
+                      </label>
+                      <textarea
+                        value={item.description}
+                        onChange={(e) => updateItineraryItem(index, 'description', e.target.value)}
+                        disabled={loading}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                        placeholder="What will guests do here?"
                       />
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Price (USD) *
-                      </label>
-                      <input
-                        type="number"
-                        value={tourData.price}
-                        onChange={(e) => setTourData(prev => ({ ...prev, price: Number(e.target.value) }))}
-                        disabled={loading}
-                        min="1"
-                        max="50000"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Difficulty
-                      </label>
-                      <select
-                        value={tourData.difficulty}
-                        onChange={(e) => setTourData(prev => ({ ...prev, difficulty: e.target.value as any }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50 cursor-pointer"
-                      >
-                        {difficulties.map(diff => (
-                          <option key={diff} value={diff}>
-                            {diff.charAt(0).toUpperCase() + diff.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Max Group Size *
-                      </label>
-                      <input
-                        type="number"
-                        value={tourData.maxGroupSize}
-                        onChange={(e) => setTourData(prev => ({ ...prev, maxGroupSize: Number(e.target.value) }))}
+              {tourData.itinerary.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-lg font-medium">No stops added yet</p>
+                  <p className="text-base mt-2">Add stops to outline your tour's journey</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'schedule' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900">Availability</h3>
+                <button
+                  onClick={addSchedule}
+                  disabled={loading}
+                  className="px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+                >
+                  Add dates
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {tourData.schedules.map((schedule, index) => (
+                  <div key={index} className="border border-gray-200 rounded-2xl p-6 bg-white">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-medium text-gray-900">Date range {index + 1}</h4>
+                      <button
+                        onClick={() => removeSchedule(index)}
                         disabled={loading}
-                        min="1"
-                        max="100"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      />
+                        className="text-gray-500 hover:text-red-500 transition-colors font-medium"
+                      >
+                        Remove
+                      </button>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Min Group Size
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-base font-medium text-gray-900 mb-3">
+                          Start date
+                        </label>
+                        <input
+                          type="date"
+                          value={schedule.startDate}
+                          onChange={(e) => updateSchedule(index, 'startDate', e.target.value)}
+                          disabled={loading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-base font-medium text-gray-900 mb-3">
+                          End date
+                        </label>
+                        <input
+                          type="date"
+                          value={schedule.endDate}
+                          onChange={(e) => updateSchedule(index, 'endDate', e.target.value)}
+                          disabled={loading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-base font-medium text-gray-900 mb-3">
+                          Start time
+                        </label>
+                        <input
+                          type="time"
+                          value={schedule.startTime}
+                          onChange={(e) => updateSchedule(index, 'startTime', e.target.value)}
+                          disabled={loading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-base font-medium text-gray-900 mb-3">
+                          End time
+                        </label>
+                        <input
+                          type="time"
+                          value={schedule.endTime}
+                          onChange={(e) => updateSchedule(index, 'endTime', e.target.value)}
+                          disabled={loading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <label className="block text-base font-medium text-gray-900 mb-3">
+                        Available spots
                       </label>
                       <input
                         type="number"
-                        value={tourData.minGroupSize || ''}
-                        onChange={(e) => setTourData(prev => ({ ...prev, minGroupSize: e.target.value ? Number(e.target.value) : undefined }))}
+                        value={schedule.availableSlots}
+                        onChange={(e) => updateSchedule(index, 'availableSlots', Number(e.target.value))}
                         disabled={loading}
                         min="1"
                         max={tourData.maxGroupSize}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20 disabled:opacity-50 transition-all"
                       />
                     </div>
                   </div>
-                </div>
-              )}
-
-              {activeTab === 'location' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Country *
-                      </label>
-                      <input
-                        type="text"
-                        value={tourData.locationCountry}
-                        onChange={(e) => setTourData(prev => ({ ...prev, locationCountry: e.target.value }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Enter country"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        City *
-                      </label>
-                      <input
-                        type="text"
-                        value={tourData.locationCity}
-                        onChange={(e) => setTourData(prev => ({ ...prev, locationCity: e.target.value }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Enter city"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        State/Province
-                      </label>
-                      <input
-                        type="text"
-                        value={tourData.locationState}
-                        onChange={(e) => setTourData(prev => ({ ...prev, locationState: e.target.value }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Enter state or province"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Zip Code
-                      </label>
-                      <input
-                        type="text"
-                        value={tourData.locationZipCode}
-                        onChange={(e) => setTourData(prev => ({ ...prev, locationZipCode: e.target.value }))}
-                        disabled={loading}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Enter zip code"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Address *
-                    </label>
-                    <input
-                      type="text"
-                      value={tourData.locationAddress}
-                      onChange={(e) => setTourData(prev => ({ ...prev, locationAddress: e.target.value }))}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      placeholder="Enter full address"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Meeting Point *
-                    </label>
-                    <input
-                      type="text"
-                      value={tourData.meetingPoint}
-                      onChange={(e) => setTourData(prev => ({ ...prev, meetingPoint: e.target.value }))}
-                      disabled={loading}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                      placeholder="Where should participants meet?"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Latitude
-                      </label>
-                      <input
-                        type="number"
-                        value={tourData.latitude || ''}
-                        onChange={(e) => setTourData(prev => ({ ...prev, latitude: e.target.value ? Number(e.target.value) : undefined }))}
-                        disabled={loading}
-                        step="0.000001"
-                        min="-90"
-                        max="90"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="e.g., 40.7128"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Longitude
-                      </label>
-                      <input
-                        type="number"
-                        value={tourData.longitude || ''}
-                        onChange={(e) => setTourData(prev => ({ ...prev, longitude: e.target.value ? Number(e.target.value) : undefined }))}
-                        disabled={loading}
-                        step="0.000001"
-                        min="-180"
-                        max="180"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="e.g., -74.0060"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'details' && (
-                <div className="space-y-6">
-                  {/* Inclusions */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      What's Included
-                    </label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={tempInclusion}
-                        onChange={(e) => setTempInclusion(e.target.value)}
-                        disabled={loading}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Add inclusion (e.g., Professional guide)"
-                        onKeyPress={(e) => e.key === 'Enter' && addArrayItem('inclusions', tempInclusion)}
-                      />
-                      <button
-                        onClick={() => addArrayItem('inclusions', tempInclusion)}
-                        disabled={loading || !tempInclusion.trim()}
-                        className="px-4 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {tourData.inclusions.map((item, index) => (
-                        <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                          {item}
-                          <button
-                            onClick={() => removeArrayItem('inclusions', index)}
-                            disabled={loading}
-                            className="hover:text-green-600 cursor-pointer disabled:opacity-50"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Exclusions */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      What's Not Included
-                    </label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={tempExclusion}
-                        onChange={(e) => setTempExclusion(e.target.value)}
-                        disabled={loading}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Add exclusion (e.g., Meals)"
-                        onKeyPress={(e) => e.key === 'Enter' && addArrayItem('exclusions', tempExclusion)}
-                      />
-                      <button
-                        onClick={() => addArrayItem('exclusions', tempExclusion)}
-                        disabled={loading || !tempExclusion.trim()}
-                        className="px-4 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {tourData.exclusions.map((item, index) => (
-                        <span key={index} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                          {item}
-                          <button
-                            onClick={() => removeArrayItem('exclusions', index)}
-                            disabled={loading}
-                            className="hover:text-red-600 cursor-pointer disabled:opacity-50"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Requirements */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Requirements
-                    </label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={tempRequirement}
-                        onChange={(e) => setTempRequirement(e.target.value)}
-                        disabled={loading}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Add requirement (e.g., Comfortable walking shoes)"
-                        onKeyPress={(e) => e.key === 'Enter' && addArrayItem('requirements', tempRequirement)}
-                      />
-                      <button
-                        onClick={() => addArrayItem('requirements', tempRequirement)}
-                        disabled={loading || !tempRequirement.trim()}
-                        className="px-4 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {tourData.requirements.map((item, index) => (
-                        <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                          {item}
-                          <button
-                            onClick={() => removeArrayItem('requirements', index)}
-                            disabled={loading}
-                            className="hover:text-blue-600 cursor-pointer disabled:opacity-50"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tags
-                    </label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={tempTag}
-                        onChange={(e) => setTempTag(e.target.value)}
-                        disabled={loading}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                        placeholder="Add tag (e.g., family-friendly)"
-                        onKeyPress={(e) => e.key === 'Enter' && addArrayItem('tags', tempTag)}
-                      />
-                      <button
-                        onClick={() => addArrayItem('tags', tempTag)}
-                        disabled={loading || !tempTag.trim()}
-                        className="px-4 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {tourData.tags.map((item, index) => (
-                        <span key={index} className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                          {item}
-                          <button
-                            onClick={() => removeArrayItem('tags', index)}
-                            disabled={loading}
-                            className="hover:text-purple-600 cursor-pointer disabled:opacity-50"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'itinerary' && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium text-gray-800">Tour Itinerary</h3>
-                    <button
-                      onClick={addItineraryItem}
-                      disabled={loading}
-                      className="px-4 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                    >
-                      Add Item
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {tourData.itinerary.map((item, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <h4 className="text-md font-medium text-gray-800">Item {index + 1}</h4>
-                          <button
-                            onClick={() => removeItineraryItem(index)}
-                            disabled={loading}
-                            className="text-red-600 hover:text-red-800 cursor-pointer disabled:opacity-50"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Title
-                            </label>
-                            <input
-                              type="text"
-                              value={item.title}
-                              onChange={(e) => updateItineraryItem(index, 'title', e.target.value)}
-                              disabled={loading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                              placeholder="e.g., Visit Historic District"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Duration (hours)
-                            </label>
-                            <input
-                              type="number"
-                              value={item.duration}
-                              onChange={(e) => updateItineraryItem(index, 'duration', Number(e.target.value))}
-                              disabled={loading}
-                              min="0.25"
-                              step="0.25"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="mt-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Description
-                          </label>
-                          <textarea
-                            value={item.description}
-                            onChange={(e) => updateItineraryItem(index, 'description', e.target.value)}
-                            disabled={loading}
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                            placeholder="Describe what happens during this part of the tour"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {tourData.itinerary.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No itinerary items yet.</p>
-                      <p className="text-sm">Add items to create a detailed tour schedule.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'schedule' && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium text-gray-800">Tour Schedules</h3>
-                    <button
-                      onClick={addSchedule}
-                      disabled={loading}
-                      className="px-4 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                    >
-                      Add Schedule
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {tourData.schedules.map((schedule, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <h4 className="text-md font-medium text-gray-800">Schedule {index + 1}</h4>
-                          <button
-                            onClick={() => removeSchedule(index)}
-                            disabled={loading}
-                            className="text-red-600 hover:text-red-800 cursor-pointer disabled:opacity-50"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Start Date
-                            </label>
-                            <input
-                              type="date"
-                              value={schedule.startDate}
-                              onChange={(e) => updateSchedule(index, 'startDate', e.target.value)}
-                              disabled={loading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              End Date
-                            </label>
-                            <input
-                              type="date"
-                              value={schedule.endDate}
-                              onChange={(e) => updateSchedule(index, 'endDate', e.target.value)}
-                              disabled={loading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Start Time
-                            </label>
-                            <input
-                              type="time"
-                              value={schedule.startTime}
-                              onChange={(e) => updateSchedule(index, 'startTime', e.target.value)}
-                              disabled={loading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              End Time
-                            </label>
-                            <input
-                              type="time"
-                              value={schedule.endTime}
-                              onChange={(e) => updateSchedule(index, 'endTime', e.target.value)}
-                              disabled={loading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="mt-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Available Slots
-                          </label>
-                          <input
-                            type="number"
-                            value={schedule.availableSlots}
-                            onChange={(e) => updateSchedule(index, 'availableSlots', Number(e.target.value))}
-                            disabled={loading}
-                            min="1"
-                            max={tourData.maxGroupSize}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F20C8F] disabled:opacity-50"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {tourData.schedules.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>No schedules yet.</p>
-                      <p className="text-sm">Add schedules to make your tour bookable.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="border-t p-6 bg-gray-50 flex justify-between">
-              <button
-                onClick={onClose}
-                disabled={loading}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 disabled:opacity-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
-                    if (currentTabIndex > 0) {
-                      setActiveTab(tabs[currentTabIndex - 1].id);
-                    }
-                  }}
-                  disabled={loading || activeTab === 'basic'}
-                  className="px-6 py-2 border border-[#F20C8F] text-[#F20C8F] rounded-lg hover:bg-[#F20C8F] hover:text-white disabled:opacity-50 cursor-pointer transition-colors"
-                >
-                  Previous
-                </button>
-                
-                {activeTab === 'schedule' ? (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="px-6 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer flex items-center gap-2"
-                  >
-                    {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
-                    {loading ? 'Creating...' : 'Create Tour'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
-                      if (currentTabIndex < tabs.length - 1) {
-                        setActiveTab(tabs[currentTabIndex + 1].id);
-                      }
-                    }}
-                    disabled={loading}
-                    className="px-6 py-2 bg-[#F20C8F] text-white rounded-lg hover:bg-[#d1075e] disabled:opacity-50 cursor-pointer"
-                  >
-                    Next
-                  </button>
-                )}
+                ))}
               </div>
+
+              {tourData.schedules.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="text-lg font-medium">No availability added yet</p>
+                  <p className="text-base mt-2">Add date ranges when your tour is available</p>
+                </div>
+              )}
             </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 px-8 py-6 bg-white flex justify-between items-center">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-8 py-3 text-gray-900 font-medium rounded-xl hover:bg-gray-100 disabled:opacity-50 transition-colors"
+          >
+            Cancel
+          </button>
+          
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
+                if (currentTabIndex > 0) {
+                  setActiveTab(tabs[currentTabIndex - 1].id);
+                }
+              }}
+              disabled={loading || activeTab === 'basic'}
+              className="px-8 py-3 border border-gray-300 text-gray-900 font-medium rounded-xl hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            >
+              Back
+            </button>
+            
+            {activeTab === 'schedule' ? (
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-8 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium flex items-center gap-3"
+              >
+                {loading && <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>}
+                {loading ? 'Creating...' : 'Publish tour'}
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
+                  if (currentTabIndex < tabs.length - 1) {
+                    setActiveTab(tabs[currentTabIndex + 1].id);
+                  }
+                }}
+                disabled={loading}
+                className="px-8 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#05285E] disabled:opacity-50 transition-colors font-medium"
+              >
+                Next
+              </button>
+            )}
           </div>
         </div>
+      </div>
+    </div>
   );
 };
 

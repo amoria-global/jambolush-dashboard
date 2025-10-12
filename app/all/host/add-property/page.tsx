@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import api from '@/app/api/apiService';
 import uploadDocumentToSupabase from '@/app/api/storage';
 import { useRouter } from 'next/navigation';
+import AlertNotification from '@/app/components/notify';
 
 interface User {
   id: string;
@@ -105,7 +106,8 @@ const AddPropertyPage: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
   const [isExistingHost, setIsExistingHost] = useState<boolean>(false);
-  
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+
   // Add ref to track component mount status for cleanup only
   const isMountedRef = useRef<boolean>(true);
   const router = useRouter();
@@ -349,43 +351,88 @@ const AddPropertyPage: React.FC = () => {
 
   const registerUserAsHost = async (ownerDetails: OwnerDetails): Promise<string> => {
     try {
-      // Check if user with this email already exists
-      const existingUserResponse = await api.get(`/auth/users/email/${ownerDetails.email}`);
-      
-      if (existingUserResponse.ok && existingUserResponse.data) {
-        const existingUser = existingUserResponse.data;
-        
-        // If user exists and is already a host, return their ID
-        if (existingUser.userType === 'host') {
-          return existingUser.id;
+      // Step 1: Try to check if user with this email already exists
+      let existingUser = null;
+
+      try {
+        const existingUserResponse = await api.get(`/auth/users/email/${ownerDetails.email}`);
+        if (existingUserResponse.ok && existingUserResponse.data) {
+          existingUser = existingUserResponse.data;
+          console.log('User found via lookup endpoint:', existingUser.id);
         }
-        
-        // If user exists but not a host, update their userType to host
-        const updateResponse = await api.put('/auth/me', {
-          userType: 'host',
-          ...ownerDetails
+      } catch (checkError: any) {
+        console.log('User lookup endpoint not available or user not found:', checkError.status);
+      }
+
+      // Step 2: If user exists, return their ID (regardless of userType)
+      if (existingUser?.id) {
+        console.log('Using existing user ID:', existingUser.id, 'UserType:', existingUser.userType);
+        return existingUser.id;
+      }
+
+      // Step 3: User not found, try to register new user as host
+      console.log('User not found, attempting registration for:', ownerDetails.email);
+
+      try {
+        const registerResponse = await api.post('/auth/register', {
+          names: ownerDetails.names,
+          email: ownerDetails.email,
+          phone: ownerDetails.phone,
+          address: ownerDetails.address,
+          password: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 10).toUpperCase() + '!@#',
+          userType: 'host'
         });
-        
-        if (updateResponse.ok) {
-          return existingUser.id;
+
+        if (registerResponse.ok && registerResponse.data) {
+          const newHostId = registerResponse.data.id || registerResponse.data.user?.id;
+          if (!newHostId) {
+            throw new Error('Registration successful but host ID not returned');
+          }
+
+          console.log('New host account created successfully with ID:', newHostId);
+          return newHostId;
         }
+
+        throw new Error(registerResponse.data?.message || 'Failed to register user as host');
+      } catch (registerError: any) {
+        // Step 4: If registration fails with 409 Conflict, user exists - try to fetch them again
+        if (registerError.status === 409) {
+          console.log('User already exists (409 Conflict), attempting to fetch user ID...');
+
+          // Try multiple methods to get the user ID
+          try {
+            // Method 1: Try the lookup endpoint again
+            const retryLookup = await api.get(`/auth/users/email/${ownerDetails.email}`);
+            if (retryLookup.ok && retryLookup.data?.id) {
+              console.log('User ID retrieved after conflict:', retryLookup.data.id);
+              return retryLookup.data.id;
+            }
+          } catch (lookupError) {
+            console.log('Lookup after conflict failed, trying alternative methods');
+          }
+
+          // Method 2: Check if the error response contains user data
+          if (registerError.data?.user?.id) {
+            console.log('User ID found in conflict response:', registerError.data.user.id);
+            return registerError.data.user.id;
+          }
+
+          if (registerError.data?.id) {
+            console.log('User ID found in conflict response data:', registerError.data.id);
+            return registerError.data.id;
+          }
+
+          // If we still can't get the ID, throw a clear error
+          throw new Error('User already exists but unable to retrieve user ID. Please check the email and try again.');
+        }
+
+        // Re-throw other registration errors
+        throw registerError;
       }
-      
-      // Register new user as host
-      const registerResponse = await api.post('/auth/register', {
-        ...ownerDetails,
-        password: Math.random().toString(36).substring(2, 15), // Temporary password
-        userType: 'host'
-      });
-      
-      if (registerResponse.ok && registerResponse.data) {
-        return registerResponse.data.id;
-      }
-      
-      throw new Error('Failed to register user as host');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in registerUserAsHost:', error);
-      throw error;
+      const errorMessage = error?.data?.message || error?.message || 'Failed to register host account';
+      throw new Error(errorMessage);
     }
   };
 
@@ -916,13 +963,17 @@ const AddPropertyPage: React.FC = () => {
       if (response.ok) {
         const successMessage = response.data?.message || 'Property added successfully!';
         setSubmitSuccess(successMessage);
-        
+        setNotification({
+          message: successMessage,
+          type: 'success'
+        });
+
         setTimeout(() => {
           setIsModalOpen(false);
           resetForm();
           // Redirect to properties page
           window.location.href = '/host/properties';
-        }, 2000);
+        }, 3000);
       } else {
         // Handle different types of server errors
         let errorMessage = 'Failed to create property. Please try again.';
@@ -952,6 +1003,10 @@ const AddPropertyPage: React.FC = () => {
       console.error('Error creating property:', error);
       const errorMessage = handleApiError(error);
       setSubmitError(errorMessage);
+      setNotification({
+        message: errorMessage,
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1123,6 +1178,15 @@ const AddPropertyPage: React.FC = () => {
       <head>
         <title>Add Property - Jambolush</title>
       </head>
+      {notification && (
+        <AlertNotification
+          message={notification.message}
+          type={notification.type}
+          position="top-center"
+          duration={5000}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="min-h-screen bg-gray-50">
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto">

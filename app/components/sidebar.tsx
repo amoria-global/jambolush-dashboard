@@ -323,7 +323,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         
         agent: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/agent' },
-            { label: 'Clients', icon: 'bi-people-fill', path: '/all/agent/clients' },
+            { label: 'Guests', icon: 'bi-people-fill', path: '/all/agent/clients' },
             { label: 'Properties', icon: 'bi-building', path: '/all/agent/properties' },
             { label: 'Bookings', icon: 'bi-calendar3', path: '/all/agent/bookings' },
             { label: 'Performance', icon: 'bi-trophy', path: '/all/agent/performance' },
@@ -333,6 +333,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
 
         tourguide: [
             { label: 'Dashboard', icon: 'bi-speedometer2', path: '/all/tourguide' },
+            { label: 'Reservations', icon: 'bi-bag', path: '/all/tourguide/reservations' },
             { label: 'My Tours', icon: 'bi-compass', path: '/all/tourguide/tours' },
             { label: 'Schedule', icon: 'bi-calendar2-week', path: '/all/tourguide/schedule' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/tourguide/earnings' },
@@ -408,15 +409,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                 onClick={toggleSidebar}
                 aria-hidden="true"
             />
-
-            <button
-                className="md:hidden fixed top-4 left-4 z-60 p-2 rounded-md bg-white text-gray-800 shadow-md"
-                onClick={toggleSidebar}
-                aria-controls="sidebar"
-                aria-expanded={isSidebarOpen}
-            >
-                <i className="bi bi-list text-2xl" />
-            </button>
 
             <div
                 id="sidebar"

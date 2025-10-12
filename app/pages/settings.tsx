@@ -1,4 +1,4 @@
-//app/pages/settings.tsx
+// app/pages/settings.tsx
 "use client";
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -486,12 +486,12 @@ function SettingsContent() {
   const NotificationsTab = () => (
     <div className="space-y-6">
       {/* Alert Preferences */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-bell mr-2"></i>Alert Preferences
         </h3>
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">SMS Notifications</p>
               <p className="text-sm text-gray-500">Receive alerts via text message</p>
@@ -507,7 +507,7 @@ function SettingsContent() {
             </label>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Email Notifications</p>
               <p className="text-sm text-gray-500">Receive alerts via email</p>
@@ -523,7 +523,7 @@ function SettingsContent() {
             </label>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Push Notifications</p>
               <p className="text-sm text-gray-500">Receive browser push notifications</p>
@@ -542,12 +542,12 @@ function SettingsContent() {
       </div>
 
       {/* Notification Types */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-envelope mr-2"></i>Notification Types
         </h3>
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Marketing Emails</p>
               <p className="text-sm text-gray-500">Promotional offers and newsletters</p>
@@ -563,7 +563,7 @@ function SettingsContent() {
             </label>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Property Alerts</p>
               <p className="text-sm text-gray-500">New listings matching your criteria</p>
@@ -602,8 +602,8 @@ function SettingsContent() {
   const AppearanceTab = () => (
     <div className="space-y-6">
       {/* Theme Settings */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-palette mr-2"></i>Theme Settings
         </h3>
         <div className="space-y-6">
@@ -615,9 +615,9 @@ function SettingsContent() {
                 <button
                   key={theme}
                   onClick={() => handleThemeChange(theme)}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
                     appearance.theme === theme
-                      ? 'border-blue-600 bg-blue-50'
+                      ? 'border-[#083A85] bg-[#FFF1EE]'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
@@ -635,7 +635,7 @@ function SettingsContent() {
             <select
               value={appearance.fontSize}
               onChange={(e) => handleFontSizeChange(e.target.value as 'small' | 'medium' | 'large')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer"
             >
               <option value="small">Small</option>
               <option value="medium">Medium (Default)</option>
@@ -644,7 +644,7 @@ function SettingsContent() {
           </div>
 
           {/* Compact Mode */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-t">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-t border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Compact Mode</p>
               <p className="text-sm text-gray-500">Reduce spacing and padding throughout the interface</p>
@@ -667,16 +667,16 @@ function SettingsContent() {
   const SecurityTab = () => (
     <div className="space-y-6">
       {/* Account Verification */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-shield-check mr-2"></i>Account Verification
         </h3>
         <div className="space-y-4">
           {/* Email Verification */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center gap-4 mb-3 sm:mb-0">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <i className="bi bi-envelope-fill text-blue-600 text-xl"></i>
+              <div className="w-12 h-12 bg-[#FFF1EE] rounded-full flex items-center justify-center">
+                <i className="bi bi-envelope-fill text-[#083A85] text-xl"></i>
               </div>
               <div>
                 <p className="text-base font-medium text-gray-900">Email Verification</p>
@@ -691,7 +691,7 @@ function SettingsContent() {
               {!verification.email && (
                 <button
                   onClick={() => setShowVerificationModal('email')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
+                  className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#E31C5F] transition-colors text-sm font-medium cursor-pointer"
                 >
                   Verify Now
                 </button>
@@ -704,8 +704,8 @@ function SettingsContent() {
       </div>
 
       {/* Two-Factor Authentication */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-lock mr-2"></i>Two-Factor Authentication
         </h3>
         <div className="space-y-6">
@@ -725,7 +725,7 @@ function SettingsContent() {
 
           {/* Phone Verification - Only shown when 2FA is being enabled */}
           {show2FASetup && (
-          <div className="border-t pt-6">
+          <div className="border-t border-gray-200 pt-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-4 mb-3 sm:mb-0">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -744,7 +744,7 @@ function SettingsContent() {
                 {!verification.phone && (
                   <button
                     onClick={() => setShowVerificationModal('phone')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
+                    className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#E31C5F] transition-colors text-sm font-medium cursor-pointer"
                   >
                     Verify Now
                   </button>
@@ -762,13 +762,13 @@ function SettingsContent() {
     <div className="space-y-6">
 
       {/* Connected Accounts */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-link-45deg mr-2"></i>Connected Accounts
         </h3>
         <div className="space-y-3">
           {connectedAccounts.map((account) => (
-            <div key={account.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div key={account.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
               <div className="flex items-center gap-3">
                 <i className={`bi ${account.icon} text-2xl`}></i>
                 <div>
@@ -781,8 +781,8 @@ function SettingsContent() {
               <button
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                   account.connected
-                    ? 'bg-red-200 text-red-700 hover:bg-red-300'
-                    : 'bg-blue-200 text-blue-700 hover:bg-blue-300'
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                    : 'bg-[#FFF1EE] text-[#083A85] hover:bg-[#FFE5E9]'
                 }`}
               >
                 {account.connected ? 'Disconnect' : 'Connect'}
@@ -793,17 +793,17 @@ function SettingsContent() {
       </div>
 
       {/* Privacy Settings */}
-      <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900 mb-6">
           <i className="bi bi-eye-slash mr-2"></i>Privacy Settings
         </h3>
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-gray-200">
             <div className="mb-2 sm:mb-0">
               <p className="text-base font-medium text-gray-900">Profile Visibility</p>
               <p className="text-sm text-gray-500">Control who can see your profile</p>
             </div>
-            <select className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            <select className="px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer">
               <option>Public</option>
               <option>Friends Only</option>
               <option>Private</option>
@@ -823,8 +823,8 @@ function SettingsContent() {
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
-        <h3 className="text-lg font-semibold text-red-900 mb-4">
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-4 sm:p-6">
+        <h3 className="text-xl font-semibold text-red-900 mb-6">
           <i className="bi bi-exclamation-triangle mr-2"></i>Danger Zone
         </h3>
         <div className="space-y-4">
@@ -873,7 +873,7 @@ function SettingsContent() {
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl lg:text-4xl font-bold text-[#083A85]">Settings</h1>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600 mt-2">Manage your account settings and preferences</p>
         </div>
 
@@ -909,7 +909,7 @@ function SettingsContent() {
         )}
 
         {/* Settings Navigation */}
-        <div className="bg-white rounded-lg shadow-lg mb-6 p-2 overflow-x-auto">
+        <div className="bg-white rounded-2xl shadow-sm mb-6 p-2 overflow-x-auto border border-gray-200">
           <div className="flex flex-nowrap sm:flex-wrap gap-2">
             {[
               { id: 'notifications', label: 'Notifications', icon: 'bi-bell' },
@@ -922,7 +922,7 @@ function SettingsContent() {
                 onClick={() => handleTabChange(tab.id)}
                 className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-base font-medium cursor-pointer ${
                   activeTab === tab.id
-                    ? 'text-white shadow-lg'
+                    ? 'text-white shadow-md'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
                 style={{
@@ -939,7 +939,7 @@ function SettingsContent() {
         {/* Tab Content */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#083A85]"></div>
           </div>
         ) : (
           <div className="animate-scale-in">
@@ -956,7 +956,7 @@ function SettingsContent() {
             onClick={handleSaveSettings}
             disabled={saveStatus === 'saving'}
             className="w-full sm:w-auto px-6 py-3 rounded-lg text-white text-base font-medium transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
-            style={{ backgroundColor: '#F20C8F' }}
+            style={{ backgroundColor: '#083A85' }}
           >
             {saveStatus === 'saving' && (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -979,7 +979,7 @@ function SettingsContent() {
       {/* Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
+          <div className="bg-white rounded-2xl max-w-md w-full animate-scale-in">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
@@ -998,7 +998,7 @@ function SettingsContent() {
                     type="password"
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85]"
                   />
                 </div>
                 <div>
@@ -1007,7 +1007,7 @@ function SettingsContent() {
                     type="password"
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85]"
                   />
                 </div>
                 <div>
@@ -1016,7 +1016,7 @@ function SettingsContent() {
                     type="password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85]"
                   />
                 </div>
               </div>
@@ -1045,7 +1045,7 @@ function SettingsContent() {
       {/* Verification Modal */}
       {showVerificationModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
+          <div className="bg-white rounded-2xl max-w-md w-full animate-scale-in">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-gray-900">
@@ -1060,9 +1060,9 @@ function SettingsContent() {
               </div>
               
               <div className="text-center py-8">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-20 h-20 bg-[#FFF1EE] rounded-full flex items-center justify-center mx-auto mb-4">
                   {/* Simplified the icon logic to remove the unused 'identity' case. */}
-                  <i className={`bi bi-${showVerificationModal === 'email' ? 'envelope' : 'telephone'} text-blue-600 text-3xl`}></i>
+                  <i className={`bi bi-${showVerificationModal === 'email' ? 'envelope' : 'telephone'} text-[#083A85] text-3xl`}></i>
                 </div>
                 <p className="text-gray-600 mb-6">
                   {/* Removed the line for 'identity' verification. */}
@@ -1097,7 +1097,7 @@ function SettingsContent() {
       {/* Deactivate Account Modal */}
       {showDeactivateModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
+          <div className="bg-white rounded-2xl max-w-md w-full animate-scale-in">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Deactivate Account</h2>
@@ -1140,7 +1140,7 @@ function SettingsContent() {
                     }
                   }}
                   disabled={loading}
-                  className="flex-1 px-4 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium disabled:opacity-50 cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? 'Deactivating...' : 'Deactivate Account'}
                 </button>
@@ -1153,7 +1153,7 @@ function SettingsContent() {
       {/* Delete Account Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full animate-scale-in">
+          <div className="bg-white rounded-2xl max-w-md w-full animate-scale-in">
             <div className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <h2 className="text-xl font-bold text-red-900">Delete Account</h2>

@@ -528,19 +528,19 @@ const handleNotificationClick = async (notification: Notification) => {
   };
 
   return (
-    <div className="pt-14 bg-gray-50 min-h-screen">
+    <div className="pt-5 min-h-screen">
       <style jsx>{`
         .bi::before {
           font-family: 'Bootstrap Icons';
         }
       `}</style>
       
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto p-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Notifications</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#083A85]">Notifications</h1>
               <p className="text-gray-600 mt-2">Stay updated with your latest alerts and messages</p>
             </div>
             <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 sm:gap-4">

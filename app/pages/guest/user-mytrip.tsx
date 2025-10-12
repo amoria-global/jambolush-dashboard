@@ -1,611 +1,277 @@
 "use client";
+import api from '@/app/api/apiService';
+import React, { useState, useEffect, useMemo } from 'react';
 
-import React, { useState, useEffect } from 'react';
-
-// Define brand colors and a harmonious green for the Edit button.
-const primaryColor = '#cf0a7aff'; // Pink
-const secondaryColor = '#083A85'; // Blue
-
-// Define a type for the SVG icon props
-type SvgProps = React.SVGProps<SVGSVGElement>;
-
-// Inline SVG icons with explicit type for props
-const Search = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="11" cy="11" r="8"></circle>
-    <path d="m21 21-4.3-4.3"></path>
-  </svg>
-);
-
-const ChevronLeft = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="m15 18-6-6 6-6"></path>
-  </svg>
-);
-
-const ChevronRight = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="m9 18 6-6-6-6"></path>
-  </svg>
-);
-
-const Plane = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M17.8 19.2 20 21l2-2-2.2-2.2a1 1 0 0 0-1.4 0l-2.6 2.6a1 1 0 0 0 0 1.4Z"></path>
-    <path d="M17.8 19.2 6.5 7.9c-.8-.8-2.2-.8-3 0L2 8.4V2l7.5 1.5L8.4 5.2c-.8.8-.8 2.2 0 3L19.2 17.8"></path>
-  </svg>
-);
-
-const CheckCircle = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-8.62"></path>
-    <path d="M9 11l3 3L22 4"></path>
-  </svg>
-);
-
-const XCircle = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10"></circle>
-    <path d="m15 9-6 6"></path>
-    <path d="m9 9 6 6"></path>
-  </svg>
-);
-
-const ChevronDown = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="m6 9 6 6 6-6" />
-  </svg>
-);
-
-const Eye = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const Trash2 = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M3 6h18l-2 13a2 2 0 0 1-2 1.9H7a2 2 0 0 1-2-1.9L3 6Z" />
-    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    <line x1="10" y1="11" x2="10" y2="17" />
-    <line x1="14" y1="11" x2="14" y2="17" />
-  </svg>
-);
-
-const Grid = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <rect width="7" height="7" x="3" y="3" rx="1" />
-    <rect width="7" height="7" x="14" y="3" rx="1" />
-    <rect width="7" height="7" x="14" y="14" rx="1" />
-    <rect width="7" height="7" x="3" y="14" rx="1" />
-  </svg>
-);
-
-const List = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <line x1="8" y1="6" x2="21" y2="6" />
-    <line x1="8" y1="12" x2="21" y2="12" />
-    <line x1="8" y1="18" x2="21" y2="18" />
-    <line x1="3" y1="6" x2="3.01" y2="6" />
-    <line x1="3" y1="12" x2="3.01" y2="12" />
-    <line x1="3" y1="18" x2="3.01" y2="18" />
-  </svg>
-);
-
-const X = (props: SvgProps) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="m18 6-12 12" />
-    <path d="m6 6 12 12" />
-  </svg>
-);
-
-// Define a type for the trip data
-interface Trip {
-  id: number;
-  destination: string;
-  departureDate: string;
-  returnDate: string;
-  status: 'Checked In' | 'Checked Out' | 'Pending' | 'Rejected' | 'Cancelled';
-  totalCost: number;
-  tripType: 'One-way' | 'Round-trip' | 'Multi-city';
+interface Tour {
+  id: string;
+  title: string;
+  guide: string;
+  status: 'active' | 'completed' | 'draft' | 'cancelled';
+  price: number;
+  bookings: number;
+  date: string;
+  image?: string;
+  description?: string;
+  duration?: string;
+  location?: string;
+  tourType?: 'city' | 'nature' | 'cultural' | 'adventure' | 'food' | 'historical';
+  maxParticipants?: number;
+  availableSpots?: number;
 }
 
-const MOCK_TRIPS_DATA: Trip[] = [
-  { id: 1, destination: 'Paris, France', departureDate: '2024-10-15', returnDate: '2024-10-20', status: 'Pending', totalCost: 1500, tripType: 'Round-trip' },
-  { id: 2, destination: 'Maui, USA', departureDate: '2024-07-20', returnDate: '2024-07-28', status: 'Checked Out', totalCost: 3200, tripType: 'Round-trip' },
-  { id: 3, destination: 'Swiss Alps', departureDate: '2024-09-05', returnDate: '2024-09-12', status: 'Pending', totalCost: 2500, tripType: 'Round-trip' },
-  { id: 4, destination: 'New York, USA', departureDate: '2024-08-11', returnDate: '2024-08-13', status: 'Checked In', totalCost: 950, tripType: 'One-way' },
-  { id: 5, destination: 'Tokyo, Japan', departureDate: '2024-11-01', returnDate: '2024-11-08', status: 'Pending', totalCost: 4100, tripType: 'Round-trip' },
-  { id: 6, destination: 'Route 66, USA', departureDate: '2024-06-15', returnDate: '2024-06-30', status: 'Checked Out', totalCost: 1800, tripType: 'Multi-city' },
-  { id: 7, destination: 'London, UK', departureDate: '2024-08-25', returnDate: '2024-08-28', status: 'Pending', totalCost: 1200, tripType: 'Round-trip' },
-  { id: 8, destination: 'Cancun, Mexico', departureDate: '2024-05-10', returnDate: '2024-05-17', status: 'Cancelled', totalCost: 1600, tripType: 'Round-trip' },
-];
+interface UserBooking {
+  id: string;
+  tourTitle?: string;
+  tourType?: 'city' | 'nature' | 'cultural' | 'adventure' | 'food' | 'historical';
+  date: Date;
+  startTime: string;
+  endTime?: string;
+  duration: number;
+  location: string;
+  meetingPoint?: string;
+  numberOfGuests: number;
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
+  price: number;
+  totalPrice?: number;
+  guideName?: string;
+  guideContact?: string;
+  specialRequests?: string;
+  createdAt: Date;
+  lastModified: Date;
+  currency?: string;
+  tour?: any;
+  schedule?: any;
+  guests?: number;
+}
 
-const tripsPerPageOptions = [5, 10, 20];
+type MainTab = 'available' | 'bookings';
+type ViewMode = 'grid' | 'list';
 
-const MyTripsDashboard = () => {
-  // State for all trips, filtered trips, and pagination
-  const [trips, setTrips] = useState<Trip[]>(MOCK_TRIPS_DATA);
-  const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [tripsPerPage, setTripsPerPage] = useState<number>(10);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [modalContent, setModalContent] = useState<{
-    title: string;
-    message: string;
-    onConfirm?: () => void;
-  } | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('grid');
-  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+const GuestToursPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<MainTab>('available');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [availableTours, setAvailableTours] = useState<Tour[]>([]);
+  const [filteredTours, setFilteredTours] = useState<Tour[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [userBookings, setUserBookings] = useState<UserBooking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<UserBooking[]>([]);
+  const [tourFilters, setTourFilters] = useState({search: '', tourType: 'all', priceRange: 'all', status: 'active'});
+  const [bookingFilters, setBookingFilters] = useState({search: '', status: 'all', tourType: 'all', dateRange: { start: '', end: '' }});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(12);
+  const [selectedTour, setSelectedTour] = useState<Tour | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<UserBooking | null>(null);
+  const [showTourModal, setShowTourModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showBookingForm, setShowBookingForm] = useState(false);
 
-  // State for filters and search
-  const [filterStatus, setFilterStatus] = useState<string>('All');
-  const [filterTripType, setFilterTripType] = useState<string>('All');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const extractArray = (data: any, fallback: any[] = []): any[] => {
+    if (!data) return fallback;
+    if (data.data?.data?.bookings && Array.isArray(data.data.data.bookings)) return data.data.data.bookings;
+    if (data.data?.data?.tours && Array.isArray(data.data.data.tours)) return data.data.data.tours;
+    if (Array.isArray(data.data?.data)) return data.data.data;
+    if (data.data?.bookings && Array.isArray(data.data.bookings)) return data.data.bookings;
+    if (data.data?.tours && Array.isArray(data.data.tours)) return data.data.tours;
+    if (Array.isArray(data.data)) return data.data;
+    if (Array.isArray(data)) return data;
+    return fallback;
+  };
 
-  // Summary statistics (updated for new statuses)
-  const totalTrips = trips.length;
-  const pendingTrips = trips.filter(trip => trip.status === 'Pending').length;
-  const checkedInTrips = trips.filter(trip => trip.status === 'Checked In').length;
-  const checkedOutTrips = trips.filter(trip => trip.status === 'Checked Out').length;
+  const transformTourData = (apiTour: any): Tour => ({
+    id: apiTour.id,
+    title: apiTour.title || apiTour.name,
+    guide: apiTour.guide?.name || apiTour.guideName || 'Guide TBD',
+    status: apiTour.status || 'active',
+    price: apiTour.price || apiTour.pricePerPerson || 0,
+    bookings: apiTour.bookings || apiTour.totalBookings || 0,
+    date: apiTour.date || apiTour.schedule?.startDate || new Date().toISOString(),
+    image: apiTour.image || apiTour.images?.[0] || `https://picsum.photos/seed/tour${apiTour.id}/600/400`,
+    description: apiTour.description || 'Tour description',
+    duration: apiTour.duration || '2 hours',
+    location: apiTour.location,
+    tourType: apiTour.type || apiTour.tourType || 'city',
+    maxParticipants: apiTour.maxParticipants || 20,
+    availableSpots: (apiTour.maxParticipants || 20) - (apiTour.bookings || 0)
+  });
 
-  // Effect to filter the trips based on all criteria
+  const transformBookingData = (apiBooking: any): UserBooking => {
+    const bookingDate = new Date(apiBooking.schedule?.startDate || apiBooking.startDate || apiBooking.createdAt);
+    const startTime = apiBooking.schedule?.startTime || apiBooking.startTime || '10:00';
+    const duration = apiBooking.tour?.duration || apiBooking.duration || 2;
+    return {
+      id: apiBooking.id,
+      tourTitle: apiBooking.tour?.title || apiBooking.tour?.name || 'Tour Booking',
+      tourType: apiBooking.tour?.type || 'city',
+      date: bookingDate,
+      startTime,
+      endTime: apiBooking.schedule?.endTime || apiBooking.endTime || `${(parseInt(startTime.split(':')[0]) + duration).toString().padStart(2, '0')}:00`,
+      duration,
+      location: apiBooking.tour?.location || apiBooking.location || 'Location TBD',
+      meetingPoint: apiBooking.meetingPoint || 'Meeting point TBD',
+      numberOfGuests: apiBooking.guests || apiBooking.numberOfGuests || 1,
+      status: apiBooking.status || 'pending',
+      price: apiBooking.price || apiBooking.totalPrice || 0,
+      totalPrice: apiBooking.totalPrice || apiBooking.price || 0,
+      guideName: apiBooking.tour?.guide?.name || apiBooking.guideName || 'Guide TBD',
+      guideContact: apiBooking.tour?.guide?.contact || apiBooking.guideContact || '',
+      specialRequests: apiBooking.specialRequests || apiBooking.notes,
+      createdAt: new Date(apiBooking.createdAt),
+      lastModified: new Date(apiBooking.updatedAt || apiBooking.createdAt),
+      currency: apiBooking.currency || 'KES'
+    };
+  };
+
   useEffect(() => {
-    let newFilteredTrips = trips.filter(trip => {
-      const statusMatch = filterStatus === 'All' || trip.status === filterStatus;
-      const tripTypeMatch = filterTripType === 'All' || trip.tripType === filterTripType;
-      const searchMatch = trip.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          trip.departureDate.includes(searchTerm) ||
-                          trip.returnDate.includes(searchTerm);
-      return statusMatch && tripTypeMatch && searchMatch;
-    });
-    setFilteredTrips(newFilteredTrips);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const promises = activeTab === 'available' ? [api.get('/tours').catch(() => null)] : [api.get('/bookings/tours').catch(() => null)];
+        const [response] = await Promise.all(promises);
+        if (activeTab === 'available') {
+          const transformedTours = extractArray(response).map(transformTourData);
+          setAvailableTours(transformedTours);
+        } else {
+          const transformedBookings = extractArray(response).map(transformBookingData);
+          setUserBookings(transformedBookings);
+        }
+      } catch (err: any) {
+        setError(err?.data?.message || err?.message || 'Failed to load data. Please try again.');
+        console.error('Data loading error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [activeTab]);
+
+  useEffect(() => {
+    let filtered = [...availableTours];
+    if (tourFilters.search) filtered = filtered.filter(t => t.title.toLowerCase().includes(tourFilters.search.toLowerCase()) || t.guide.toLowerCase().includes(tourFilters.search.toLowerCase()) || t.location?.toLowerCase().includes(tourFilters.search.toLowerCase()));
+    if (tourFilters.tourType !== 'all') filtered = filtered.filter(t => t.tourType === tourFilters.tourType);
+    if (tourFilters.status !== 'all') filtered = filtered.filter(t => t.status === tourFilters.status);
+    if (tourFilters.priceRange !== 'all') {
+      const ranges = {'low': [0, 50], 'medium': [51, 100], 'high': [101, Infinity]};
+      const [min, max] = ranges[tourFilters.priceRange as keyof typeof ranges] || [0, Infinity];
+      filtered = filtered.filter(t => t.price >= min && t.price <= max);
+    }
+    setFilteredTours(filtered);
     setCurrentPage(1);
-  }, [trips, filterStatus, filterTripType, searchTerm]);
+  }, [availableTours, tourFilters]);
 
-  // Pagination logic
-  const indexOfLastTrip = currentPage * tripsPerPage;
-  const indexOfFirstTrip = indexOfLastTrip - tripsPerPage;
-  const currentTrips = filteredTrips.slice(indexOfFirstTrip, indexOfLastTrip);
-  const totalPages = Math.ceil(filteredTrips.length / tripsPerPage);
-
-  const handlePageChange = (pageNumber: number) => {
-    setCurrentPage(pageNumber);
-  };
-
-  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTripsPerPage(Number(e.target.value));
-    setCurrentPage(1);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setModalContent(null);
-    setSelectedTrip(null);
-  };
-
-  // Modal handlers for the action buttons (only View and Delete)
-  const handleAction = (action: string, trip: Trip) => {
-    if (action === 'View') {
-      setSelectedTrip(trip);
-      setIsModalOpen(true);
-    } else if (action === 'Delete') {
-      setModalContent({
-        title: `Confirm Deletion`,
-        message: `Are you sure you want to delete the trip to ${trip.destination}? This action cannot be undone.`,
-        onConfirm: () => {
-          setTrips(prevTrips => prevTrips.filter(t => t.id !== trip.id));
-          closeModal();
-        },
+  useEffect(() => {
+    let filtered = [...userBookings];
+    if (bookingFilters.search) filtered = filtered.filter(b => b.tourTitle?.toLowerCase().includes(bookingFilters.search.toLowerCase()) || b.location.toLowerCase().includes(bookingFilters.search.toLowerCase()));
+    if (bookingFilters.status !== 'all') filtered = filtered.filter(b => b.status === bookingFilters.status);
+    if (bookingFilters.tourType !== 'all') filtered = filtered.filter(b => b.tourType === bookingFilters.tourType);
+    if (bookingFilters.dateRange.start && bookingFilters.dateRange.end) {
+      const startDate = new Date(bookingFilters.dateRange.start);
+      const endDate = new Date(bookingFilters.dateRange.end);
+      endDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(b => {
+        const bookingDate = new Date(b.date);
+        return bookingDate >= startDate && bookingDate <= endDate;
       });
-      setIsModalOpen(true);
+    }
+    setFilteredBookings(filtered);
+    setCurrentPage(1);
+  }, [userBookings, bookingFilters]);
+
+  const bookingStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = userBookings.filter(b => new Date(b.date) >= today && b.status === 'confirmed');
+    const completed = userBookings.filter(b => b.status === 'completed');
+    return {
+      total: userBookings.length,
+      upcoming: upcoming.length,
+      completed: completed.length,
+      pending: userBookings.filter(b => b.status === 'pending').length,
+      totalSpent: completed.reduce((sum, b) => sum + (b.totalPrice || b.price * b.numberOfGuests), 0)
+    };
+  }, [userBookings]);
+
+  const paginatedItems = useMemo(() => {
+    const items = activeTab === 'available' ? filteredTours : filteredBookings;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return items.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredTours, filteredBookings, currentPage, itemsPerPage, activeTab]);
+
+  const totalPages = Math.ceil((activeTab === 'available' ? filteredTours.length : filteredBookings.length) / itemsPerPage);
+
+  const handleBookTour = (tour: Tour) => { setSelectedTour(tour); setShowBookingForm(true); };
+  const handleViewTourDetails = (tour: Tour) => { setSelectedTour(tour); setShowTourModal(true); };
+  const handleViewBookingDetails = (booking: UserBooking) => { setSelectedBooking(booking); setShowBookingModal(true); };
+  const handleCancelBooking = async (booking: UserBooking) => {
+    if (window.confirm(`Cancel "${booking.tourTitle}"?`)) {
+      try { await api.patch(`/tours/${booking.id}/cancel`); window.location.reload(); } catch (error) { alert('Failed to cancel booking.'); }
     }
   };
 
-  // Helper for status badges
-  const getStatusBadge = (status: string) => {
-    let bgColor = '';
-    let textColor = 'text-white';
-    switch (status) {
-      case 'Pending':
-        bgColor = `bg-yellow-500`;
-        break;
-      case 'Checked In':
-        bgColor = `bg-[${secondaryColor}]`;
-        break;
-      case 'Checked Out':
-        bgColor = `bg-green-600`;
-        break;
-      case 'Rejected':
-        bgColor = `bg-red-600`;
-        break;
-      case 'Cancelled':
-        bgColor = `bg-[${primaryColor}]`;
-        break;
-      default:
-        bgColor = 'bg-gray-400';
-    }
-    return (
-      <span className={`px-2 py-1 text-sm font-semibold rounded-full ${bgColor} ${textColor}`}>
-        {status}
-      </span>
-    );
+  const getStatusColor = (status: string) => {
+    const colors = {active: 'bg-green-100 text-green-800', confirmed: 'bg-blue-100 text-blue-800', pending: 'bg-yellow-100 text-yellow-800', cancelled: 'bg-red-100 text-red-800', completed: 'bg-gray-100 text-gray-800'};
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  // Helper for summary card colors
-  const summaryCardColors = {
-    pending: 'bg-yellow-100 text-yellow-600',
-    checkedIn: 'bg-blue-100 text-blue-600',
-    checkedOut: 'bg-green-100 text-green-600',
-  };
+  if (loading) return (<div className="pt-14 min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div><p className="text-gray-600 text-sm">Loading...</p></div></div>);
+  if (error) return (<div className="pt-14 min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center max-w-md"><div className="bg-red-50 border border-red-200 rounded-lg p-5 shadow-sm"><div className="flex items-center justify-center w-10 h-10 mx-auto mb-3 bg-red-100 rounded-full"><i className="bi bi-exclamation-triangle text-red-600" /></div><h2 className="text-red-800 font-semibold mb-1.5 text-base">Error Loading Data</h2><p className="text-red-600 mb-3 text-sm">{error}</p><button onClick={() => window.location.reload()} className="bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors text-sm"><i className="bi bi-arrow-clockwise mr-1.5" />Try Again</button></div></div></div>);
 
   return (
-    <div className="font-['Inter',_sans-serif]">
-      <div className="min-h-screen bg-gray-50 transition-colors duration-300 p-4 sm:p-8 text-gray-800">
-        <style>{`
-          .my-primary { background-color: ${primaryColor}; }
-          .my-secondary { background-color: ${secondaryColor}; }
-          .my-text-primary { color: ${primaryColor}; }
-          .my-text-secondary { color: ${secondaryColor}; }
-          .my-border-primary { border-color: ${primaryColor}; }
-          .my-border-secondary { border-color: ${secondaryColor}; }
-        `}</style>
-        <div className="container mx-auto max-w-7xl">
+    <div className="">
+      <div className="px-2 sm:px-3 lg:px-4 py-3 sm:py-4">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-black">Tours</h1>
+          <p className="text-gray-600 mt-2 text-base">Discover amazing tours and manage your bookings</p>
+        </div>
 
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">My Trips</h1>
-            {/* View Toggle */}
-            <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-md">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 rounded-md transition-colors cursor-pointer hover:scale-105 ${
-                  viewMode === 'table' 
-                    ? 'bg-[#F20C8F] text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                aria-label="Table View"
-              >
-                <List />
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-colors cursor-pointer hover:scale-105 ${
-                  viewMode === 'grid' 
-                    ? 'bg-[#F20C8F] text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                aria-label="Grid View"
-              >
-                <Grid />
-              </button>
-            </div>
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8">
+              <button onClick={() => setActiveTab('available')} className={`py-3 px-2 border-b-2 font-medium text-base ${activeTab === 'available' ? 'border-[#083A85] text-[#083A85]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Available Tours</button>
+              <button onClick={() => setActiveTab('bookings')} className={`py-3 px-2 border-b-2 font-medium text-base ${activeTab === 'bookings' ? 'border-[#083A85] text-[#083A85]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>My Bookings {bookingStats.total > 0 && `(${bookingStats.total})`}</button>
+            </nav>
           </div>
+        </div>
 
-          {/* Summary Cards - updated for new statuses */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-            <div className={`p-6 rounded-2xl shadow-lg flex items-center gap-4 ${summaryCardColors.pending}`}>
-              <Plane className="w-12 h-12" />
-              <div>
-                <div className="text-sm font-bold">Pending Trips</div>
-                <div className="text-xl font-extrabold">{pendingTrips}</div>
-              </div>
-            </div>
-            <div className={`p-6 rounded-2xl shadow-lg flex items-center gap-4 ${summaryCardColors.checkedIn}`}>
-              <CheckCircle className="w-12 h-12" />
-              <div>
-                <div className="text-sm font-bold">Checked In</div>
-                <div className="text-xl font-extrabold">{checkedInTrips}</div>
-              </div>
-            </div>
-            <div className={`p-6 rounded-2xl shadow-lg flex items-center gap-4 ${summaryCardColors.checkedOut}`}>
-              <XCircle className="w-12 h-12" />
-              <div>
-                <div className="text-sm font-bold">Checked Out</div>
-                <div className="text-xl font-extrabold">{checkedOutTrips}</div>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'bookings' && (<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-6"><div className="bg-white rounded-xl shadow-md p-4 text-center"><p className="text-gray-600 text-sm">Total</p><p className="text-2xl sm:text-3xl font-bold text-[#083A85]">{bookingStats.total}</p></div><div className="bg-white rounded-xl shadow-md p-4 text-center"><p className="text-gray-600 text-sm">Upcoming</p><p className="text-2xl sm:text-3xl font-bold text-blue-600">{bookingStats.upcoming}</p></div><div className="bg-white rounded-xl shadow-md p-4 text-center"><p className="text-gray-600 text-sm">Pending</p><p className="text-2xl sm:text-3xl font-bold text-yellow-600">{bookingStats.pending}</p></div><div className="bg-white rounded-xl shadow-md p-4 text-center"><p className="text-gray-600 text-sm">Spent</p><p className="text-lg sm:text-xl font-bold text-green-600">{bookingStats.totalSpent.toLocaleString()} KES</p></div></div>)}
 
-          {/* Filters & Search */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-wrap gap-2">
-                <div className="relative">
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="appearance-none pr-8 py-2 px-4 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer hover:border-gray-400 transition-colors"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Checked In">Checked In</option>
-                    <option value="Checked Out">Checked Out</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <select
-                    value={filterTripType}
-                    onChange={(e) => setFilterTripType(e.target.value)}
-                    className="appearance-none pr-8 py-2 px-4 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer hover:border-gray-400 transition-colors"
-                  >
-                    <option value="All">All Trip Types</option>
-                    <option value="One-way">One-way</option>
-                    <option value="Round-trip">Round-trip</option>
-                    <option value="Multi-city">Multi-city</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-              <div className="relative flex-grow max-w-lg">
-                <input
-                  type="text"
-                  placeholder="Search trips or destinations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full p-2 pl-10 border border-gray-300 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-200"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              </div>
-            </div>
-          </div>
-
-          {/* Conditional rendering based on view mode */}
-          {viewMode === 'table' ? (
-            /* Table View */
-            <div className="overflow-x-auto bg-white rounded-2xl shadow-lg mb-8">
-              <table className="w-full table-auto">
-                <thead className="text-left text-sm font-semibold text-gray-500 uppercase">
-                  <tr className="border-b border-gray-200">
-                    <th className="p-4 whitespace-nowrap">Destination</th>
-                    <th className="p-4 whitespace-nowrap hidden sm:table-cell">Departure Date</th>
-                    <th className="p-4 whitespace-nowrap hidden sm:table-cell">Return Date</th>
-                    <th className="p-4 whitespace-nowrap hidden md:table-cell">Trip Type</th>
-                    <th className="p-4 whitespace-nowrap">Status</th>
-                    <th className="p-4 whitespace-nowrap text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentTrips.length > 0 ? (
-                    currentTrips.map(trip => (
-                      <tr key={trip.id} className="border-b last:border-b-0 border-gray-200 hover:bg-gray-50 transition-colors">
-                        <td className="p-4 text-sm font-medium">{trip.destination}</td>
-                        <td className="p-4 text-sm hidden sm:table-cell">{trip.departureDate}</td>
-                        <td className="p-4 text-sm hidden sm:table-cell">{trip.returnDate}</td>
-                        <td className="p-4 text-sm hidden md:table-cell">{trip.tripType}</td>
-                        <td className="p-4 text-sm">{getStatusBadge(trip.status)}</td>
-                        <td className="p-4 text-sm text-center">
-                          <div className="flex gap-2 justify-center">
-                            <button
-                              onClick={() => handleAction('View', trip)}
-                              className="p-2 rounded-lg my-secondary text-white shadow-md hover:bg-opacity-80 hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
-                              aria-label="View Trip Details"
-                              title="View Trip Details"
-                            >
-                              <Eye />
-                            </button>
-                            <button
-                              onClick={() => handleAction('Delete', trip)}
-                              className="p-2 rounded-lg bg-pink-500 text-white shadow-md hover:bg-pink-600 hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-pink-400 cursor-pointer"
-                              aria-label="Delete Trip"
-                              title="Delete Trip"
-                            >
-                              <Trash2 />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="p-10 text-center text-gray-500 text-sm">No trips found for the selected filters.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6">
+          {activeTab === 'available' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">Search</label><input type="text" placeholder="Tour, guide, location..." value={tourFilters.search} onChange={(e) => setTourFilters(prev => ({ ...prev, search: e.target.value }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">Type</label><select value={tourFilters.tourType} onChange={(e) => setTourFilters(prev => ({ ...prev, tourType: e.target.value }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"><option value="all">All</option><option value="city">City</option><option value="nature">Nature</option><option value="cultural">Cultural</option><option value="adventure">Adventure</option><option value="food">Food</option><option value="historical">Historical</option></select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">Price</label><select value={tourFilters.priceRange} onChange={(e) => setTourFilters(prev => ({ ...prev, priceRange: e.target.value }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"><option value="all">All</option><option value="low">0-50 KES</option><option value="medium">51-100 KES</option><option value="high">101+ KES</option></select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">View</label><div className="flex gap-2"><button onClick={() => setViewMode('grid')} className={`flex-1 px-4 py-2 text-sm rounded-full ${viewMode === 'grid' ? 'bg-[#083A85] text-white' : 'bg-gray-200 text-gray-700'}`}><i className="bi bi-grid mr-1"></i>Grid</button><button onClick={() => setViewMode('list')} className={`flex-1 px-4 py-2 text-sm rounded-full ${viewMode === 'list' ? 'bg-[#083A85] text-white' : 'bg-gray-200 text-gray-700'}`}><i className="bi bi-list mr-1"></i>List</button></div></div>
             </div>
           ) : (
-            /* Grid View */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {currentTrips.length > 0 ? (
-                currentTrips.map(trip => (
-                  <div key={trip.id} className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xl font-bold text-gray-900">{trip.destination}</h3>
-                      {getStatusBadge(trip.status)}
-                    </div>
-                    <div className="space-y-2 mb-6">
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Departure:</span> {trip.departureDate}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Return:</span> {trip.returnDate}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Trip Type:</span> {trip.tripType}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAction('View', trip)}
-                        className="flex-1 p-2 rounded-lg my-secondary text-white text-sm font-medium shadow-md hover:bg-opacity-80 transition-all duration-200 cursor-pointer hover:scale-105"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={() => handleAction('Delete', trip)}
-                        className="p-2 rounded-lg bg-pink-500 text-white shadow-md hover:bg-pink-600 transition-all duration-200 cursor-pointer hover:scale-105"
-                        aria-label="Delete Trip"
-                      >
-                        <Trash2 />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-full text-center text-gray-500 text-sm py-10">
-                  No trips found for the selected filters.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {filteredTrips.length > tripsPerPage && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2 text-sm">
-                <span>Items per page:</span>
-                <select
-                  value={tripsPerPage}
-                  onChange={handleItemsPerPageChange}
-                  className="p-2 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 cursor-pointer hover:border-gray-400 transition-colors"
-                >
-                  {tripsPerPageOptions.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-gray-300 my-secondary text-white disabled:opacity-50 disabled:cursor-not-allowed hover:my-primary transition-colors cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="flex gap-1">
-                  {[...Array(totalPages).keys()].map(number => (
-                    <button
-                      key={number + 1}
-                      onClick={() => handlePageChange(number + 1)}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors cursor-pointer hover:scale-105 ${
-                        currentPage === number + 1
-                          ? 'bg-[#F20C8F] text-white shadow-md'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {number + 1}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-gray-300 my-secondary text-white disabled:opacity-50 disabled:cursor-not-allowed hover:my-primary transition-colors cursor-pointer"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">Search</label><input type="text" placeholder="Tour or location..." value={bookingFilters.search} onChange={(e) => setBookingFilters(prev => ({ ...prev, search: e.target.value }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">Status</label><select value={bookingFilters.status} onChange={(e) => setBookingFilters(prev => ({ ...prev, status: e.target.value }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"><option value="all">All</option><option value="confirmed">Confirmed</option><option value="pending">Pending</option><option value="cancelled">Cancelled</option><option value="completed">Completed</option></select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">From</label><input type="date" value={bookingFilters.dateRange.start} onChange={(e) => setBookingFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, start: e.target.value } }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">To</label><input type="date" value={bookingFilters.dateRange.end} onChange={(e) => setBookingFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, end: e.target.value } }))} className="w-full px-4 py-2 text-base border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#083A85] hover:shadow-md"/></div>
             </div>
           )}
         </div>
 
-        {/* Enhanced Modal with better styling and dimmed background */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto h-full w-full flex justify-center items-center p-4 z-50 transition-opacity duration-300">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-lg w-full transform transition-all duration-300 scale-100 relative">
-              {/* Close button in top right */}
-              <button
-                onClick={closeModal}
-                className="absolute top-4 right-4 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              {selectedTrip ? (
-                /* Trip Details Modal */
-                <div className="text-center">
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold mb-2 text-gray-900">Trip Details</h3>
-                    <div className="w-16 h-1 bg-gradient-to-r from-pink-500 to-blue-600 mx-auto rounded-full"></div>
-                  </div>
-                  
-                  <div className="bg-gradient-to-br from-blue-50 to-pink-50 rounded-2xl p-6 mb-6">
-                    <h4 className="text-xl font-bold text-gray-800 mb-4">{selectedTrip.destination}</h4>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-left">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Departure</label>
-                          <p className="text-lg font-medium text-gray-800">{selectedTrip.departureDate}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Trip Type</label>
-                          <p className="text-lg font-medium text-gray-800">{selectedTrip.tripType}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Return</label>
-                          <p className="text-lg font-medium text-gray-800">{selectedTrip.returnDate}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Cost</label>
-                          <p className="text-lg font-bold text-green-600">${selectedTrip.totalCost.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 flex justify-center">
-                      {getStatusBadge(selectedTrip.status)}
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={closeModal}
-                    className="w-full px-6 py-3 rounded-lg font-semibold text-sm bg-[#F20C8F] text-white hover:[#F20C8F] transition-all duration-200 cursor-pointer hover:scale-105 shadow-lg"
-                  >
-                    Close Details
-                  </button>
-                </div>
-              ) : modalContent ? (
-                /* Confirmation Modal */
-                <div className="text-center">
-                  <div className="mb-6">
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">{modalContent.title}</h3>
-                    <div className="w-16 h-1 bg-gradient-to-r from-pink-500 to-red-500 mx-auto rounded-full"></div>
-                  </div>
-                  
-                  <div className="mb-6">
-                    {modalContent.message.split('\n').map((line, index) => (
-                      <p key={index} className="text-gray-700 text-sm mb-2 leading-relaxed">{line}</p>
-                    ))}
-                  </div>
-                  
-                  <div className="flex justify-center gap-4">
-                    <button
-                      onClick={closeModal}
-                      className="px-6 py-3 rounded-lg font-semibold text-sm border border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer hover:scale-105"
-                    >
-                      {modalContent.onConfirm ? 'Cancel' : 'Close'}
-                    </button>
-                    {modalContent.onConfirm && (
-                      <button
-                        onClick={modalContent.onConfirm}
-                        className="px-6 py-3 rounded-lg font-semibold text-sm bg-pink-500 text-white hover:bg-pink-600 transition-colors cursor-pointer hover:scale-105 shadow-lg"
-                      >
-                        Confirm Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
+        {activeTab === 'available' ? (
+          <>
+            {filteredTours.length === 0 ? (<div className="bg-white rounded-2xl shadow-md p-12 text-center"><i className="bi bi-search text-5xl text-gray-300 mb-4"></i><h3 className="text-xl font-medium text-gray-900 mb-2">No tours found</h3><p className="text-gray-600 text-base">Adjust your filters</p></div>) : (<>{viewMode === 'grid' ? (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">{paginatedItems.map((tour: Tour | any) => (<div key={tour.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow overflow-hidden"><img src={tour.image} alt={tour.title} className="w-full h-48 sm:h-56 object-cover"/><div className="p-4 sm:p-6"><div className="flex justify-between items-start mb-2"><h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-1">{tour.title}</h3><span className={`px-2 py-1 text-sm rounded-full ${getStatusColor(tour.status)}`}>{tour.status}</span></div><p className="text-sm text-gray-600 mb-2">Guide: {tour.guide}</p><p className="text-sm text-gray-600 mb-2">{tour.location}</p><p className="text-sm text-gray-500 mb-4 line-clamp-2">{tour.description}</p><div className="flex justify-between items-center mb-4"><span className="text-xl sm:text-2xl font-bold text-[#083A85]">{tour.price} KES</span><span className="text-sm text-gray-600">{tour.duration}</span></div><div className="flex gap-2 sm:gap-3"><button onClick={() => handleViewTourDetails(tour)} className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-sm bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-colors">Details</button><button onClick={() => handleBookTour(tour)} className="flex-1 px-4 sm:px-6 py-2 sm:py-3 text-sm bg-[#083A85] text-white rounded-full hover:bg-blue-900 transition-colors">Book</button></div></div></div>))}</div>) : (<div className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[600px]"><thead className="bg-gray-50"><tr><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Tour</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Guide</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Price</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Status</th><th className="px-6 sm:px-8 py-3 text-right text-sm font-medium text-gray-500 uppercase">Actions</th></tr></thead><tbody className="bg-white divide-y divide-gray-200">{paginatedItems.map((tour: Tour | any) => (<tr key={tour.id} className="hover:bg-gray-50"><td className="px-6 sm:px-8 py-4"><div className="flex items-center"><img src={tour.image} alt={tour.title} className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover mr-3 sm:mr-4"/><div><div className="text-sm sm:text-base font-medium text-gray-900">{tour.title}</div><div className="text-sm text-gray-500">{tour.location}</div></div></div></td><td className="px-6 sm:px-8 py-4 text-sm sm:text-base text-gray-900">{tour.guide}</td><td className="px-6 sm:px-8 py-4 text-sm sm:text-base font-medium text-gray-900">{tour.price} KES</td><td className="px-6 sm:px-8 py-4"><span className={`px-2 py-1 text-sm rounded-full ${getStatusColor(tour.status)}`}>{tour.status}</span></td><td className="px-6 sm:px-8 py-4 text-right"><button onClick={() => handleViewTourDetails(tour)} className="text-gray-600 hover:text-gray-900 mr-3"><i className="bi bi-eye text-base"></i></button><button onClick={() => handleBookTour(tour)} className="text-[#083A85] hover:text-blue-900"><i className="bi bi-calendar-plus text-base"></i></button></td></tr>))}</tbody></table></div></div>)}</>)}
+          </>
+        ) : (
+          <>{filteredBookings.length === 0 ? (<div className="bg-white rounded-2xl shadow-md p-12 text-center"><i className="bi bi-calendar-x text-5xl text-gray-300 mb-4"></i><h3 className="text-xl font-medium text-gray-900 mb-2">No bookings found</h3><p className="text-gray-600 text-base mb-4">No tour bookings match your filters</p><button onClick={() => setActiveTab('available')} className="px-6 py-3 text-base bg-[#083A85] text-white rounded-full hover:bg-blue-900 transition-colors">Browse Tours</button></div>) : (<div className="bg-white rounded-2xl shadow-md overflow-hidden"><div className="overflow-x-auto"><table className="w-full min-w-[700px]"><thead className="bg-gray-50"><tr><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Tour</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Date & Time</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Guests</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Status</th><th className="px-6 sm:px-8 py-3 text-left text-sm font-medium text-gray-500 uppercase">Total</th><th className="px-6 sm:px-8 py-3 text-right text-sm font-medium text-gray-500 uppercase">Actions</th></tr></thead><tbody className="bg-white divide-y divide-gray-200">{paginatedItems.map((booking: UserBooking | any) => (<tr key={booking.id} className="hover:bg-gray-50"><td className="px-6 sm:px-8 py-4"><div><div className="text-sm sm:text-base font-medium text-gray-900">{booking.tourTitle}</div><div className="text-sm text-gray-500">{booking.location}</div></div></td><td className="px-6 sm:px-8 py-4"><div className="text-sm sm:text-base text-gray-900">{booking.date.toLocaleDateString()}</div><div className="text-sm text-gray-500">{booking.startTime}</div></td><td className="px-6 sm:px-8 py-4 text-sm sm:text-base text-gray-900">{booking.numberOfGuests}</td><td className="px-6 sm:px-8 py-4"><span className={`px-2 py-1 text-sm rounded-full ${getStatusColor(booking.status)}`}>{booking.status}</span></td><td className="px-6 sm:px-8 py-4 text-sm sm:text-base font-medium text-gray-900">{booking.totalPrice || booking.price} {booking.currency}</td><td className="px-6 sm:px-8 py-4 text-right"><button onClick={() => handleViewBookingDetails(booking)} className="text-gray-600 hover:text-gray-900 mr-3"><i className="bi bi-eye text-base"></i></button>{booking.status !== 'completed' && booking.status !== 'cancelled' && (<button onClick={() => handleCancelBooking(booking)} className="text-red-600 hover:text-red-900"><i className="bi bi-x-circle text-base"></i></button>)}</td></tr>))}</tbody></table></div></div>)}</>
         )}
+
+        {totalPages > 1 && (<div className="mt-6 flex justify-between items-center"><div className="text-sm text-gray-700">Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, activeTab === 'available' ? filteredTours.length : filteredBookings.length)} of {activeTab === 'available' ? filteredTours.length : filteredBookings.length}</div><div className="flex items-center gap-2"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 sm:px-4 py-2 text-sm rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Prev</button>{[...Array(Math.min(5, totalPages))].map((_, i) => {const page = i + 1; return (<button key={i} onClick={() => setCurrentPage(page)} className={`px-3 sm:px-4 py-2 text-sm rounded-md ${currentPage === page ? 'bg-[#083A85] text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>{page}</button>);})}<button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 sm:px-4 py-2 text-sm rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Next</button></div></div>)}
+
+        {showTourModal && selectedTour && (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 sm:p-6 z-50"><div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"><div className="p-6 sm:p-8"><div className="flex justify-between items-start mb-4 sm:mb-6"><h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{selectedTour.title}</h2><button onClick={() => setShowTourModal(false)} className="text-gray-400 hover:text-gray-600"><i className="bi bi-x-lg text-xl sm:text-2xl"></i></button></div><img src={selectedTour.image} alt={selectedTour.title} className="w-full h-56 sm:h-72 object-cover rounded-2xl mb-4 sm:mb-6"/><div className="space-y-4"><div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-gray-600">Guide</p><p className="font-medium text-base">{selectedTour.guide}</p></div><div><p className="text-sm text-gray-600">Duration</p><p className="font-medium text-base">{selectedTour.duration}</p></div><div><p className="text-sm text-gray-600">Location</p><p className="font-medium text-base">{selectedTour.location}</p></div><div><p className="text-sm text-gray-600">Price</p><p className="font-medium text-base text-[#083A85]">{selectedTour.price} KES</p></div></div><div><p className="text-sm text-gray-600 mb-2">Description</p><p className="text-gray-800 text-base">{selectedTour.description}</p></div><div className="flex gap-3 pt-4"><button onClick={() => { setShowTourModal(false); handleBookTour(selectedTour); }} className="flex-1 px-6 py-3 text-base bg-[#083A85] text-white rounded-full hover:bg-blue-900 transition-colors font-medium">Book Tour</button><button onClick={() => setShowTourModal(false)} className="px-6 py-3 text-base bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-colors font-medium">Close</button></div></div></div></div></div>)}
+
+        {showBookingModal && selectedBooking && (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 sm:p-6 z-50"><div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"><div className="p-6 sm:p-8"><div className="flex justify-between items-start mb-4 sm:mb-6"><h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{selectedBooking.tourTitle}</h2><button onClick={() => setShowBookingModal(false)} className="text-gray-400 hover:text-gray-600"><i className="bi bi-x-lg text-xl sm:text-2xl"></i></button></div><div className="space-y-4"><div className="grid grid-cols-2 gap-4"><div><p className="text-sm text-gray-600">Date</p><p className="font-medium text-base">{selectedBooking.date.toLocaleDateString()}</p></div><div><p className="text-sm text-gray-600">Time</p><p className="font-medium text-base">{selectedBooking.startTime} - {selectedBooking.endTime}</p></div><div><p className="text-sm text-gray-600">Guests</p><p className="font-medium text-base">{selectedBooking.numberOfGuests}</p></div><div><p className="text-sm text-gray-600">Status</p><span className={`px-2 py-1 text-sm rounded-full ${getStatusColor(selectedBooking.status)}`}>{selectedBooking.status}</span></div><div><p className="text-sm text-gray-600">Guide</p><p className="font-medium text-base">{selectedBooking.guideName}</p></div><div><p className="text-sm text-gray-600">Total</p><p className="font-medium text-base text-[#083A85]">{selectedBooking.totalPrice || selectedBooking.price} {selectedBooking.currency}</p></div></div><div><p className="text-sm text-gray-600 mb-2">Location</p><p className="text-gray-800 text-base">{selectedBooking.location}</p></div>{selectedBooking.specialRequests && (<div><p className="text-sm text-gray-600 mb-2">Special Requests</p><p className="text-gray-800 bg-gray-50 p-3 sm:p-4 rounded-xl text-base">{selectedBooking.specialRequests}</p></div>)}<div className="flex gap-3 pt-4">{selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (<button onClick={() => { setShowBookingModal(false); handleCancelBooking(selectedBooking); }} className="px-6 py-3 text-base bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors font-medium">Cancel</button>)}<button onClick={() => setShowBookingModal(false)} className="px-6 py-3 text-base bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-colors font-medium">Close</button></div></div></div></div></div>)}
+
+        {showBookingForm && selectedTour && (<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 sm:p-6 z-50"><div className="bg-white rounded-2xl max-w-lg w-full"><div className="p-6 sm:p-8"><div className="flex justify-between items-start mb-4 sm:mb-6"><h2 className="text-xl sm:text-2xl font-bold text-gray-900">Book {selectedTour.title}</h2><button onClick={() => setShowBookingForm(false)} className="text-gray-400 hover:text-gray-600"><i className="bi bi-x-lg text-xl sm:text-2xl"></i></button></div><p className="text-gray-600 mb-4 text-sm sm:text-base">Booking functionality in development</p><div className="space-y-4"><div><label className="block text-sm font-medium text-gray-700 mb-2">Guests</label><input type="number" min="1" max="10" defaultValue="2" className="w-full px-4 sm:px-6 py-2 sm:py-3 text-base border border-gray-300 rounded-full shadow-sm"/></div><div><label className="block text-sm font-medium text-gray-700 mb-2">Date</label><input type="date" className="w-full px-4 sm:px-6 py-2 sm:py-3 text-base border border-gray-300 rounded-full shadow-sm"/></div><div><label className="block text-sm font-medium text-gray-700 mb-2">Special Requests</label><textarea rows={3} className="w-full px-4 sm:px-6 py-2 sm:py-3 text-base border border-gray-300 rounded-xl shadow-sm resize-none" placeholder="Any special requirements..."></textarea></div></div><div className="flex gap-3 mt-6 sm:mt-8"><button onClick={() => { alert('Booking functionality in development'); setShowBookingForm(false); }} className="flex-1 px-6 py-3 text-base bg-[#083A85] text-white rounded-full hover:bg-blue-900 transition-colors font-medium">Confirm</button><button onClick={() => setShowBookingForm(false)} className="px-6 py-3 text-base bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 transition-colors font-medium">Cancel</button></div></div></div></div>)}
       </div>
     </div>
   );
 };
 
-const App = () => {
-  return <MyTripsDashboard />;
-};
-
-export default App;
+export default GuestToursPage;

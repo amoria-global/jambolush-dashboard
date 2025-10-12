@@ -11,7 +11,7 @@ const PaymentsPage = () => {
     return (
         <div>
             <h1>Payments Overview</h1>
-            <Payments />
+            <Payments userType="guest" />
         </div>
     );
 };

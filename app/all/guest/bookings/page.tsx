@@ -1,16 +1,16 @@
 import { Metadata } from 'next';
-import BookingsDashboard from '../../../pages/guest/user-bookings';
+import UserMyBookings from '../../../pages/guest/user-bookings';
 
 export const metadata: Metadata = {
-    title: 'Payments Overview',
-    description: 'Overview of your payments as a guest.',
-    keywords: ['payments', 'guest', 'transactions'],
+    title: 'My Reservations',
+    description: 'Overview of your reservations as a guest.',
+    keywords: ['Reservations', 'spaces', 'jambolush', 'bookings', 'guest'],
 };
 
 const UserBookingDashboardPage = () => {
   return (
     <div>
-      <BookingsDashboard />
+      <UserMyBookings />
     </div>
   );
 };

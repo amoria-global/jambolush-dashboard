@@ -520,12 +520,23 @@ class FrontendAPIService {
         }
       }
 
-      // Handle 401 Unauthorized - trigger logout only if not already logging out
+      // Handle 401 Unauthorized - ONLY clear session if 4 hours have passed
       if (response.status === 401 && !endpoint.includes('/auth/') && !this.isLoggingOut) {
-        this.handleLogout();
-        
+        console.log('Received 401 Unauthorized - checking if session has exceeded 4 hours');
+
+        // Check if session has actually expired (4 hours)
+        const shouldClearSession = this.shouldClearSessionOn401();
+
+        if (shouldClearSession) {
+          console.log('Session has exceeded 4 hours - clearing authentication and triggering logout');
+          this.handleLogout();
+        } else {
+          console.log('Session is still valid (< 4 hours) - 401 is likely due to temporary issue, NOT clearing tokens');
+          // Don't clear tokens - let the auth service handle token refresh
+        }
+
         throw {
-          message: `HTTP ${response.status}: Unauthorized`,
+          message: `HTTP ${response.status}: Unauthorized${shouldClearSession ? ' - Session expired' : ' - Authentication failed'}`,
           status: response.status,
           data,
           response
@@ -574,6 +585,49 @@ class FrontendAPIService {
     }
   }
 
+  /**
+   * Check if session should be cleared on 401 error
+   * Only clear if session has exceeded 4 hours
+   */
+  private shouldClearSessionOn401(): boolean {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return true; // Clear if we can't check
+    }
+
+    try {
+      const tokensData = localStorage.getItem('jambolush_auth_tokens');
+      if (!tokensData) {
+        return true; // No session data, clear
+      }
+
+      const tokens = JSON.parse(tokensData);
+      const sessionStartedAt = tokens.sessionStartedAt;
+
+      if (!sessionStartedAt) {
+        return true; // No session start time, clear
+      }
+
+      // Check if session has exceeded 4 hours (4 * 60 * 60 * 1000 ms)
+      const MAX_SESSION_DURATION = 4 * 60 * 60 * 1000;
+      const sessionDuration = Date.now() - sessionStartedAt;
+
+      const hasExceeded4Hours = sessionDuration >= MAX_SESSION_DURATION;
+
+      console.log('Session duration check:', {
+        sessionStartedAt: new Date(sessionStartedAt).toISOString(),
+        currentTime: new Date().toISOString(),
+        sessionDurationMinutes: Math.floor(sessionDuration / 1000 / 60),
+        hasExceeded4Hours,
+        shouldClear: hasExceeded4Hours
+      });
+
+      return hasExceeded4Hours;
+    } catch (error) {
+      console.error('Error checking session duration:', error);
+      return true; // Clear on error
+    }
+  }
+
   private async performTokenRefresh(): Promise<void> {
     try {
       // Get refresh token from localStorage (client-side only)
@@ -594,9 +648,18 @@ class FrontendAPIService {
         localStorage.setItem('refreshToken', newRefreshToken);
         this.setAuth(accessToken);
       }
-    } catch (error) {
-      // If refresh fails, trigger logout
-      this.handleLogout();
+    } catch (error: any) {
+      // Only trigger logout if session has expired (4 hours) or refresh token is invalid
+      // Don't logout on network errors
+      const shouldClearSession = this.shouldClearSessionOn401();
+
+      if (shouldClearSession) {
+        console.log('Session expired (4 hours exceeded) during refresh - logging out');
+        this.handleLogout();
+      } else {
+        console.warn('Token refresh failed but session still valid - will retry later', error);
+      }
+
       throw error;
     }
   }
@@ -611,19 +674,49 @@ class FrontendAPIService {
 
     // Clear all storage (client-side only)
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userSession');
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('refreshToken');
-      sessionStorage.removeItem('userSession');
+      // Get session info before clearing for event details
+      let sessionDuration = 0;
+      try {
+        const tokensData = localStorage.getItem('jambolush_auth_tokens');
+        if (tokensData) {
+          const tokens = JSON.parse(tokensData);
+          sessionDuration = Math.floor((Date.now() - (tokens.sessionStartedAt || 0)) / 1000 / 60);
+        }
+      } catch (error) {
+        // Ignore parsing errors
+      }
 
-      // Broadcast session expired event
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('sessionExpired', {
-          detail: { timestamp: Date.now() }
-        }));
-      }, 0);
+      // Clear all possible token storage keys
+      const keysToRemove = [
+        'authToken',
+        'refreshToken',
+        'userSession',
+        'jambolush_session',
+        'jambolush_auth_tokens',
+        'jambolush_user',
+        'jambolush_auth'
+      ];
+
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+
+      // Only broadcast session expired event if session actually exceeded 4 hours
+      const exceededMaxDuration = sessionDuration >= 240; // 4 hours = 240 minutes
+
+      if (exceededMaxDuration) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('sessionExpired', {
+            detail: {
+              timestamp: Date.now(),
+              reason: 'max_duration_exceeded',
+              source: 'apiService',
+              sessionDuration
+            }
+          }));
+        }, 0);
+      }
     }
   }
 

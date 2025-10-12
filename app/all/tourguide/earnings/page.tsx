@@ -1,4 +1,4 @@
-import TourGuideEarnings from "@/app/pages/tourguide/earnings";
+import UnifiedEarnings from "@/app/components/unified-earnings";
 import { Metadata } from "next";
 export const metadata: Metadata = {
     title: 'Earnings Overview',
@@ -6,13 +6,6 @@ export const metadata: Metadata = {
     keywords: ['earnings', 'tour guide', 'revenue'],
 };
 
-const EarningsPage = () => {
-    return (
-        <div>
-            <h1>Earnings Overview</h1>
-            <TourGuideEarnings />
-        </div>
-    );
-};
-
-export default EarningsPage;
+export default function AgentEarnings() {
+  return <UnifiedEarnings userType="tourguide" />;
+}

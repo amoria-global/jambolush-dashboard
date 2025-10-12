@@ -7,8 +7,6 @@ import api from '@/app/api/apiService';
 
 const HostDashboard = () => {
   const router = useRouter();
-
-  // State for dashboard data
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [enhancedData, setEnhancedData] = useState<any>(null);
   const [bookingsData, setBookingsData] = useState<any>([]);
@@ -17,40 +15,56 @@ const HostDashboard = () => {
   const [loading, setLoading] = useState<any>(true);
   const [error, setError] = useState<any>(null);
   const [userName, setUserName] = useState('Host');
+  const [walletData, setWalletData] = useState<any>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
-  // Fetch all dashboard data
+  const fetchWalletData = async () => {
+    try {
+      setWalletLoading(true);
+      const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+      const userId = user.id || user.userId;
+
+      if (userId) {
+        const walletResponse = await api.get(`/transactions/wallet/${userId}`);
+        if (walletResponse.data.success) {
+          setWalletData(walletResponse.data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-
         const user = JSON.parse(localStorage.getItem('userSession') || '{}');
         if (user.name) {
           setUserName(user.name);
         }
 
-        // Fetch basic dashboard data
         const dashboardResponse = await api.get('/properties/host/dashboard');
         const dashboard = dashboardResponse.data.data;
         setDashboardData(dashboard);
 
-        // Fetch enhanced dashboard data
         const enhancedResponse = await api.get('/properties/host/dashboard/enhanced');
         const enhanced = enhancedResponse.data.data;
         setEnhancedData(enhanced);
 
-        // Fetch recent bookings (guest bookings for host's properties)
         const bookingsResponse = await api.get('/bookings/host/guest-bookings');
         setBookingsData(bookingsResponse.data.data.bookings || bookingsResponse.data.data);
 
-        // Fetch earnings data
         const earningsResponse = await api.get('/properties/host/earnings');
         setEarningsData(earningsResponse.data.data);
 
-        // Fetch host's properties
         const propertiesResponse = await api.get('/properties/host/my-properties');
         setPropertiesData(propertiesResponse.data.data.properties);
 
+        // Fetch wallet data
+        await fetchWalletData();
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data');
@@ -60,9 +74,13 @@ const HostDashboard = () => {
     };
 
     fetchDashboardData();
+
+    // Set up interval to refresh wallet data every 30 seconds
+    const walletInterval = setInterval(fetchWalletData, 30000);
+
+    return () => clearInterval(walletInterval);
   }, []);
 
-  // Transform earnings data for chart
   const transformEarningsData = (monthlyEarnings: any) => {
     if (!monthlyEarnings || monthlyEarnings.length === 0) {
       return [
@@ -81,7 +99,6 @@ const HostDashboard = () => {
     }));
   };
 
-  // Transform property bookings data for chart
   const transformPropertyBookingsData = (propertyPerformance: any) => {
     if (!propertyPerformance || propertyPerformance.length === 0) {
       return [
@@ -101,12 +118,9 @@ const HostDashboard = () => {
     }));
   };
 
-  // Get property types from properties data
   const getPropertyTypes = (properties: any) => {
     if (!properties || properties.length === 0) {
-      return [
-        { name: 'No Properties', value: 1, color: '#E5E7EB' }
-      ];
+      return [{ name: 'No Properties', value: 1, color: '#E5E7EB' }];
     }
 
     const typeCount: any = {};
@@ -115,7 +129,7 @@ const HostDashboard = () => {
       typeCount[type] = (typeCount[type] || 0) + 1;
     });
 
-    const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    const colors = ['#083A85', '#F20C8F', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
     return Object.entries(typeCount).map(([name, value], index) => ({
       name,
       value,
@@ -123,10 +137,8 @@ const HostDashboard = () => {
     }));
   };
 
-  // Transform recent bookings for activity section
   const transformRecentActivity = (bookings: any) => {
     if (!bookings || bookings.length === 0) return [];
-
     return bookings.slice(0, 4).map((booking: any) => ({
       guest: booking.guestName || booking.user?.name || 'Guest',
       message: booking.specialRequests || booking.notes || 'New booking confirmed',
@@ -135,10 +147,8 @@ const HostDashboard = () => {
     }));
   };
 
-  // Transform upcoming check-ins
   const transformUpcomingCheckIns = (checkIns: any) => {
     if (!checkIns || checkIns.length === 0) return [];
-
     return checkIns.slice(0, 3).map((checkin: any) => ({
       title: checkin.propertyName || checkin.property?.name,
       time: new Date(checkin.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -149,12 +159,19 @@ const HostDashboard = () => {
     }));
   };
 
+  const getTimeBasedGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
   if (loading) {
     return (
-      <div className="mt-20 flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F20C8F] mx-auto mb-2"></div>
-          <p className="text-gray-600 text-xs">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -162,20 +179,20 @@ const HostDashboard = () => {
 
   if (error) {
     return (
-      <div className="mt-20 flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-md">
-          <div className="bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200/50 rounded-xl p-3 shadow-md">
-            <div className="flex items-center justify-center w-10 h-10 mx-auto mb-2 bg-red-100 rounded-xl">
-              <i className="bi bi-exclamation-triangle text-red-600 text-base" />
+          <div className="bg-red-50 border border-red-200 rounded-xl p-8 shadow-sm">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+              <i className="bi bi-exclamation-triangle text-red-600 text-xl" />
             </div>
-            <h2 className="text-red-800 font-semibold mb-2 text-sm">Error Loading Dashboard</h2>
-            <p className="text-red-600 mb-2 text-xs">{error}</p>
+            <h2 className="text-red-800 text-lg font-semibold mb-2">Error Loading Dashboard</h2>
+            <p className="text-red-600 mb-6">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-gradient-to-r from-[#F20C8F] to-[#d10a7a] text-white px-3 py-2 rounded-xl hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 font-medium text-xs focus:border-transparent"
+              className="bg-[#083A85] text-white px-6 py-3 rounded-lg hover:bg-[#062d6b] transition-colors font-medium"
             >
               <i className="bi bi-arrow-clockwise mr-2" />
-              Retry
+              Try Again
             </button>
           </div>
         </div>
@@ -183,50 +200,47 @@ const HostDashboard = () => {
     );
   }
 
-  // Prepare data for UI
   const chartEarningsData = transformEarningsData(dashboardData?.monthlyEarnings);
   const chartBookingsData = transformPropertyBookingsData(dashboardData?.propertyPerformance);
   const propertyTypes = getPropertyTypes(propertiesData);
   const recentActivity = transformRecentActivity(bookingsData);
   const upcomingCheckIns = transformUpcomingCheckIns(dashboardData?.upcomingCheckIns);
 
-  // Summary cards data
   const summaryCards = [
     {
       title: 'Active Properties',
       value: dashboardData?.activeProperties?.toString() || '0',
-      change: `${dashboardData?.totalProperties || 0} total properties`,
+      change: `${dashboardData?.totalProperties || 0} total`,
       icon: 'house-door',
-      bgColor: 'bg-pink-500',
-      iconBg: '#F20C8F',
+      iconBg: 'bg-blue-50',
+      iconColor: 'text-[#083A85]',
     },
     {
       title: 'Total Guests',
       value: dashboardData?.totalGuests?.toString() || '0',
       change: `${dashboardData?.totalBookings || 0} bookings`,
       icon: 'people',
-      bgColor: 'bg-blue-800',
-      iconBg: '#083A85',
+      iconBg: 'bg-pink-50',
+      iconColor: 'text-pink-500',
     },
     {
       title: 'Total Revenue',
       value: `$${dashboardData?.totalRevenue?.toLocaleString() || '0'}`,
-      change: 'All time earnings',
+      change: 'All time',
       icon: 'currency-dollar',
-      bgColor: 'bg-green-500',
-      iconBg: '#10B981',
+      iconBg: 'bg-green-50',
+      iconColor: 'text-green-600',
     },
     {
       title: 'Average Rating',
       value: dashboardData?.averageRating?.toFixed(1) || '0.0',
-      change: `${dashboardData?.pendingReviews || 0} pending reviews`,
+      change: `${dashboardData?.pendingReviews || 0} pending`,
       icon: 'star',
-      bgColor: 'bg-amber-500',
-      iconBg: '#F59E0B',
+      iconBg: 'bg-orange-50',
+      iconColor: 'text-orange-500',
     },
   ];
 
-  // Recent reviews (from recent bookings with reviews)
   const recentReviews = bookingsData
     .filter((booking: any) => booking.review)
     .slice(0, 3)
@@ -238,437 +252,321 @@ const HostDashboard = () => {
       date: new Date(booking.review?.createdAt || booking.createdAt).toLocaleDateString()
     }));
 
-  // Quick stats
-  const quickStats = [
-    {
-      label: 'Bookings Completed',
-      value: dashboardData?.completedBookings?.toString() || '0',
-      icon: 'check-circle'
-    },
-    {
-      label: 'Occupancy Rate',
-      value: `${dashboardData?.occupancyRate || 0}%`,
-      icon: 'graph-up'
-    },
-    {
-      label: 'Repeat Guests',
-      value: `${dashboardData?.repeatGuestRate || 0}%`,
-      icon: 'arrow-repeat'
-    },
-    {
-      label: 'Response Time',
-      value: dashboardData?.averageResponseTime || '< 1hr',
-      icon: 'clock'
-    },
-  ];
-
-  const getTimeBasedGreeting = () => {
-    const hour = new Date().getHours();
-
-    // Early Morning (5-7 AM)
-    const earlyMorningMessages = [
-      `🌅 Rise and shine, early bird!`,
-      `☕ First coffee, first victory!`,
-      `🐦 The world is yours this early!`,
-      `🌄 Conquer mountains today!`,
-      `⏰ Early start, early success!`,
-      `🌤 Dawn brings new possibilities!`,
-      `💪 Power up for greatness!`,
-      `🔥 Ignite your potential now!`,
-      `✨ Magic happens in the morning!`,
-      `🎯 Aim high from the start!`
-    ];
-
-    // Morning (7-12 PM)
-    const morningMessages = [
-      `🌅 Good morning!`,
-      `☕ Coffee time!`,
-      `💡 Fresh ideas start now!`,
-      `🏃 Start strong today!`,
-      `📅 New goals, new wins!`,
-      `🌞 Shine bright today!`,
-      `🤝 Connect and grow!`,
-      `📈 Progress starts early!`,
-      `🎨 Paint your day beautiful!`,
-      `🚀 Launch into excellence!`,
-      `🌱 Plant seeds of success!`,
-      `⭐ Half the day, full potential!`,
-      `🎪 Make today spectacular!`,
-      `🏆 Champion mindset activated!`,
-      `🎵 Start with good vibes!`
-    ];
-
-    // Afternoon (12-17 PM)
-    const afternoonMessages = [
-      `☀️ Good afternoon!`,
-      `🚀 Keep the momentum!`,
-      `🔥 Stay on fire!`,
-      `🌱 Keep growing strong!`,
-      `📊 Productivity boost!`,
-      `💪 Power through the day!`,
-      `🎯 Focus on your targets!`,
-      `⚡ Energy check—stay sharp!`,
-      `🌻 Bloom where you're planted!`,
-      `🎪 Make magic happen now!`,
-      `🏃‍♂️ Sprint to your goals!`,
-      `🎨 Create something amazing!`,
-      `🔮 Afternoon gems await you!`,
-      `🌊 Flow with the rhythm!`,
-      `🎭 Performance time!`,
-      `🏅 Excellence is calling!`
-    ];
-
-    // Evening (17-21 PM)
-    const eveningMessages = [
-      `🌇 Good evening!`,
-      `📖 Reflect and recharge!`,
-      `🌟 You did amazing today!`,
-      `🎶 Relax with good vibes!`,
-      `🍵 Slow down, breathe easy!`,
-      `🙌 Celebrate small wins!`,
-      `🛋 Enjoy your comfort zone!`,
-      `🌌 Night is settling in—peace ahead!`,
-      `🍷 Unwind and appreciate!`,
-      `🎨 Evening creativity flows!`,
-      `🧘‍♀️ Find your inner calm!`,
-      `🎬 Enjoy life's moments!`,
-      `🌹 Beauty in the twilight!`,
-      `📚 Knowledge before rest!`,
-      `🕯 Light up the evening!`,
-      `🎭 Evening entertainment!`
-    ];
-
-    // Night (21-24 PM)
-    const nightMessages = [
-      `🌙 Good night!`,
-      `🛌 Rest well, dream big!`,
-      `✨ Tomorrow holds magic!`,
-      `😴 Recharge your soul!`,
-      `🔕 Disconnect and rest!`,
-      `💤 Deep sleep matters!`,
-      `🌠 Drift into dreams!`,
-      `🛡 Safe and sound tonight!`,
-      `🌜 Let the moon guide your dreams!`,
-      `🎶 Lullabies of the night!`,
-      `🏰 Build castles in your sleep!`,
-      `🌌 Cosmic dreams await!`,
-      `🛏 Home sweet dreams!`,
-      `🔮 Crystal clear rest ahead!`
-    ];
-
-    // Late Night/Midnight (0-5 AM)
-    const lateNightMessages = [
-      `🌃 Burning the midnight oil?`,
-      `🦉 Night owl vibes!`,
-      `⭐ Stars are your companions!`,
-      `🌙 Midnight magic hour!`,
-      `💻 Late night productivity!`,
-      `🎧 Night sounds and focus!`,
-      `🔥 Burning bright at night!`,
-      `🌌 Limitless night energy!`,
-      `☕ Midnight fuel running!`,
-      `🎯 Sharp focus in the dark!`,
-      `🚀 Launch into the night!`,
-      `🎪 Night circus performance!`,
-      `🔬 Deep dive discoveries!`,
-      `🎨 Creative night sessions!`
-    ];
-
-    const pickRandom = (messages: string[]) =>
-      messages[Math.floor(Math.random() * messages.length)];
-
-    if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
-    if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
-    if (hour >= 7 && hour < 12) return pickRandom(morningMessages);
-    if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
-    if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
-    return pickRandom(nightMessages);
-  };
-
   return (
-    <div className="mt-20">
-      <div className="max-w-7xl mx-auto px-3">
-
+    <div className="">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+        
         {/* Header */}
-        <div className="mb-3">
-          <h1 className="text-base lg:text-lg font-semibold text-[#083A85] mb-1">
+        <div className="mb-8">
+          <h1 className="text-[32px] font-semibold text-gray-900 mb-2">
             {getTimeBasedGreeting()}, {userName}
           </h1>
-          <p className="text-gray-600 text-xs">Here's what's happening with your property business</p>
+          <p className="text-gray-600">Welcome to your host dashboard</p>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-          {summaryCards.map((card, index) => (
-            <div key={index} className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 relative overflow-hidden border border-gray-100">
-              <div className="absolute top-1 right-1 opacity-5 text-2xl">
-                <i className={`bi bi-${card.icon}`} />
-              </div>
-              <div className="flex items-center mb-2">
-                <div
-                  className="w-7 h-7 rounded-xl flex items-center justify-center mr-2 text-white shadow-md bg-gradient-to-br"
-                  style={{ background: `linear-gradient(to bottom right, ${card.iconBg}, ${card.iconBg}dd)` }}
-                >
-                  <i className={`bi bi-${card.icon} text-xs`} />
+        {/* Wallet Section */}
+        <div className="mb-6 bg-gradient-to-r from-[#083A85] to-[#062d6b] rounded-xl p-6 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <i className="bi bi-wallet2 text-white text-xl" />
                 </div>
-                <span className="text-xs text-gray-600 font-semibold">{card.title}</span>
+                <h3 className="text-white/90 text-sm font-medium">Wallet Balance</h3>
               </div>
-              <div className="text-base lg:text-lg font-bold mb-1 text-gray-800">{card.value}</div>
-              <div className="text-xs text-green-600 flex items-center font-semibold">
-                <i className="bi bi-arrow-up mr-1" />
-                {card.change}
+              {walletLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span className="text-white/70 text-sm">Loading...</span>
+                </div>
+              ) : walletData ? (
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-white">
+                      {walletData.totalBalance?.toLocaleString() || '0'}
+                    </span>
+                    <span className="text-white/80 text-sm">{walletData.currency || 'RWF'}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div>
+                      <span className="text-white/70">Available: </span>
+                      <span className="text-white font-medium">{walletData.availableBalance?.toLocaleString() || '0'}</span>
+                    </div>
+                    {walletData.pendingBalance > 0 && (
+                      <div>
+                        <span className="text-white/70">Pending: </span>
+                        <span className="text-yellow-300 font-medium">{walletData.pendingBalance?.toLocaleString() || '0'}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-white/70 text-sm">No wallet data available</div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => router.push('/host/wallet')}
+                className="px-4 py-2 bg-white text-[#083A85] rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium flex items-center gap-2"
+              >
+                <i className="bi bi-arrow-right-circle" />
+                View Details
+              </button>
+              <button
+                onClick={fetchWalletData}
+                disabled={walletLoading}
+                className="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+              >
+                <i className={`bi bi-arrow-clockwise ${walletLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          {summaryCards.map((card, index) => (
+            <div key={index} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 ${card.iconBg} rounded-xl flex items-center justify-center`}>
+                  <i className={`bi bi-${card.icon} ${card.iconColor} text-xl`} />
+                </div>
+                <span className="text-2xl font-semibold text-gray-900">{card.value}</span>
               </div>
+              <h3 className="text-gray-600 text-sm font-medium mb-1">{card.title}</h3>
+              <p className="text-xs text-gray-500">{card.change}</p>
             </div>
           ))}
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
-          {/* Earnings Chart */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center text-gray-800">
-                <i className="bi bi-graph-up mr-2 text-[#F20C8F]" />
-                Monthly Earnings
-              </h3>
-              <div className="text-xs text-gray-500">
-                <i className="bi bi-three-dots" />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          
+          {/* Left Column */}
+          <div className="lg:col-span-3 space-y-8">
+            
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              {/* Earnings Chart */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="p-6 border-b">
+                  <h2 className="text-[22px] font-medium text-gray-900">Monthly Earnings</h2>
+                </div>
+                <div className="p-6">
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="earnings" stroke="#083A85" strokeWidth={2} dot={{ fill: '#083A85', r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bookings Chart */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div className="p-6 border-b">
+                  <h2 className="text-[22px] font-medium text-gray-900">Weekly Bookings</h2>
+                </div>
+                <div className="p-6">
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Bar dataKey="bookings" fill="#F20C8F" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="h-48 sm:h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '12px',
-                      fontSize: '11px'
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="earnings"
-                    stroke="#F20C8F"
-                    strokeWidth={3}
-                    dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, stroke: '#F20C8F', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
 
-          {/* Property Bookings Chart */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center text-gray-800">
-                <i className="bi bi-bar-chart mr-2 text-[#083A85]" />
-                Weekly Property Bookings
-              </h3>
-              <div className="text-xs text-gray-500">
-                <i className="bi bi-three-dots" />
+            {/* Recent Activity */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[22px] font-medium text-gray-900">Recent Activity</h2>
+                  <button className="text-sm text-[#083A85] hover:underline font-medium">
+                    View all
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="h-48 sm:h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '12px',
-                      fontSize: '11px'
-                    }}
-                  />
-                  <Bar dataKey="bookings" fill="#083A85" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Properties & Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
-          {/* Today's Check-ins */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center text-gray-800">
-                <i className="bi bi-calendar-week mr-2 text-green-600" />
-                Upcoming Check-ins
-              </h3>
-              <button className="text-xs text-[#083A85] hover:text-blue-900 hover:shadow-md hover:-translate-y-0.5 font-semibold cursor-pointer transition-all duration-200 focus:border-transparent" onClick={() => { router.push('/host/calendar') }}>
-                View Calendar
-              </button>
-            </div>
-            <div className="space-y-2">
-              {upcomingCheckIns.length > 0 ? upcomingCheckIns.map((checkin: any, index: number) => (
-                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 text-xs">{checkin.title}</h4>
-                      <p className="text-xs text-gray-600 mt-1">{checkin.guest}</p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${checkin.status === 'confirmed' ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800' : 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800'
-                      }`}>
-                      {checkin.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{checkin.time} • {checkin.duration}</span>
-                    <span>{checkin.guests} guests</span>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-6 text-gray-500">
-                  <i className="bi bi-calendar-x text-xl mb-2" />
-                  <p className="text-xs">No upcoming check-ins</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center text-gray-800">
-                <i className="bi bi-chat-dots mr-2 text-blue-600" />
-                Recent Activity
-              </h3>
-              <button className="text-xs text-[#083A85] hover:text-blue-900 hover:shadow-md hover:-translate-y-0.5 font-semibold cursor-pointer transition-all duration-200 focus:border-transparent" onClick={() => { router.push('/host/bookings') }}>
-                View All
-              </button>
-            </div>
-            <div className="space-y-2">
-              {recentActivity.length > 0 ? recentActivity.map((activity: any, index: number) => (
-                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-800 text-xs">{activity.guest}</h4>
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${activity.type === 'booking' ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-800' :
-                        activity.type === 'inquiry' ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800' : 'bg-gradient-to-r from-yellow-50 to-yellow-100 text-yellow-800'
-                      }`}>
-                      {activity.type}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-500">{activity.time}</div>
-                </div>
-              )) : (
-                <div className="text-center py-6 text-gray-500">
-                  <i className="bi bi-chat-square-dots text-xl mb-2" />
-                  <p className="text-xs">No recent activity</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Property Types */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 h-max border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center text-gray-800">
-                <i className="bi bi-pie-chart mr-2 text-gray-600" />
-                Property Types
-              </h3>
-            </div>
-            <div className="h-44 sm:h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={propertyTypes}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={70}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {propertyTypes.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2 mt-2">
-              {propertyTypes.map((type: any, index) => (
-                <div key={index} className="flex items-center text-xs font-semibold">
-                  <div
-                    className="w-3 h-3 mr-1 rounded-sm"
-                    style={{ backgroundColor: type.color }}
-                  ></div>
-                  {type.name} ({type.value})
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent Reviews */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 lg:col-span-2 border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold flex items-center text-gray-800">
-                <i className="bi bi-star mr-2 text-amber-500" />
-                Recent Reviews
-              </h3>
-              <button className="text-xs text-[#083A85] hover:text-blue-900 hover:shadow-md hover:-translate-y-0.5 font-semibold cursor-pointer transition-all duration-200 focus:border-transparent" onClick={() => { router.push('/host/reviews') }}>
-                View All
-              </button>
-            </div>
-            <div className="space-y-2">
-              {recentReviews.length > 0 ? recentReviews.map((review: any, index: number) => (
-                <div key={index} className="p-2 rounded-xl border border-gray-100 hover:bg-gray-50/80 transition-all duration-200">
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-1">
-                        <h4 className="font-semibold text-gray-800 text-xs mr-2">{review.guest}</h4>
-                        <div className="flex items-center">
-                          {[...Array(review.rating)].map((_, i) => (
-                            <i key={i} className="bi bi-star-fill text-yellow-500 text-xs" />
-                          ))}
+              <div className="p-6">
+                {recentActivity.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentActivity.map((activity: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                            <i className={`bi bi-${activity.type === 'booking' ? 'calendar-check' : 'chat-dots'} text-[#083A85] text-lg`} />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{activity.guest}</p>
+                            <p className="text-sm text-gray-600 mt-1">{activity.message}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`inline-block text-xs px-2 py-1 rounded-full font-medium ${
+                            activity.type === 'booking' ? 'bg-green-100 text-green-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {activity.type}
+                          </span>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-600 mb-1">{review.comment}</p>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{review.property}</span>
-                        <span>{review.date}</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              )) : (
-                <div className="text-center py-6 text-gray-500">
-                  <i className="bi bi-star text-xl mb-2" />
-                  <p className="text-xs">No reviews yet</p>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <i className="bi bi-chat-square-dots text-gray-400 text-2xl" />
+                    </div>
+                    <p className="text-gray-500 mb-1">No recent activity</p>
+                    <p className="text-sm text-gray-400">Your activity will appear here</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Quick Stats */}
-        <div className="mt-3 bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-100">
-          <h3 className="text-sm font-semibold mb-2 text-gray-800">Performance Stats</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {quickStats.map((stat, index) => (
-              <div key={index} className="text-center p-2 rounded-xl hover:bg-gray-50/80 transition-all duration-200">
-                <div className="text-lg lg:text-xl mb-1 text-gray-600">
-                  <i className={`bi bi-${stat.icon}`} />
+          {/* Right Column */}
+          <div className="lg:col-span-2 space-y-8">
+            
+            {/* Upcoming Check-ins */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[22px] font-medium text-gray-900">Upcoming Check-ins</h2>
+                  <button 
+                    onClick={() => router.push('/host/calendar')}
+                    className="text-sm text-[#083A85] hover:underline font-medium"
+                  >
+                    View calendar
+                  </button>
                 </div>
-                <div className="text-sm lg:text-base font-bold text-gray-800 mb-1">{stat.value}</div>
-                <div className="text-xs text-gray-600 font-semibold">{stat.label}</div>
               </div>
-            ))}
+              <div className="p-6">
+                {upcomingCheckIns.length > 0 ? (
+                  <div className="space-y-3">
+                    {upcomingCheckIns.map((checkin: any, index: number) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all cursor-pointer">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <i className="bi bi-calendar-check text-[#083A85] text-sm" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
+                            {checkin.title}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {checkin.guest} • {checkin.guests} guests
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900">{checkin.time}</p>
+                          <p className="text-xs text-gray-600">{checkin.duration}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                      <i className="bi bi-calendar-x text-gray-400 text-xl" />
+                    </div>
+                    <p className="text-gray-500 mb-1">No upcoming check-ins</p>
+                    <p className="text-sm text-gray-400">Check-ins will appear here</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Property Types */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-6 border-b">
+                <h2 className="text-[22px] font-medium text-gray-900">Property Types</h2>
+              </div>
+              <div className="p-6">
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={propertyTypes}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={30}
+                        outerRadius={70}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {propertyTypes.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 mt-4">
+                  {propertyTypes.map((type: any, index) => (
+                    <div key={index} className="flex items-center text-sm">
+                      <div className="w-3 h-3 mr-2 rounded-sm" style={{ backgroundColor: type.color }}></div>
+                      {type.name} ({type.value})
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Reviews */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[22px] font-medium text-gray-900">Recent Reviews</h2>
+                  <button 
+                    onClick={() => router.push('/host/reviews')}
+                    className="text-sm text-[#083A85] hover:underline font-medium"
+                  >
+                    View all
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                {recentReviews.length > 0 ? (
+                  <div className="space-y-3">
+                    {recentReviews.map((review: any, index: number) => (
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <p className="font-medium text-gray-900">{review.guest}</p>
+                          <div className="flex items-center">
+                            {[...Array(review.rating)].map((_, i) => (
+                              <i key={i} className="bi bi-star-fill text-yellow-500 text-xs" />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">{review.comment}</p>
+                        <p className="text-xs text-gray-500">{review.property} • {review.date}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full mx-auto mb-3 flex items-center justify-center">
+                      <i className="bi bi-star text-gray-400 text-xl" />
+                    </div>
+                    <p className="text-gray-500 mb-1">No reviews yet</p>
+                    <p className="text-sm text-gray-400">Reviews will appear here</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

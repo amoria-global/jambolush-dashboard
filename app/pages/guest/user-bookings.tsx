@@ -17,7 +17,7 @@ interface Booking {
   bookingDate: Date;
   status: 'confirmed' | 'pending' | 'cancelled' | 'completed' | 'refunded';
   amount: number;
-  paymentStatus: 'paid' | 'due' | 'refunded' | 'pending';
+  paymentStatus: 'intiated' | 'completed' | 'refunded' | 'pending' | 'failed' | 'processing' | 'accepted';
   guests: number;
   specialRequests?: string;
   propertyImage?: string;
@@ -336,7 +336,7 @@ const UserMyBookings: React.FC = () => {
     if (booking.propertyId) {
       const encodedPropertyId = encodeId(booking.propertyId);
       const encodedBookingId = encodeId(booking.id);
-      const paymentUrl = `https://app.jambolush.com/property/${encodedPropertyId}/confirm-and-pay/${encodedBookingId}`;
+      const paymentUrl = `https://jambolush.com/spaces/${encodedPropertyId}/confirm-and-pay?bookingId=${encodedBookingId}`;
       window.open(paymentUrl, '_blank');
     } else {
       showNotification('Property information not available for payment', 'error');
@@ -357,10 +357,13 @@ const UserMyBookings: React.FC = () => {
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case 'paid': return 'text-green-600';
-      case 'due': return 'text-orange-600';
+      case 'completed': return 'text-green-600';
+      case 'failed': return 'text-red-600';
+      case 'initiated': return 'text-orange-600';
       case 'pending': return 'text-yellow-600';
+      case 'processing': return 'text-yellow-600';
       case 'refunded': return 'text-gray-600';
+      case 'accepted': return 'text-gray-600';
       default: return 'text-gray-600';
     }
   };
@@ -376,7 +379,7 @@ const UserMyBookings: React.FC = () => {
             <p className="text-xs sm:text-sm text-gray-600 mt-1.5">{error}</p>
             <button
               onClick={handleRefresh}
-              className="mt-3 px-3.5 py-2 bg-[#083A85] text-white text-xs sm:text-sm rounded-lg hover:bg-[#062d65] transition-all hover:shadow-lg cursor-pointer font-medium">
+              className="mt-3 px-3.5 py-2 bg-[#083A85] text-white text-xs sm:text-sm rounded-full hover:bg-[#062d65] transition-all hover:shadow-lg cursor-pointer font-medium">
               Try Again
             </button>
           </div>
@@ -406,7 +409,7 @@ const UserMyBookings: React.FC = () => {
           <button
             onClick={handleRefresh}
             disabled={loading}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-[#083A85] text-white text-xs sm:text-sm rounded-lg hover:bg-[#062d65] transition-all duration-200 hover:shadow-lg cursor-pointer disabled:opacity-50">
+            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-[#083A85] text-white text-xs sm:text-sm rounded-full hover:bg-[#062d65] transition-all duration-200 hover:shadow-lg cursor-pointer disabled:opacity-50">
             <i className={`bi bi-arrow-clockwise mr-1.5 ${loading ? 'animate-spin' : ''}`}></i>
             Refresh
           </button>
@@ -423,7 +426,7 @@ const UserMyBookings: React.FC = () => {
                   placeholder="Guest or property name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-7 sm:pl-9 pr-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm transition-all"
+                  className="w-full pl-7 sm:pl-9 pr-3 py-1.5 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm transition-all"
                 />
                 <i className="bi bi-search absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs sm:text-sm"></i>
               </div>
@@ -433,7 +436,7 @@ const UserMyBookings: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all">
+                className="w-full px-2.5 py-1.5 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all">
                 <option value="all">All Status</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>
@@ -447,7 +450,7 @@ const UserMyBookings: React.FC = () => {
               <select
                 value={propertyFilter}
                 onChange={(e) => setPropertyFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all">
+                className="w-full px-2.5 py-1.5 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all">
                 <option value="all">All Properties</option>
                 {uniqueProperties.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -459,13 +462,13 @@ const UserMyBookings: React.FC = () => {
                   type="date"
                   value={dateRange.start}
                   onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                  className="flex-1 min-w-0 px-1 sm:px-2 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all"
+                  className="flex-1 min-w-0 px-1 sm:px-2 py-1.5 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all"
                 />
                 <input
                   type="date"
                   value={dateRange.end}
                   onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                  className="flex-1 min-w-0 px-1 sm:px-2 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all"
+                  className="flex-1 min-w-0 px-1 sm:px-2 py-1.5 sm:py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-xs sm:text-sm transition-all"
                 />
               </div>
             </div>
@@ -477,7 +480,7 @@ const UserMyBookings: React.FC = () => {
             <div className="flex justify-center sm:justify-end gap-2">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`px-2.5 sm:px-3.5 py-1.5 rounded-lg transition-all duration-200 cursor-pointer text-xs sm:text-sm font-medium ${
+                className={`px-2.5 sm:px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-pointer text-xs sm:text-sm font-medium ${
                   viewMode === 'grid' ? 'bg-blue-900 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
                 style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}>
@@ -487,7 +490,7 @@ const UserMyBookings: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-2.5 sm:px-3.5 py-1.5 rounded-lg transition-all duration-200 cursor-pointer text-xs sm:text-sm font-medium ${
+                className={`px-2.5 sm:px-3.5 py-1.5 rounded-full transition-all duration-200 cursor-pointer text-xs sm:text-sm font-medium ${
                   viewMode === 'list' ? 'bg-blue-900 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
                 style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}>
@@ -558,7 +561,7 @@ const UserMyBookings: React.FC = () => {
                             <img
                               src={booking.propertyImage}
                               alt={booking.propertyName}
-                              className="w-full sm:w-20 md:w-24 h-14 sm:h-14 md:h-16 rounded-lg object-cover shadow-sm"
+                              className="w-full sm:w-20 md:w-24 h-14 sm:h-14 md:h-16 rounded-xl object-cover shadow-sm"
                             />
                             <div className="min-w-0">
                               <div className="text-xs sm:text-sm font-semibold text-gray-900 truncate">{booking.propertyName}</div>
@@ -589,20 +592,20 @@ const UserMyBookings: React.FC = () => {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => handleViewDetails(booking)}
-                              className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 p-1.5 rounded-lg transition-all cursor-pointer"
+                              className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 p-1.5 rounded-full transition-all cursor-pointer"
                               title="View Details">
                               <i className="bi bi-eye text-sm sm:text-base"></i>
                             </button>
                             <button
                               onClick={() => handlePrint(booking)}
-                              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded-lg transition-all cursor-pointer"
+                              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-1.5 rounded-full transition-all cursor-pointer"
                               title="Print">
                               <i className="bi bi-printer text-sm sm:text-base"></i>
                             </button>
                             {booking.paymentStatus === 'pending' && (
                               <button
                                 onClick={() => handlePayNow(booking)}
-                                className="text-green-600 hover:text-green-900 hover:bg-green-50 p-1.5 rounded-lg transition-all cursor-pointer"
+                                className="text-green-600 hover:text-green-900 hover:bg-green-50 p-1.5 rounded-full transition-all cursor-pointer"
                                 title="Pay Now">
                                 <i className="bi bi-credit-card text-sm sm:text-base"></i>
                               </button>
@@ -610,7 +613,7 @@ const UserMyBookings: React.FC = () => {
                             {(booking.status === 'pending' || booking.status === 'confirmed') && (
                               <button
                                 onClick={() => handleCancelClick(booking.id)}
-                                className="text-red-600 hover:text-red-900 hover:bg-red-50 p-1.5 rounded-lg transition-all cursor-pointer"
+                                className="text-red-600 hover:text-red-900 hover:bg-red-50 p-1.5 rounded-full transition-all cursor-pointer"
                                 title="Cancel">
                                 <i className="bi bi-x-circle text-sm sm:text-base"></i>
                               </button>
@@ -640,7 +643,7 @@ const UserMyBookings: React.FC = () => {
 
                     {/* Status Badge - Professional Style */}
                     <div className="absolute top-1.5 left-1.5">
-                      <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-semibold shadow-lg ${getStatusColor(booking.status)}`}>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shadow-lg ${getStatusColor(booking.status)}`}>
                         {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                       </span>
                     </div>
@@ -648,7 +651,7 @@ const UserMyBookings: React.FC = () => {
 
                     {/* Amount Overlay */}
                     <div className="absolute bottom-1.5 left-1.5">
-                      <span className="bg-white/95 backdrop-blur-sm text-gray-900 px-1.5 py-0.5 rounded-lg text-xs font-bold shadow-lg">
+                      <span className="bg-white/95 backdrop-blur-sm text-gray-900 px-1.5 py-0.5 rounded-full text-xs font-bold shadow-lg">
                         ${booking.amount}
                       </span>
                     </div>
@@ -701,18 +704,18 @@ const UserMyBookings: React.FC = () => {
                           e.stopPropagation();
                           handleViewDetails(booking);
                         }}
-                        className="flex-1 text-center px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-lg transition-all text-[10px] font-medium cursor-pointer">
+                        className="flex-1 text-center px-2 py-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full transition-all text-[10px] font-medium cursor-pointer">
                         <i className="bi bi-eye mr-0.5"></i>View
                       </button>
 
-                      {booking.paymentStatus === 'due' && (
+                      {booking.paymentStatus !== 'completed' && (
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             handlePayNow(booking);
                           }}
-                          className="flex-1 text-center px-2 py-1.5 bg-gradient-to-r from-[#F20C8F] to-[#F20C8F]/90 text-white rounded-lg hover:from-[#D10B7A] hover:to-[#D10B7A]/90 transition-all text-[10px] font-medium cursor-pointer shadow-md">
+                          className="flex-1 text-center px-2 py-1.5 bg-gradient-to-r from-[#F20C8F] to-[#F20C8F]/90 text-white rounded-full hover:from-[#D10B7A] hover:to-[#D10B7A]/90 transition-all text-[10px] font-medium cursor-pointer shadow-md">
                           <i className="bi bi-credit-card mr-0.5"></i>Pay
                         </button>
                       )}
@@ -723,7 +726,7 @@ const UserMyBookings: React.FC = () => {
                           e.stopPropagation();
                           handlePrint(booking);
                         }}
-                        className="p-1.5 text-blue-100 hover:bg-white/10 rounded-lg transition-all cursor-pointer"
+                        className="p-1.5 text-blue-100 hover:bg-white/10 rounded-full transition-all cursor-pointer"
                         title="Print">
                         <i className="bi bi-printer text-xs"></i>
                       </button>
@@ -735,7 +738,7 @@ const UserMyBookings: React.FC = () => {
                             e.stopPropagation();
                             handleCancelClick(booking.id);
                           }}
-                          className="p-1.5 text-red-300 hover:bg-red-100/10 rounded-lg transition-all cursor-pointer"
+                          className="p-1.5 text-red-300 hover:bg-red-100/10 rounded-full transition-all cursor-pointer"
                           title="Cancel">
                           <i className="bi bi-x-circle text-xs"></i>
                         </button>
@@ -755,7 +758,7 @@ const UserMyBookings: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-gray-300 bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all">
+                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-gray-300 bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all">
                 <i className="bi bi-chevron-left text-xs"></i>
               </button>
               <div className="flex gap-1">
@@ -765,7 +768,7 @@ const UserMyBookings: React.FC = () => {
                     <button
                       key={i}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer ${
+                      className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer ${
                         currentPage === pageNum ? 'text-white shadow-md' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'
                       }`}
                       style={{ backgroundColor: currentPage === pageNum ? '#083A85' : undefined }}>
@@ -777,7 +780,7 @@ const UserMyBookings: React.FC = () => {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg border border-gray-300 bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all">
+                className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full border border-gray-300 bg-white text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all">
                 <i className="bi bi-chevron-right text-xs"></i>
               </button>
             </div>
@@ -791,7 +794,7 @@ const UserMyBookings: React.FC = () => {
                 onChange={(e) => setGoToPageInput(e.target.value)}
                 onBlur={(e) => handleGoToPage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleGoToPage((e.target as HTMLInputElement).value)}
-                className="w-10 sm:w-14 px-1 sm:px-1.5 py-1 border border-gray-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-10 sm:w-14 px-1 sm:px-1.5 py-1 border border-gray-300 rounded-full text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               <span className="text-gray-700 whitespace-nowrap font-medium">of {totalPages}</span>
             </div>
@@ -820,7 +823,7 @@ const UserMyBookings: React.FC = () => {
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
                       Booking Information
                     </h3>
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
                       <div className="flex flex-col sm:flex-row justify-between gap-1">
                         <span className="text-gray-600 font-medium text-xs">Booking ID</span>
                         <span className="font-semibold text-gray-900 text-xs">{selectedBooking.id}</span>
@@ -843,7 +846,7 @@ const UserMyBookings: React.FC = () => {
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
                       Guest Information
                     </h3>
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
                       <div className="flex flex-col sm:flex-row justify-between gap-1">
                         <span className="text-gray-600 font-medium text-xs">Name</span>
                         <span className="font-semibold text-gray-900 text-xs">{selectedBooking.guestName}</span>
@@ -868,7 +871,7 @@ const UserMyBookings: React.FC = () => {
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
                       Property Information
                     </h3>
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
                       <div className="flex flex-col sm:flex-row justify-between gap-1">
                         <span className="text-gray-600 font-medium text-xs">Property Name</span>
                         <span className="font-semibold text-gray-900 text-xs">{selectedBooking.propertyName}</span>
@@ -897,7 +900,7 @@ const UserMyBookings: React.FC = () => {
                     <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
                       Payment Information
                     </h3>
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-xl p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 border border-gray-200">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
                         <span className="text-gray-600 font-medium text-xs">Total Amount</span>
                         <span className="text-base font-bold text-gray-900">${selectedBooking.amount}</span>
@@ -917,7 +920,7 @@ const UserMyBookings: React.FC = () => {
                       <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1.5 sm:mb-2">
                         Special Requests
                       </h3>
-                      <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-2.5 sm:p-3">
+                      <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-2.5 sm:p-3">
                         <p className="text-gray-700 text-xs">{selectedBooking.specialRequests}</p>
                       </div>
                     </div>
@@ -927,26 +930,26 @@ const UserMyBookings: React.FC = () => {
               <div className="sticky bottom-0 bg-white border-t px-4 sm:px-6 py-2.5 sm:py-3 flex flex-wrap justify-end gap-1.5 sm:gap-2 z-10">
                 <button
                   onClick={() => handlePrint(selectedBooking)}
-                  className="px-2.5 sm:px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium cursor-pointer text-xs sm:text-sm">
+                  className="px-2.5 sm:px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-all font-medium cursor-pointer text-xs sm:text-sm">
                   <i className="bi bi-printer mr-1"></i>Print
                 </button>
-                {selectedBooking.paymentStatus === 'due' && (
+                {selectedBooking.paymentStatus !== 'completed' && (
                   <button
                     onClick={() => handlePayNow(selectedBooking)}
-                    className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-[#F20C8F] to-[#F20C8F]/90 text-white rounded-lg hover:from-[#D10B7A] hover:to-[#D10B7A]/90 transition-all font-medium cursor-pointer text-xs sm:text-sm shadow-md">
+                    className="px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-[#F20C8F] to-[#F20C8F]/90 text-white rounded-full hover:from-[#D10B7A] hover:to-[#D10B7A]/90 transition-all font-medium cursor-pointer text-xs sm:text-sm shadow-md">
                     <i className="bi bi-credit-card mr-1"></i>Pay Now
                   </button>
                 )}
                 {(selectedBooking.status === 'pending' || selectedBooking.status === 'confirmed') && (
                   <button
                     onClick={() => { handleCancelClick(selectedBooking.id); }}
-                    className="px-2.5 sm:px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium cursor-pointer text-xs sm:text-sm">
+                    className="px-2.5 sm:px-3 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all font-medium cursor-pointer text-xs sm:text-sm">
                     <i className="bi bi-x-circle mr-1"></i>Cancel
                   </button>
                 )}
                 <button
                   onClick={() => setShowModal(false)}
-                  className="px-2.5 sm:px-3 py-1.5 text-white rounded-lg hover:opacity-90 transition-all font-medium cursor-pointer text-xs sm:text-sm"
+                  className="px-2.5 sm:px-3 py-1.5 text-white rounded-full hover:opacity-90 transition-all font-medium cursor-pointer text-xs sm:text-sm"
                   style={{ backgroundColor: '#083A85' }}>
                   Close
                 </button>
@@ -971,7 +974,7 @@ const UserMyBookings: React.FC = () => {
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="Enter reason for cancellation..."
-                  className="w-full h-28 px-2.5 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-xs sm:text-sm transition-all"
+                  className="w-full h-28 px-2.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-xs sm:text-sm transition-all"
                 />
               </div>
               <div className="px-4 sm:px-5 py-2.5 sm:py-3 border-t flex justify-end gap-2">
@@ -981,14 +984,14 @@ const UserMyBookings: React.FC = () => {
                     setBookingToCancel(null);
                     setCancelReason('');
                   }}
-                  className="px-3 py-1.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all cursor-pointer text-xs sm:text-sm font-medium"
+                  className="px-3 py-1.5 text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-all cursor-pointer text-xs sm:text-sm font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCancelConfirm}
                   disabled={!cancelReason.trim()}
-                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium"
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm font-medium"
                 >
                   <i className="bi bi-x-circle mr-1"></i>Cancel Booking
                 </button>

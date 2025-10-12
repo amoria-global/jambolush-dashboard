@@ -1,4 +1,4 @@
-import HostEarnings from "@/app/pages/host/earnings";
+import UnifiedEarnings from "@/app/components/unified-earnings";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -7,12 +7,6 @@ export const metadata: Metadata = {
     keywords: ['earnings', 'host', 'revenue'],
 };
 
-const EarningsPage = () => {
-    return (
-        <div>
-            <HostEarnings />
-        </div>
-    );
-};
-
-export default EarningsPage;
+export default function AgentEarnings() {
+  return <UnifiedEarnings userType="host" />;
+}

@@ -81,6 +81,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [balance, setBalance] = useState<number>(0);
   const [messagesCount, setMessagesCount] = useState<number>(0);
+  const [walletData, setWalletData] = useState<any>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -239,6 +241,26 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   };
 
+  const fetchWalletData = async () => {
+    try {
+      setWalletLoading(true);
+      const userId = user?.id;
+
+      if (userId && (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide')) {
+        const walletResponse = await handleApiCall(() => api.get(`/transactions/user/${userId}`));
+        if (walletResponse.data && walletResponse.data.success) {
+          setWalletData(walletResponse.data.data);
+          // Update balance from wallet data
+          setBalance(walletResponse.data.data.availableBalance || 0);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
   const fetchUserData = async (authToken: string) => {
     try {
       await fetchNotifications();
@@ -247,11 +269,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
 
     try {
-      if (userSession?.role === 'host' || userSession?.role === 'agent') {
-        const balanceResponse = await handleApiCall(() => api.get('user/balance'));
-        if (balanceResponse.data && balanceResponse.data.balance !== undefined) {
-          setBalance(balanceResponse.data.balance);
-        }
+      if (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide') {
+        await fetchWalletData();
       }
     } catch (error) {
       setBalance(0);
@@ -326,6 +345,19 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
     return () => clearInterval(pollInterval);
   }, [isAuthenticated, notifications]);
+
+  // Add wallet polling interval
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    if (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide') {
+      const walletPollInterval = setInterval(() => {
+        fetchWalletData();
+      }, 30000); // Refresh every 30 seconds
+
+      return () => clearInterval(walletPollInterval);
+    }
+  }, [isAuthenticated, user, userSession]);
 
   useEffect(() => {
     const handleNotificationUpdate = () => {
@@ -553,7 +585,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   return (
-    <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-30 transition-all duration-300" style={{ left: '240px' }}>
+    <div className="fixed top-0 right-0 left-0 lg:left-60 flex items-center justify-between px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-30 transition-all duration-300">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
@@ -589,6 +621,43 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                 >
                   <i className="bi bi-arrow-right"></i>
                 </button>
+              </div>
+            )}
+
+            {/* Wallet Display in TopBar */}
+            {(user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
+              <div className="hidden lg:flex items-center bg-gradient-to-r from-[#083A85]/5 to-[#062d6b]/5 border border-[#083A85]/10 px-3 py-1.5 rounded-lg group hover:shadow-sm transition-all cursor-pointer"
+                onClick={() => {
+                  const walletPath = user.userType === 'agent' ? '/all/agent/earnings' :
+                                   user.userType === 'tourguide' ? '/all/tourguide/earnings' : '/all/host/earnings';
+                  router.push(walletPath);
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-gradient-to-br from-[#083A85] to-[#062d6b] rounded-lg flex items-center justify-center shadow-sm">
+                    <i className="bi bi-wallet2 text-white text-xs"></i>
+                  </div>
+                  {walletLoading ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="animate-spin rounded-full h-3 w-3 border border-[#083A85] border-t-transparent"></div>
+                      <span className="text-xs text-gray-500 font-medium">Loading...</span>
+                    </div>
+                  ) : walletData ? (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[#083A85] leading-tight">
+                        {walletData.availableBalance?.toLocaleString() || '0'} {walletData.currency || 'RWF'}
+                      </span>
+                      {walletData.pendingBalance > 0 && (
+                        <span className="text-[10px] text-gray-500 font-medium leading-tight">
+                          +{walletData.pendingBalance?.toLocaleString()} pending
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-500 font-medium">No wallet data</span>
+                  )}
+                  <i className="bi bi-chevron-right text-[10px] text-gray-400 ml-1 group-hover:text-[#083A85] transition-colors"></i>
+                </div>
               </div>
             )}
 
@@ -735,8 +804,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                     {getUserDisplayName()}
                   </span>
                   <span className="text-xs font-medium text-gray-500">
-                    {userSession.role === 'host' || userSession.role === 'agent'
-                      ? `$${balance.toFixed(2)}`
+                    {(userSession.role === 'host' || userSession.role === 'agent' || userSession.role === 'tourguide') && walletData
+                      ? `${walletData.availableBalance?.toLocaleString() || '0'} ${walletData.currency || 'RWF'}`
                       : getRoleDisplayName(userSession.role, user.tourGuideType)
                     }
                   </span>
