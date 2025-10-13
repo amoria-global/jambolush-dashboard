@@ -244,7 +244,7 @@ const TourGuideReviews: React.FC = () => {
       <div className="pt-4 md:pt-14 min-h-screen bg-gray-50">
         <div className="mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
           <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Reviews</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-black">Client Reviews</h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">Loading your tour reviews...</p>
           </div>
           <div className="flex justify-center items-center py-12">
@@ -261,10 +261,10 @@ const TourGuideReviews: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="pt-4 md:pt-14 min-h-screen bg-gray-50">
-        <div className="mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
+      <div className="">
+        <div className="mx-auto px-2 sm:px-3 lg:px-4 py-4 sm:py-4">
           <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Reviews</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-black">Client Reviews</h1>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <i className="bi bi-exclamation-triangle text-4xl text-red-500 mb-4"></i>
@@ -283,11 +283,11 @@ const TourGuideReviews: React.FC = () => {
   }
 
   return (
-    <div className="pt-4 md:pt-14 min-h-screen bg-gray-50">
-      <div className="mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
+    <div className="pt-5">
+      <div className="mx-auto p-4">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Reviews</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-black">Client Reviews</h1>
           <p className="text-gray-600 mt-2 text-sm sm:text-base">
             See what clients are saying about your tours. ({tours.length} tours, {reviews.length} total reviews)
           </p>

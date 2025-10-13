@@ -575,7 +575,7 @@ const fetchUserData = async () => {
   }
 
   return (
-    <div className="pt-14">
+    <div className="pt-4">
       <style jsx>{`
         @keyframes scale-in {
           from { transform: scale(0.95); opacity: 0; }

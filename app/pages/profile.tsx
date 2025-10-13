@@ -1,4 +1,3 @@
-//app/pages/profile.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -353,10 +352,10 @@ const SearchableDropdown = ({ options, value, onChange, disabled, placeholder = 
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full border rounded-lg px-3 py-2 text-sm text-left flex justify-between items-center transition-colors ${
+        className={`w-full border-b border-gray-300 px-0 py-2 text-sm text-left flex justify-between items-center transition-colors ${
           disabled
-            ? 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-            : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer hover:border-gray-400'
+            ? 'bg-white text-gray-400 cursor-not-allowed'
+            : 'focus:border-[#FF385C] bg-white cursor-pointer hover:border-gray-500'
         }`}
       >
         <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
@@ -364,7 +363,7 @@ const SearchableDropdown = ({ options, value, onChange, disabled, placeholder = 
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-md mt-1 shadow-md max-h-60 overflow-y-auto">
           <div className="p-2 sticky top-0 bg-white border-b border-gray-100">
             <div className="relative">
               <svg className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,7 +374,7 @@ const SearchableDropdown = ({ options, value, onChange, disabled, placeholder = 
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border border-gray-200 rounded-md pl-9 pr-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full border border-gray-200 rounded-md pl-9 pr-3 py-1.5 text-sm focus:border-[#FF385C] focus:ring-0"
                 autoFocus
               />
             </div>
@@ -389,7 +388,7 @@ const SearchableDropdown = ({ options, value, onChange, disabled, placeholder = 
                   setIsOpen(false);
                   setSearchTerm('');
                 }}
-                className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-50 last:border-b-0"
+                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm border-b border-gray-50 last:border-b-0"
               >
                 {option.label}
               </li>
@@ -492,23 +491,23 @@ export default function UserProfileSettingsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'active': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'inactive': return 'bg-red-100 text-red-700 border-red-200';
-      case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'active': return 'bg-green-100 text-green-800 border-green-200';
+      case 'inactive': return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getUserTypeColor = (type: string) => {
     switch (type?.toLowerCase()) {
-      case 'host': return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'agent': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'field agent': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'admin': return 'bg-red-100 text-red-700 border-red-200';
-      case 'user': return 'bg-green-100 text-green-700 border-green-200';
-      case 'guest': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      case 'moderator': return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'host': return 'bg-pink-100 text-pink-800 border-pink-200';
+      case 'agent': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'field agent': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'admin': return 'bg-red-100 text-red-800 border-red-200';
+      case 'user': return 'bg-green-100 text-green-800 border-green-200';
+      case 'guest': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'moderator': return 'bg-blue-100 text-blue-800 border-blue-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -944,13 +943,13 @@ const handleSaveChanges = async () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="bg-white rounded-md shadow-sm p-8 text-center">
           <div className="flex items-center justify-center mb-4">
-            <div className="animate-spin w-8 h-8 border-3 border-blue-200 border-t-blue-600 rounded-full"></div>
+            <div className="animate-spin w-8 h-8 border-3 border-gray-200 border-t-[#FF385C] rounded-full"></div>
           </div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Loading Profile</h2>
-          <p className="text-gray-600">Please wait while we fetch your information...</p>
+          <h2 className="text-xl font-bold text-[#222222] mb-2">Loading your profile</h2>
+          <p className="text-[#717171]">Just a moment...</p>
         </div>
       </div>
     );
@@ -958,20 +957,20 @@ const handleSaveChanges = async () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="bg-white rounded-md shadow-sm p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-[#FF385C]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Profile</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="text-xl font-bold text-[#222222] mb-2">Something went wrong</h2>
+          <p className="text-[#717171] mb-6">{error}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105"
+            className="bg-[#FF385C] hover:bg-[#E31C5F] text-white px-6 py-3 rounded-md font-medium transition-all"
           >
-            Try Again
+            Try again
           </button>
         </div>
       </div>
@@ -980,18 +979,18 @@ const handleSaveChanges = async () => {
 
   if (!user && !error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="bg-white rounded-md shadow-sm p-8 text-center">
+          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-[#717171]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">No Profile Data</h2>
-          <p className="text-gray-600 mb-6">Unable to load your profile information</p>
+          <h2 className="text-xl font-bold text-[#222222] mb-2">No profile found</h2>
+          <p className="text-[#717171] mb-6">We couldn't load your profile information</p>
           <button
             onClick={() => window.location.reload()}
-            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105"
+            className="bg-[#FF385C] hover:bg-[#E31C5F] text-white px-6 py-3 rounded-md font-medium transition-all"
           >
             Retry
           </button>
@@ -1008,23 +1007,23 @@ const handleSaveChanges = async () => {
   const postalCodeField = getPostalCodeFieldName(currentCountry);
 
   return (
-    <div className="pt-20">
-      <div className="">
+    <div className="pt-1 bg-white">
+      <div className="max-w-8xl mx-auto px-2 sm:px-3 lg:px-4 py-4">
         
         {/* Alert Messages */}
 {saveMessage && (
-  <div className={`mb-6 p-4 rounded-lg border ${
+  <div className={`mb-6 p-4 rounded-md border ${
     saveMessage.type === 'success' 
-      ? 'bg-green-50 border-green-200 text-green-800' 
+      ? 'bg-green-50 border-green-100 text-green-900' 
       : saveMessage.type === 'error'
-      ? 'bg-red-50 border-red-200 text-red-800'
-      : 'bg-blue-50 border-blue-200 text-blue-800' // Info type
+      ? 'bg-red-50 border-red-100 text-red-900'
+      : 'bg-blue-50 border-blue-100 text-blue-900' // Info type
   }`}>
     <div className="flex items-center">
       <svg className={`w-5 h-5 mr-2 ${
-        saveMessage.type === 'success' ? 'text-green-500' 
-        : saveMessage.type === 'error' ? 'text-red-500'
-        : 'text-blue-500' // Info type
+        saveMessage.type === 'success' ? 'text-green-600' 
+        : saveMessage.type === 'error' ? 'text-[#FF385C]'
+        : 'text-blue-600' // Info type
       }`} fill="currentColor" viewBox="0 0 20 20">
         {saveMessage.type === 'success' ? (
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -1040,34 +1039,29 @@ const handleSaveChanges = async () => {
   </div>
 )}
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-8">
           
           {/* User Profile Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center">
-                <h3 className="text-white text-lg font-semibold mb-4">Profile Image</h3>
-                <div className="relative mb-4">
+            <div className="bg-white rounded-md shadow-sm overflow-hidden">
+              <div className="p-6 text-center border-b border-gray-200">
+                <h3 className="text-xl font-bold text-[#222222] mb-6">Profile photo</h3>
+                <div className="relative mb-6 mx-auto w-32 h-32">
                   {previewUrl || user.profile ? (
                     <img 
                       src={previewUrl || user.profile} 
                       alt={user.name} 
-                      className="w-24 h-24 rounded-full mx-auto border-4 border-white/30 shadow-lg object-cover"
+                      className="w-32 h-32 rounded-full border border-gray-200 object-cover"
                     />
                   ) : (
-                    <div className="w-24 h-24 bg-white/20 rounded-full mx-auto border-4 border-white/30 shadow-lg flex items-center justify-center">
-                      <span className="text-white text-xl font-bold">{getInitials(user.name)}</span>
+                    <div className="w-32 h-32 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-[#222222] text-3xl font-bold">{getInitials(user.name)}</span>
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 border-4 border-white rounded-full flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
                 </div>
 
                 {isEditing && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -1077,30 +1071,30 @@ const handleSaveChanges = async () => {
                     />
                     <label 
                       htmlFor="image-upload" 
-                      className="block bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg font-medium transition-all cursor-pointer"
+                      className="block bg-gray-100 hover:bg-gray-200 border border-gray-300 text-[#222222] px-4 py-3 rounded-md font-medium transition-all cursor-pointer text-center"
                     >
-                      <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
                       </svg>
-                      Choose Image
+                      Update photo
                     </label>
                     {selectedFile && (
-                      <div className="space-y-2">
-                        <p className="text-white/80 text-sm truncate px-2">{selectedFile.name}</p>
+                      <div className="space-y-3">
+                        <p className="text-[#717171] text-sm truncate px-2">{selectedFile.name}</p>
                         <button 
                           onClick={handleImageUpload}
                           disabled={isSaving}
-                          className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white px-4 py-2 rounded-lg font-medium transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center w-full"
+                          className="bg-[#FF385C] hover:bg-[#E31C5F] disabled:bg-[#FF385C]/50 text-white px-4 py-3 rounded-md font-medium transition-all cursor-pointer disabled:cursor-not-allowed flex items-center justify-center w-full"
                         >
                           {isSaving ? (
-                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"></div>
                           ) : (
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                             </svg>
                           )}
-                          {isSaving ? 'Uploading...' : 'Upload Image'}
+                          {isSaving ? 'Uploading...' : 'Upload photo'}
                         </button>
                       </div>
                     )}
@@ -1108,8 +1102,8 @@ const handleSaveChanges = async () => {
                 )}
                 
                 {uploadSuccess && (
-                  <div className="mt-3 bg-green-500/20 border border-green-400/30 text-green-100 px-3 py-2 rounded-lg text-sm">
-                    <svg className="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <div className="mt-4 bg-green-50 border border-green-100 text-green-900 px-4 py-3 rounded-md text-sm">
+                    <svg className="w-5 h-5 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                     {uploadSuccess}
@@ -1119,14 +1113,14 @@ const handleSaveChanges = async () => {
 
               <div className="p-6">
                 <div className="text-center mb-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">{user.name}</h2>
-                  <p className="text-gray-500 mb-4">ID: USER-{user?.id?.toString().padStart(6, '0') || 'Loading...'}</p>
-                  <div className="flex items-center justify-center flex-wrap gap-2">
-                    <div className={`inline-flex items-center gap-2 border px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(user.status || '')}`}>
-                      <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
-                      {user.status?.charAt(0).toUpperCase()}{user.status?.slice(1)} Status
+                  <h2 className="text-2xl font-bold text-[#222222] mb-1">{user.name}</h2>
+                  <p className="text-[#717171] mb-4">ID: USER-{user?.id?.toString().padStart(6, '0') || 'Loading...'}</p>
+                  <div className="flex items-center justify-center flex-wrap gap-3">
+                    <div className={`inline-flex items-center gap-2 border px-4 py-1.5 rounded-full text-sm font-medium ${getStatusColor(user.status || '')}`}>
+                      <div className="w-2.5 h-2.5 bg-current rounded-full"></div>
+                      {user.status?.charAt(0).toUpperCase()}{user.status?.slice(1)} 
                     </div>
-                    <div className={`inline-flex items-center gap-2 border px-3 py-1 rounded-full text-sm font-medium ${getUserTypeColor(user.userType || '')}`}>
+                    <div className={`inline-flex items-center gap-2 border px-4 py-1.5 rounded-full text-sm font-medium ${getUserTypeColor(user.userType || '')}`}>
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
@@ -1135,27 +1129,27 @@ const handleSaveChanges = async () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-gray-600">
-                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 text-[#717171]">
+                    <svg className="w-5 h-5 text-[#222222] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
                     <span className="text-sm break-all">{user.email}</span>
                   </div>
                   {user.phone && (
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center gap-3 text-[#717171]">
+                      <svg className="w-5 h-5 text-[#222222] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
                       </svg>
                       <span className="text-sm">{formatPhoneNumber(user.phone, user.phoneCountryCode || 'US')}</span>
                     </div>
                   )}
-                  <div className="flex items-start gap-3 text-gray-600">
-                    <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-start gap-3 text-[#717171]">
+                    <svg className="w-5 h-5 text-[#222222] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
-                    <span className="text-sm">{getFullAddress() || 'No address provided'}</span>
+                    <span className="text-sm">{getFullAddress() || 'Add your address'}</span>
                   </div>
                 </div>
               </div>
@@ -1163,34 +1157,34 @@ const handleSaveChanges = async () => {
           </div>
 
           {/* Profile Information */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="bg-white rounded-md shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white">Profile Information</h3>
+                  <h3 className="text-xl font-bold text-[#222222]">Personal info</h3>
                   {!isEditing ? (
                     <button 
                       onClick={() => setIsEditing(true)} 
-                      className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all cursor-pointer"
+                      className="text-[#222222] px-4 py-2 rounded-md font-medium flex items-center gap-2 transition-all hover:bg-gray-100"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                       </svg>
-                      Edit Profile
+                      Edit
                     </button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <button 
                         onClick={handleCancelEdit}
                         disabled={isSaving}
-                        className="bg-white/20 hover:bg-white/30 border border-white/30 text-white px-4 py-2 rounded-lg cursor-pointer font-medium transition-all disabled:opacity-50 "
+                        className="text-[#222222] px-4 py-2 rounded-md font-medium transition-all hover:bg-gray-100 disabled:opacity-50 "
                       >
                         Cancel
                       </button>
                       <button 
                         onClick={handleSaveChanges}
                         disabled={isSaving}
-                        className="bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white px-4 py-2 rounded-lg font-medium cursor-pointer flex items-center gap-2 transition-all disabled:cursor-not-allowed"
+                        className="bg-[#FF385C] hover:bg-[#E31C5F] disabled:bg-[#FF385C]/50 text-white px-4 py-2 rounded-md font-medium flex items-center gap-2 transition-all disabled:cursor-not-allowed"
                       >
                         {isSaving ? (
                           <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
@@ -1199,7 +1193,7 @@ const handleSaveChanges = async () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                           </svg>
                         )}
-                        {isSaving ? 'Saving...' : 'Save Changes'}
+                        {isSaving ? 'Saving...' : 'Save'}
                       </button>
                     </div>
                   )}
@@ -1207,218 +1201,216 @@ const handleSaveChanges = async () => {
               </div>
 
               <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-8">
                   {/* Basic Information */}
-                  <div className="md:col-span-2">
-                    <h4 className="text-gray-700 font-bold mb-4 border-b pb-2">Basic Information</h4>
-                  </div>
-                  
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Full Name</label>
-                    <input 
-                      type="text" 
-                      value={user.name || ''} 
-                      onChange={(e) => handleFieldChange('name', e.target.value)} 
-                      disabled={!isEditing} 
-                      className={`w-full border rounded-lg px-3 py-2 transition-colors ${
-                        isEditing 
-                          ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent' 
-                          : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-                      }`} 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">User ID</label>
-                    <input 
-                      type="text" 
-                      value={`USER-${user?.id?.toString().padStart(6, '0') || 'Loading...'}`} 
-                      disabled 
-                      className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-600 cursor-not-allowed" 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Email Address</label>
-                    <input 
-                      type="email" 
-                      value={user.email || ''} 
-                      disabled 
-                      className="w-full border rounded-lg px-3 py-2 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed" 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Phone Number</label>
-                    <div className="flex gap-3">
-                      <div className="w-32 flex-shrink-0">
-                        <SearchableDropdown 
-                          options={phoneCountryOptions} 
-                          value={user.phoneCountryCode || ''} 
-                          onChange={(value) => handleFieldChange('phoneCountryCode', value)} 
-                          disabled={!isEditing}
-                          placeholder="Country"
+                    <h4 className="text-lg font-bold text-[#222222] mb-4">Basic info</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[#222222] font-medium mb-2">Legal name</label>
+                        <input 
+                          type="text" 
+                          value={user.name || ''} 
+                          onChange={(e) => handleFieldChange('name', e.target.value)} 
+                          disabled={!isEditing} 
+                          className={`w-full border-b border-gray-300 px-0 py-2 transition-colors ${
+                            isEditing 
+                              ? 'focus:border-[#FF385C]' 
+                              : 'text-[#717171] cursor-not-allowed'
+                          }`} 
                         />
                       </div>
-                      <input 
-                        type="tel" 
-                        value={user.phone || ''} 
-                        onChange={(e) => handleFieldChange('phone', e.target.value)} 
-                        disabled={!isEditing} 
-                        placeholder="Phone number" 
-                        className={`flex-1 border rounded-lg px-3 py-2 transition-colors ${
-                          isEditing 
-                            ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent' 
-                            : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-                        }`} 
-                      />
+                      
+                      <div>
+                        <label className="block text-[#222222] font-medium mb-2">User ID</label>
+                        <input 
+                          type="text" 
+                          value={`USER-${user?.id?.toString().padStart(6, '0') || 'Loading...'}`} 
+                          disabled 
+                          className="w-full border-b border-gray-300 px-0 py-2 text-[#717171] cursor-not-allowed" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[#222222] font-medium mb-2">Email</label>
+                        <input 
+                          type="email" 
+                          value={user.email || ''} 
+                          disabled 
+                          className="w-full border-b border-gray-300 px-0 py-2 text-[#717171] cursor-not-allowed" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[#222222] font-medium mb-2">Phone</label>
+                        <div className="flex gap-3">
+                          <div className="w-32 flex-shrink-0">
+                            <SearchableDropdown 
+                              options={phoneCountryOptions} 
+                              value={user.phoneCountryCode || ''} 
+                              onChange={(value) => handleFieldChange('phoneCountryCode', value)} 
+                              disabled={!isEditing}
+                              placeholder="Code"
+                            />
+                          </div>
+                          <input 
+                            type="tel" 
+                            value={user.phone || ''} 
+                            onChange={(e) => handleFieldChange('phone', e.target.value)} 
+                            disabled={!isEditing} 
+                            placeholder="Phone number" 
+                            className={`flex-1 border-b border-gray-300 px-0 py-2 transition-colors ${
+                              isEditing 
+                                ? 'focus:border-[#FF385C]' 
+                                : 'text-[#717171] cursor-not-allowed'
+                            }`} 
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Address Information */}
-                  <div className="md:col-span-2">
-                    <h4 className="text-gray-700 font-bold mb-4 border-b pb-2">Address Information</h4>
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="block text-gray-700 font-semibold mb-2">Country</label>
-                    <SearchableDropdown 
-                      options={countryOptions} 
-                      value={user.country || ''} 
-                      onChange={handleCountryChange} 
-                      disabled={!isEditing}
-                      placeholder="Select country"
-                    />
-                  </div>
-
-                  {currentCountry?.addressFields.filter(f => !postalCodeField || f !== postalCodeField).map(field => {
-                    const label = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                    
-                    if (field === 'state' && currentCountry.states) {
-                      return (
-                        <div key={field}>
-                          <label className="block text-gray-700 font-semibold mb-2">{label}</label>
-                          <select 
-                            value={user.state || ''} 
-                            onChange={(e) => handleFieldChange('state', e.target.value)} 
-                            disabled={!isEditing} 
-                            className={`w-full border rounded-lg px-3 py-2 transition-colors ${
-                              isEditing 
-                                ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer' 
-                                : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-                            }`}
-                          >
-                            <option value="">Select {label}</option>
-                            {currentCountry.states.map(s => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    }
-                    
-                    if (field === 'province' && currentCountry.provinces) {
-                      return (
-                        <div key={field}>
-                          <label className="block text-gray-700 font-semibold mb-2">{label}</label>
-                          <select 
-                            value={user.province || ''} 
-                            onChange={(e) => handleFieldChange('province', e.target.value)} 
-                            disabled={!isEditing} 
-                            className={`w-full border rounded-lg px-3 py-2 transition-colors ${
-                              isEditing 
-                                ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer' 
-                                : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-                            }`}
-                          >
-                            <option value="">Select {label}</option>
-                            {currentCountry.provinces.map(p => (
-                              <option key={p} value={p}>{p}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                      <div key={field}>
-                        <label className="block text-gray-700 font-semibold mb-2">{label}</label>
-                        <input 
-                          type="text" 
-                          value={user[field as keyof UserInfo] as string || ''} 
-                          onChange={(e) => handleFieldChange(field as keyof UserInfo, e.target.value)} 
-                          disabled={!isEditing} 
-                          placeholder={`Enter ${label.toLowerCase()}`} 
-                          className={`w-full border rounded-lg px-3 py-2 transition-colors ${
-                            isEditing 
-                              ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent' 
-                              : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-                          }`} 
+                  <div>
+                    <h4 className="text-lg font-bold text-[#222222] mb-4">Address</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="block text-[#222222] font-medium mb-2">Country/Region</label>
+                        <SearchableDropdown 
+                          options={countryOptions} 
+                          value={user.country || ''} 
+                          onChange={handleCountryChange} 
+                          disabled={!isEditing}
+                          placeholder="Select country/region"
                         />
                       </div>
-                    );
-                  })}
-                  
-                  {postalCodeField && (
-                    <div>
-                      <label className="block text-gray-700 font-semibold mb-2">{postalCodeLabel}</label>
-                      <input 
-                        type="text" 
-                        value={postalCode} 
-                        onChange={(e) => setPostalCode(e.target.value)} 
-                        disabled={!isEditing} 
-                        placeholder={`Enter ${postalCodeLabel.toLowerCase()}`} 
-                        className={`w-full border rounded-lg px-3 py-2 transition-colors ${
-                          isEditing 
-                            ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent' 
-                            : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
-                        }`}
-                      />
-                    </div>
-                  )}
 
-                  {/* Security Settings */}
-                  <div className="md:col-span-2">
-                    <h4 className="text-gray-700 font-bold mb-4 border-b pb-2">Security Settings</h4>
+                      {currentCountry?.addressFields.filter(f => !postalCodeField || f !== postalCodeField).map(field => {
+                        const label = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        
+                        if (field === 'state' && currentCountry.states) {
+                          return (
+                            <div key={field}>
+                              <label className="block text-[#222222] font-medium mb-2">{label}</label>
+                              <select 
+                                value={user.state || ''} 
+                                onChange={(e) => handleFieldChange('state', e.target.value)} 
+                                disabled={!isEditing} 
+                                className={`w-full border-b border-gray-300 px-0 py-2 transition-colors ${
+                                  isEditing 
+                                    ? 'focus:border-[#FF385C] cursor-pointer' 
+                                    : 'text-[#717171] cursor-not-allowed'
+                                }`}
+                              >
+                                <option value="">Select {label}</option>
+                                {currentCountry.states.map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        }
+                        
+                        if (field === 'province' && currentCountry.provinces) {
+                          return (
+                            <div key={field}>
+                              <label className="block text-[#222222] font-medium mb-2">{label}</label>
+                              <select 
+                                value={user.province || ''} 
+                                onChange={(e) => handleFieldChange('province', e.target.value)} 
+                                disabled={!isEditing} 
+                                className={`w-full border-b border-gray-300 px-0 py-2 transition-colors ${
+                                  isEditing 
+                                    ? 'focus:border-[#FF385C] cursor-pointer' 
+                                    : 'text-[#717171] cursor-not-allowed'
+                                }`}
+                              >
+                                <option value="">Select {label}</option>
+                                {currentCountry.provinces.map(p => (
+                                  <option key={p} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div key={field}>
+                            <label className="block text-[#222222] font-medium mb-2">{label}</label>
+                            <input 
+                              type="text" 
+                              value={user[field as keyof UserInfo] as string || ''} 
+                              onChange={(e) => handleFieldChange(field as keyof UserInfo, e.target.value)} 
+                              disabled={!isEditing} 
+                              placeholder={`Enter ${label.toLowerCase()}`} 
+                              className={`w-full border-b border-gray-300 px-0 py-2 transition-colors ${
+                                isEditing 
+                                  ? 'focus:border-[#FF385C]' 
+                                  : 'text-[#717171] cursor-not-allowed'
+                              }`} 
+                            />
+                          </div>
+                        );
+                      })}
+                      
+                      {postalCodeField && (
+                        <div>
+                          <label className="block text-[#222222] font-medium mb-2">{postalCodeLabel}</label>
+                          <input 
+                            type="text" 
+                            value={postalCode} 
+                            onChange={(e) => setPostalCode(e.target.value)} 
+                            disabled={!isEditing} 
+                            placeholder={`Enter ${postalCodeLabel.toLowerCase()}`} 
+                            className={`w-full border-b border-gray-300 px-0 py-2 transition-colors ${
+                              isEditing 
+                                ? 'focus:border-[#FF385C]' 
+                                : 'text-[#717171] cursor-not-allowed'
+                            }`}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Change Password Form */}
-                  <div className="md:col-span-2">
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <h5 className="text-gray-800 font-semibold">Change Password</h5>
-                        <div className="text-xs text-gray-500">
-                          Password must be at least 8 characters
+                  {/* Security Settings */}
+                  <div>
+                    <h4 className="text-lg font-bold text-[#222222] mb-4">Security</h4>
+                    <div className="bg-gray-50 rounded-md p-6 border border-gray-200">
+                      <div className="flex items-center justify-between mb-6">
+                        <h5 className="text-lg font-bold text-[#222222]">Change password</h5>
+                        <div className="text-sm text-[#717171]">
+                          Use at least 8 characters
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                          <label className="block text-gray-700 font-semibold mb-2">Current Password</label>
+                          <label className="block text-[#222222] font-medium mb-2">Current password</label>
                           <div className="relative">
                             <input
                               type={showPasswords.current ? "text" : "password"}
                               value={passwordData.currentPassword}
                               onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                               disabled={!isEditing}
-                              placeholder="Enter current password"
-                              className={`w-full border rounded-lg px-3 py-2 pr-10 transition-colors ${
+                              placeholder="••••••••"
+                              className={`w-full border-b border-gray-300 px-0 py-2 pr-10 transition-colors ${
                                 isEditing
-                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                                  : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
+                                  ? 'focus:border-[#FF385C]'
+                                  : 'text-[#717171] cursor-not-allowed'
                               }`}
                             />
                             {isEditing && (
                               <button
                                 type="button"
                                 onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                className="absolute right-0 top-1/2 transform -translate-y-1/2 text-[#717171] hover:text-[#222222]"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   {showPasswords.current ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                                   ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   )}
                                 </svg>
                               </button>
@@ -1427,31 +1419,31 @@ const handleSaveChanges = async () => {
                         </div>
 
                         <div>
-                          <label className="block text-gray-700 font-semibold mb-2">New Password</label>
+                          <label className="block text-[#222222] font-medium mb-2">New password</label>
                           <div className="relative">
                             <input
                               type={showPasswords.new ? "text" : "password"}
                               value={passwordData.newPassword}
                               onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                               disabled={!isEditing}
-                              placeholder="Enter new password"
-                              className={`w-full border rounded-lg px-3 py-2 pr-10 transition-colors ${
+                              placeholder="••••••••"
+                              className={`w-full border-b border-gray-300 px-0 py-2 pr-10 transition-colors ${
                                 isEditing
-                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                                  : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
+                                  ? 'focus:border-[#FF385C]'
+                                  : 'text-[#717171] cursor-not-allowed'
                               }`}
                             />
                             {isEditing && (
                               <button
                                 type="button"
                                 onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                className="absolute right-0 top-1/2 transform -translate-y-1/2 text-[#717171] hover:text-[#222222]"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   {showPasswords.new ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                                   ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   )}
                                 </svg>
                               </button>
@@ -1460,31 +1452,31 @@ const handleSaveChanges = async () => {
                         </div>
 
                         <div>
-                          <label className="block text-gray-700 font-semibold mb-2">Confirm New Password</label>
+                          <label className="block text-[#222222] font-medium mb-2">Confirm password</label>
                           <div className="relative">
                             <input
                               type={showPasswords.confirm ? "text" : "password"}
                               value={passwordData.confirmPassword}
                               onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                               disabled={!isEditing}
-                              placeholder="Confirm new password"
-                              className={`w-full border rounded-lg px-3 py-2 pr-10 transition-colors ${
+                              placeholder="••••••••"
+                              className={`w-full border-b border-gray-300 px-0 py-2 pr-10 transition-colors ${
                                 isEditing
-                                  ? 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-                                  : 'bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed'
+                                  ? 'focus:border-[#FF385C]'
+                                  : 'text-[#717171] cursor-not-allowed'
                               }`}
                             />
                             {isEditing && (
                               <button
                                 type="button"
                                 onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                className="absolute right-0 top-1/2 transform -translate-y-1/2 text-[#717171] hover:text-[#222222]"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   {showPasswords.confirm ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
                                   ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   )}
                                 </svg>
                               </button>
@@ -1494,20 +1486,20 @@ const handleSaveChanges = async () => {
                       </div>
 
                       {isEditing && (
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-6 flex justify-end">
                           <button
                             onClick={handlePasswordChange}
                             disabled={passwordLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                            className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg font-medium transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-2"
+                            className="bg-[#FF385C] hover:bg-[#E31C5F] disabled:bg-[#FF385C]/50 text-white px-4 py-3 rounded-md font-medium transition-all disabled:cursor-not-allowed flex items-center gap-2"
                           >
                             {passwordLoading ? (
-                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                              <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
                             ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                               </svg>
                             )}
-                            {passwordLoading ? 'Changing Password...' : 'Change Password'}
+                            {passwordLoading ? 'Updating...' : 'Update password'}
                           </button>
                         </div>
                       )}
@@ -1515,41 +1507,42 @@ const handleSaveChanges = async () => {
                   </div>
 
                   {/* Account Settings */}
-                  <div className="md:col-span-2">
-                    <h4 className="text-gray-700 font-bold mb-4 border-b pb-2">Account Settings</h4>
-                  </div>
-                  
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-2">Profile Status</label>
-                    <select 
-                      value={user.status || 'active'} 
-                      disabled 
-                      className="w-full border rounded-lg px-3 py-2 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="pending">Pending</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">User Type</label>
-                    <select
-                      value={user.userType || 'user'}
-                      disabled
-                      className="w-full border rounded-lg px-3 py-2 transition-colors bg-gray-50 border-gray-200 text-gray-600 cursor-not-allowed"
-                    >
-                      <option value="user">User</option>
-                      <option value="guest">Guest</option>
-                      <option value="host">Host</option>
-                      <option value="agent">Agent</option>
-                      <option value="field agent">Field Agent</option>
-                      <option value="moderator">Moderator</option>
-                      <option value="admin">Administrator</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Your user type is determined by your account role and cannot be changed here.
-                    </p>
+                    <h4 className="text-lg font-bold text-[#222222] mb-4">Account</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[#222222] font-medium mb-2">Status</label>
+                        <select 
+                          value={user.status || 'active'} 
+                          disabled 
+                          className="w-full border-b border-gray-300 px-0 py-2 text-[#717171] cursor-not-allowed"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                          <option value="pending">Pending</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[#222222] font-medium mb-2">Account type</label>
+                        <select
+                          value={user.userType || 'user'}
+                          disabled
+                          className="w-full border-b border-gray-300 px-0 py-2 text-[#717171] cursor-not-allowed"
+                        >
+                          <option value="user">User</option>
+                          <option value="guest">Guest</option>
+                          <option value="host">Host</option>
+                          <option value="agent">Agent</option>
+                          <option value="field agent">Field Agent</option>
+                          <option value="moderator">Moderator</option>
+                          <option value="admin">Administrator</option>
+                        </select>
+                        <p className="text-xs text-[#717171] mt-1">
+                          Contact support to change
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1557,80 +1550,80 @@ const handleSaveChanges = async () => {
 
 
             {/* Profile Activity */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6">
-                <h3 className="text-lg font-bold text-white">Profile Activity</h3>
+            <div className="bg-white rounded-md shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-xl font-bold text-[#222222]">Activity</h3>
               </div>
               <div className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      <div className="w-10 h-10 bg-white rounded-md flex items-center justify-center flex-shrink-0 border border-gray-200">
+                        <svg className="w-5 h-5 text-[#222222]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                         </svg>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-gray-900 font-semibold">Profile Created</h4>
-                        <p className="text-gray-600 text-sm truncate">{formatDate(user.created_at)}</p>
+                        <h4 className="text-[#222222] font-medium">Joined in</h4>
+                        <p className="text-[#717171] text-sm truncate">{formatDate(user.created_at)}</p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                      <div className="w-10 h-10 bg-white rounded-md flex items-center justify-center flex-shrink-0 border border-gray-200">
+                        <svg className="w-5 h-5 text-[#222222]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                         </svg>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-gray-900 font-semibold">Last Updated</h4>
-                        <p className="text-gray-600 text-sm truncate">{formatDate(user.updated_at)}</p>
+                        <h4 className="text-[#222222] font-medium">Last updated</h4>
+                        <p className="text-[#717171] text-sm truncate">{formatDate(user.updated_at)}</p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4">
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      <div className="w-10 h-10 bg-white rounded-md flex items-center justify-center flex-shrink-0 border border-gray-200">
+                        <svg className="w-5 h-5 text-[#222222]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-gray-900 font-semibold">Security Status</h4>
-                        <p className="text-gray-600 text-sm">Account Verified</p>
+                        <h4 className="text-[#222222] font-medium">Verification</h4>
+                        <p className="text-[#717171] text-sm">Account verified</p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl p-4">
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                      <div className="w-10 h-10 bg-white rounded-md flex items-center justify-center flex-shrink-0 border border-gray-200">
+                        <svg className="w-5 h-5 text-[#222222]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                         </svg>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-gray-900 font-semibold">Last Login</h4>
-                        <p className="text-gray-600 text-sm truncate">{formatDate(user.last_login || user.updated_at)}</p>
+                        <h4 className="text-[#222222] font-medium">Last sign-in</h4>
+                        <p className="text-[#717171] text-sm truncate">{formatDate(user.last_login || user.updated_at)}</p>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                <div className="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200">
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">{user.total_sessions || 0}</div>
-                      <div className="text-gray-600 text-sm">Total Sessions</div>
+                      <div className="text-2xl font-bold text-[#222222]">{user.total_sessions || 0}</div>
+                      <div className="text-[#717171] text-sm">Sessions</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">
+                      <div className="text-2xl font-bold text-[#222222]">
                         {user.created_at ? Math.floor((new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0}
                       </div>
-                      <div className="text-gray-600 text-sm">Days Active</div>
+                      <div className="text-[#717171] text-sm">Days as member</div>
                     </div>
                   </div>
                 </div>

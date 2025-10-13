@@ -7,6 +7,7 @@ export interface AuthTokens {
   expiresAt: number;
   sessionStartedAt: number; // Track when the session was first created
   lastRefreshedAt: number; // Track when the token was last refreshed
+  refreshCount: number; // Track how many times the token has been refreshed (max 4)
 }
 
 export interface UserProfile {
@@ -60,8 +61,9 @@ class AuthService {
 
   // Session configuration
   private readonly MAX_SESSION_DURATION = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
-  private readonly TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000; // Refresh every 10 minutes
-  private readonly TOKEN_EXPIRY_BUFFER = 2 * 60 * 1000; // Refresh if token expires within 2 minutes
+  private readonly TOKEN_REFRESH_INTERVAL = 55 * 60 * 1000; // Refresh every 55 minutes (server token lasts 1 hour)
+  private readonly TOKEN_EXPIRY_BUFFER = 5 * 60 * 1000; // Refresh if token expires within 5 minutes
+  private readonly MAX_REFRESH_COUNT = 4; // Maximum number of token refreshes (4 refreshes = 4 hours total)
 
   // Comprehensive storage keys - all possible locations
   private readonly STORAGE_KEYS = {
@@ -179,7 +181,8 @@ class AuthService {
         refreshToken: tokens.refreshToken,
         expiresAt: this.calculateTokenExpiry(tokens.accessToken),
         sessionStartedAt: now,
-        lastRefreshedAt: now
+        lastRefreshedAt: now,
+        refreshCount: 0 // New session starts with 0 refreshes
       };
 
       this.storeTokens(authTokens);
@@ -303,11 +306,18 @@ class AuthService {
       throw new Error('No refresh token available');
     }
 
-    // Check if session has exceeded maximum duration
+    // Check if session has exceeded maximum duration (4 hours)
     if (this.hasSessionExpired(tokens.sessionStartedAt)) {
-      console.log('Session exceeded maximum duration during refresh. Logging out...');
+      console.log('Session exceeded maximum duration (4 hours) during refresh. Logging out...');
       this.handleSessionExpired();
       throw new Error('Session expired');
+    }
+
+    // Check if maximum refresh count has been reached (4 refreshes = 4 hours)
+    if (tokens.refreshCount >= this.MAX_REFRESH_COUNT) {
+      console.log(`Maximum refresh count (${this.MAX_REFRESH_COUNT}) reached. Session has been active for 4 hours. Logging out...`);
+      this.handleSessionExpired();
+      throw new Error('Maximum session duration reached');
     }
 
     try {
@@ -316,32 +326,77 @@ class AuthService {
         refreshToken: tokens.refreshToken
       });
 
-      if (response.data.success && response.data.data) {
-        const { accessToken, refreshToken } = response.data.data;
+      console.log('Token refresh response:', {
+        status: response.status,
+        hasData: !!response.data,
+        dataSuccess: response.data?.success,
+        hasDataData: !!response.data?.data,
+        responseStructure: response.data ? Object.keys(response.data) : []
+      });
 
-        const newTokens: AuthTokens = {
-          accessToken,
-          refreshToken: refreshToken || tokens.refreshToken,
-          expiresAt: this.calculateTokenExpiry(accessToken),
-          sessionStartedAt: tokens.sessionStartedAt, // Preserve original session start time
-          lastRefreshedAt: Date.now() // Update last refresh time
-        };
+      // Handle different response structures
+      let accessToken: string | undefined;
+      let refreshToken: string | undefined;
 
-        this.storeTokens(newTokens);
-        api.setAuth(accessToken, refreshToken || tokens.refreshToken);
-
-        // Update current session tokens
-        if (this.currentSession) {
-          this.currentSession.tokens = newTokens;
-          this.storeSession(this.currentSession);
-        }
-
-        this.emit('token_refreshed', newTokens);
-      } else {
-        throw new Error('Invalid refresh response');
+      // Check multiple response formats
+      if (response.data?.success && response.data?.data) {
+        // Format: { success: true, data: { accessToken, refreshToken } }
+        accessToken = response.data.data.accessToken;
+        refreshToken = response.data.data.refreshToken;
+      } else if (response.data?.accessToken) {
+        // Format: { accessToken, refreshToken }
+        accessToken = response.data.accessToken;
+        refreshToken = response.data.refreshToken;
+      } else if (response.ok && response.data) {
+        // Try to extract from direct response
+        accessToken = response.data.accessToken || response.data.access_token;
+        refreshToken = response.data.refreshToken || response.data.refresh_token;
       }
-    } catch (error) {
-      this.handleLogout();
+
+      if (!accessToken) {
+        console.error('Invalid refresh response - no access token found:', response.data);
+        throw new Error(`Invalid refresh response: ${JSON.stringify(response.data)}`);
+      }
+
+      const newTokens: AuthTokens = {
+        accessToken,
+        refreshToken: refreshToken || tokens.refreshToken,
+        expiresAt: this.calculateTokenExpiry(accessToken),
+        sessionStartedAt: tokens.sessionStartedAt, // Preserve original session start time
+        lastRefreshedAt: Date.now(), // Update last refresh time
+        refreshCount: tokens.refreshCount + 1 // Increment refresh count
+      };
+
+      this.storeTokens(newTokens);
+      api.setAuth(accessToken, refreshToken || tokens.refreshToken);
+
+      // Update current session tokens
+      if (this.currentSession) {
+        this.currentSession.tokens = newTokens;
+        this.storeSession(this.currentSession);
+      }
+
+      console.log(`Token refreshed successfully. Refresh count: ${newTokens.refreshCount}/${this.MAX_REFRESH_COUNT}. Session duration: ${Math.floor((Date.now() - tokens.sessionStartedAt) / 1000 / 60)} minutes`);
+      this.emit('token_refreshed', newTokens);
+    } catch (error: any) {
+      console.error('Token refresh failed:', error);
+
+      // Only logout if session has actually expired (4 hours exceeded) or refresh token is invalid
+      // Do NOT logout on network errors or temporary API failures
+      const isSessionExpired = tokens && this.hasSessionExpired(tokens.sessionStartedAt);
+      const isRefreshTokenInvalid = error?.status === 401 || error?.message?.includes('invalid') || error?.message?.includes('expired');
+
+      if (isSessionExpired) {
+        console.log('Session expired (4 hours exceeded) - logging out');
+        this.handleSessionExpired();
+      } else if (isRefreshTokenInvalid) {
+        console.log('Refresh token is invalid or expired - logging out');
+        this.handleLogout();
+      } else {
+        // Network error or temporary failure - don't logout, just log the error
+        console.warn('Token refresh failed but session is still valid. Will retry on next attempt.', error);
+      }
+
       throw error;
     }
   }
@@ -352,9 +407,16 @@ class AuthService {
   private calculateTokenExpiry(token: string): number {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp ? payload.exp * 1000 : Date.now() + (15 * 60 * 1000); // 15 minutes default
-    } catch {
-      return Date.now() + (15 * 60 * 1000); // 15 minutes default
+      const expiry = payload.exp ? payload.exp * 1000 : Date.now() + (60 * 60 * 1000); // 1 hour default (server token duration)
+      console.log('Token expiry calculated:', {
+        expiryTimestamp: expiry,
+        expiresIn: Math.floor((expiry - Date.now()) / 1000 / 60),
+        expiryDate: new Date(expiry).toISOString()
+      });
+      return expiry;
+    } catch (error) {
+      console.warn('Failed to parse token expiry, using 1 hour default:', error);
+      return Date.now() + (60 * 60 * 1000); // 1 hour default
     }
   }
 
@@ -395,6 +457,9 @@ class AuthService {
         if (!tokens.lastRefreshedAt) {
           tokens.lastRefreshedAt = tokens.sessionStartedAt;
         }
+        if (tokens.refreshCount === undefined) {
+          tokens.refreshCount = 0;
+        }
         return tokens;
       }
 
@@ -409,7 +474,8 @@ class AuthService {
           refreshToken,
           expiresAt: this.calculateTokenExpiry(accessToken),
           sessionStartedAt: now,
-          lastRefreshedAt: now
+          lastRefreshedAt: now,
+          refreshCount: 0
         };
       }
 
@@ -557,7 +623,11 @@ class AuthService {
    * Handle session expiration
    */
   private handleSessionExpired() {
-    console.log('Session expired after 4 hours. Logging out...');
+    const tokens = this.getStoredTokens();
+    const sessionDuration = tokens ? Math.floor((Date.now() - tokens.sessionStartedAt) / 1000 / 60) : 0;
+    const refreshCount = tokens?.refreshCount || 0;
+
+    console.log(`Session expired after ${sessionDuration} minutes (${refreshCount} token refreshes). Logging out...`);
     this.stopTokenRefreshTimer();
     this.handleLogout(true);
 
@@ -568,7 +638,12 @@ class AuthService {
     if (typeof window !== 'undefined') {
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('sessionExpired', {
-          detail: { reason: 'max_duration_exceeded', timestamp: Date.now() }
+          detail: {
+            reason: 'max_duration_exceeded',
+            timestamp: Date.now(),
+            sessionDuration,
+            refreshCount
+          }
         }));
       }, 0);
     }
@@ -580,6 +655,16 @@ class AuthService {
   private startTokenRefreshTimer() {
     // Clear any existing timer
     this.stopTokenRefreshTimer();
+
+    const tokens = this.getStoredTokens();
+    console.log('Starting token refresh timer:', {
+      refreshInterval: `${this.TOKEN_REFRESH_INTERVAL / 1000 / 60} minutes`,
+      maxSessionDuration: `${this.MAX_SESSION_DURATION / 1000 / 60 / 60} hours`,
+      maxRefreshCount: this.MAX_REFRESH_COUNT,
+      currentRefreshCount: tokens?.refreshCount || 0,
+      sessionStarted: tokens?.sessionStartedAt ? new Date(tokens.sessionStartedAt).toISOString() : 'N/A',
+      sessionAge: tokens?.sessionStartedAt ? `${Math.floor((Date.now() - tokens.sessionStartedAt) / 1000 / 60)} minutes` : 'N/A'
+    });
 
     // Set up periodic token refresh
     this.refreshIntervalId = setInterval(() => {
@@ -609,20 +694,33 @@ class AuthService {
     try {
       const tokens = this.getStoredTokens();
       if (!tokens) {
+        console.warn('No tokens found during check, logging out');
         this.handleLogout(true);
         return;
       }
 
+      const sessionAge = Math.floor((Date.now() - tokens.sessionStartedAt) / 1000 / 60);
+      const timeUntilExpiry = tokens.expiresAt - Date.now();
+      const minutesUntilExpiry = Math.floor(timeUntilExpiry / 1000 / 60);
+
+      console.log('Token check:', {
+        sessionAge: `${sessionAge} minutes`,
+        refreshCount: `${tokens.refreshCount}/${this.MAX_REFRESH_COUNT}`,
+        tokenExpiresIn: `${minutesUntilExpiry} minutes`,
+        willRefresh: timeUntilExpiry <= this.TOKEN_EXPIRY_BUFFER,
+        maxSessionReached: this.hasSessionExpired(tokens.sessionStartedAt)
+      });
+
       // Check if session has exceeded maximum duration
       if (this.hasSessionExpired(tokens.sessionStartedAt)) {
+        console.warn('Session exceeded maximum duration');
         this.handleSessionExpired();
         return;
       }
 
       // Check if token will expire soon (within buffer time)
-      const timeUntilExpiry = tokens.expiresAt - Date.now();
       if (timeUntilExpiry <= this.TOKEN_EXPIRY_BUFFER) {
-        console.log('Token expiring soon, refreshing...');
+        console.log(`Token expiring in ${minutesUntilExpiry} minutes, refreshing now...`);
         await this.refreshTokens();
       }
     } catch (error) {

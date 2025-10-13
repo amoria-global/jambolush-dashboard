@@ -1,346 +1,408 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService';
 
-// --- TYPE DEFINITIONS ---
-// Data structure for monthly spending.
-type MonthlySpending = {
-    month: string;
-    spent: number;
-    bookings: number;
-};
+interface UnifiedPaymentsProps {
+  userType: 'guest';
+}
 
-// Data structure for spending by category.
-type CategorySpending = {
-    name: string;
-    spent: number;
-};
+interface WalletData {
+  id: string;
+  userId: number;
+  balance: number;
+  pendingBalance: number;
+  currency: string;
+  totalBalance: number;
+  availableBalance: number;
+  walletNumber?: string;
+  accountNumber?: string;
+}
 
-// Data structure for a single payment transaction.
-type Payment = {
-    id: string;
-    property: string;
-    date: string;
-    amount: number;
-    status: 'Completed' | 'Upcoming' | 'Failed';
-};
+interface Transaction {
+  id: string;
+  provider: string;
+  type: string;
+  status: 'PENDING' | 'FAILED' | 'COMPLETED'; // Based on sample
+  amount: number;
+  currency: string;
+  reference: string;
+  userId: number;
+  recipientId: number;
+  description: string;
+  metadata: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  externalId?: string;
+}
 
-// Data structure for guest spending summary
-type GuestSpendingSummary = {
-    totalSpentYTD: number;
-    totalBookings: number;
-    favoriteProperty: string;
-};
+interface TransactionStats {
+  totalPayments: number;
+  totalRefunds: number;
+  pendingAmount: number;
+  transactionCount: number;
+  averageTransaction: number;
+}
 
-// --- GUEST PAYMENTS COMPONENT ---
-const Payments = () => {
-    // --- STATE MANAGEMENT ---
-    const [summaryData, setSummaryData] = useState<GuestSpendingSummary>({ 
-        totalSpentYTD: 0, 
-        totalBookings: 0, 
-        favoriteProperty: '' 
-    });
-    const [monthlySpendingData, setMonthlySpendingData] = useState<MonthlySpending[]>([]);
-    const [categorySpendingData, setCategorySpendingData] = useState<CategorySpending[]>([]);
-    const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
-    const [upcomingPayments, setUpcomingPayments] = useState<number>(0);
+const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
+  const router = useRouter();
+  const [userId, setUserId] = useState<number | null>(null);
 
-    const [loading, setLoading] = useState({ 
-        summary: true, 
-        charts: true, 
-        payments: true 
-    });
-    const [error, setError] = useState<string | null>(null);
+  // Wallet & Account Data
+  const [walletData, setWalletData] = useState<WalletData | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [stats, setStats] = useState<TransactionStats | null>(null);
 
-    // --- DATA FETCHING ---
-    useEffect(() => {
-        const fetchAllData = async () => {
-            try {
-                // Fetch guest spending overview
-                const [spendingOverviewRes, spendingBreakdownRes, paymentsRes] = await Promise.all([
-                    api.get('/bookings/guest/spending-overview'), // Guest spending summary
-                    api.get('/bookings/guest/spending-breakdown'), // Monthly and category breakdown
-                    api.get('/bookings/guest/payments'), // Recent and upcoming payments
-                ]);
+  // UI States
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
 
-                // Process Spending Overview
-                if (spendingOverviewRes.data.success) {
-                    const overviewData = spendingOverviewRes.data.data;
-                    
-                    setSummaryData({
-                        totalSpentYTD: overviewData.totalSpentYTD || 0,
-                        totalBookings: overviewData.totalBookings || 0,
-                        favoriteProperty: overviewData.favoriteProperty || 'N/A'
-                    });
-                }
-                setLoading(prev => ({ ...prev, summary: false }));
+  // Transaction Filters (fewer filters: by status for guest)
+  const [transactionFilter, setTransactionFilter] = useState('all');
 
-                // Process Spending Breakdown
-                if (spendingBreakdownRes.data.success) {
-                    const breakdownData = spendingBreakdownRes.data.data;
-                    
-                    // Set monthly spending data
-                    if (breakdownData.monthlySpending) {
-                        setMonthlySpendingData(breakdownData.monthlySpending);
-                    } else {
-                        setMonthlySpendingData([]);
-                    }
-                    
-                    // Set category spending data
-                    if (breakdownData.categorySpending) {
-                        setCategorySpendingData(breakdownData.categorySpending);
-                    } else {
-                        setCategorySpendingData([]);
-                    }
-                }
-                setLoading(prev => ({ ...prev, charts: false }));
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+    const uid = user.id || user.userId;
+    if (uid) {
+      setUserId(uid);
+      fetchAllData(uid);
+    }
+  }, []);
 
-                // Process Payments Data
-                if (paymentsRes.data.success) {
-                    const paymentsData = paymentsRes.data.data;
-                    
-                    // Set recent payments
-                    if (paymentsData.recentPayments) {
-                        setRecentPayments(paymentsData.recentPayments);
-                    } else {
-                        setRecentPayments([]);
-                    }
-                    
-                    // Calculate upcoming payments total
-                    const upcomingTotal = paymentsData.upcomingPayments 
-                        ? paymentsData.upcomingPayments.reduce((sum: number, payment: Payment) => sum + payment.amount, 0)
-                        : 0;
-                    setUpcomingPayments(upcomingTotal);
-                }
-                setLoading(prev => ({ ...prev, payments: false }));
+  const fetchAllData = async (uid: number) => {
+    try {
+      setLoading(true);
 
-            } catch (err: any) {
-                console.error("Failed to fetch guest payments data:", err);
-                
-                // Set fallback mock data if API fails
-                if (err.response?.status === 404 || err.message.includes('endpoint')) {
-                    console.log("Using fallback mock data - API endpoints not implemented yet");
-                    
-                } else {
-                    setError(err.response?.data?.message || 'An error occurred while loading your payment data.');
-                }
-                
-                setLoading({ summary: false, charts: false, payments: false });
-            }
-        };
+      // Fetch wallet data
+      const walletResponse = await api.get(`/transactions/wallet/${uid}`);
+      if (walletResponse.data.success) {
+        setWalletData(walletResponse.data.data);
+      }
 
-        fetchAllData();
-    }, []);
+      // Fetch transaction history
+      const historyResponse = await api.get(`/transactions/user/${uid}`);
+      if (historyResponse.data.success) {
+        const txs = historyResponse.data.data || [];
+        setTransactions(txs);
 
-    // --- EVENT HANDLERS ---
-    const handleViewSchedule = () => {
-        // Navigate to payment schedule or show detailed upcoming payments
-        console.log('View payment schedule clicked');
-        // You can implement navigation logic here, e.g.:
-        // router.push('/guest/payments/schedule');
-    };
+        // Calculate stats for guest
+        const payments = txs
+          .filter((t: Transaction) => t.status !== 'FAILED')
+          .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
+        const refunds = 0; // Assume no refunds in current API response; adjust if needed
+        const pending = txs
+          .filter((t: Transaction) => t.status === 'PENDING')
+          .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
 
-    // --- RENDER LOGIC ---
-    if (error) {
-        return (
-            <div className="mt-20 text-center">
-                <div className="text-red-500 mb-4">{error}</div>
-                <button 
-                    onClick={() => window.location.reload()} 
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                >
-                    Retry
-                </button>
-            </div>
-        );
+        setStats({
+          totalPayments: payments,
+          totalRefunds: refunds,
+          pendingAmount: pending,
+          transactionCount: txs.length,
+          averageTransaction: txs.length > 0 ? (payments + refunds) / txs.length : 0,
+        });
+      }
+
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching data:', err);
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getFilteredTransactions = () => {
+    let filtered = [...transactions];
+
+    // Filter by status for guest
+    if (transactionFilter !== 'all') {
+      filtered = filtered.filter(t => t.status.toLowerCase() === transactionFilter.toLowerCase());
     }
 
-    // --- RENDER ---
+    return filtered;
+  };
+
+  const formatCurrency = (amount: number | undefined) => {
+    return `${(amount || 0).toLocaleString()} ${walletData?.currency || 'RWF'}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getTransactionIcon = (status: string) => {
+    const icons: { [key: string]: string } = {
+      'COMPLETED': 'bi-arrow-up-circle',
+      'PENDING': 'bi-clock-history',
+      'FAILED': 'bi-x-circle',
+    };
+    return icons[status] || 'bi-arrow-left-right';
+  };
+
+  const getTransactionColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      'COMPLETED': 'text-red-600',
+      'PENDING': 'text-yellow-600',
+      'FAILED': 'text-gray-600',
+    };
+    return colors[status] || 'text-gray-600';
+  };
+
+  if (loading) {
     return (
-        <div className="mt-20 font-inter">
-            <div className="max-w-7xl mx-auto p-4 md:p-0">
-                
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
-                    {/* Upcoming Payments Card */}
-                    <div className="md:col-span-1 bg-white p-4 rounded-xl shadow-md flex flex-col justify-between">
-                        {loading.payments ? (
-                            <div className="h-full bg-gray-200 animate-pulse rounded-md"></div>
-                        ) : (
-                            <>
-                                <div>
-                                    <p className="text-xs text-gray-500 font-medium">Upcoming Payments</p>
-                                    <p className="text-3xl font-bold text-black">
-                                        ${upcomingPayments.toLocaleString('en-US', { 
-                                            minimumFractionDigits: 2, 
-                                            maximumFractionDigits: 2 
-                                        })}
-                                    </p>
-                                </div>
-                                <button 
-                                    onClick={handleViewSchedule}
-                                    className="w-full mt-3 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-opacity cursor-pointer" 
-                                    style={{backgroundColor: '#083A85'}}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar-check inline-block mr-2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
-                                    View Schedule
-                                </button>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Summary Cards */}
-                    <div className="md:col-span-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {loading.summary ? (
-                            <>
-                                <div className="h-24 bg-gray-200 animate-pulse rounded-xl shadow-md"></div>
-                                <div className="h-24 bg-gray-200 animate-pulse rounded-xl shadow-md"></div>
-                                <div className="h-24 bg-gray-200 animate-pulse rounded-xl shadow-md"></div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between hover:shadow-lg transition-shadow">
-                                    <div>
-                                        <p className="text-xs text-gray-500 font-medium">Total Spent YTD</p>
-                                        <p className="text-xl font-bold text-black">
-                                            ${summaryData.totalSpentYTD.toLocaleString()}
-                                        </p>
-                                    </div>
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-full" style={{ backgroundColor: '#F20C8F' }}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-credit-card text-white"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                                    </div>
-                                </div>
-                                <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between hover:shadow-lg transition-shadow">
-                                    <div>
-                                        <p className="text-xs text-gray-500 font-medium">Total Bookings</p>
-                                        <p className="text-xl font-bold text-black">{summaryData.totalBookings}</p>
-                                    </div>
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-full" style={{ backgroundColor: '#083A85' }}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar-plus text-white"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M12 16v6"/><path d="M9 19h6"/></svg>
-                                    </div>
-                                </div>
-                                <div className="bg-white p-4 rounded-xl shadow-md flex items-center justify-between hover:shadow-lg transition-shadow">
-                                    <div>
-                                        <p className="text-xs text-gray-500 font-medium">Favorite Property</p>
-                                        <p className="text-xl font-bold text-black truncate">{summaryData.favoriteProperty}</p>
-                                    </div>
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-800">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-heart text-white"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    {/* Spending Over Time Chart */}
-                    <div className="lg:col-span-2 bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                        <h2 className="text-base font-semibold text-black mb-2">Spending Over Time</h2>
-                        {loading.charts ? (
-                            <div className="h-64 bg-gray-200 animate-pulse rounded-md"></div>
-                        ) : (
-                            <div className="h-64">
-                                {monthlySpendingData.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={monthlySpendingData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                            <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
-                                            <Tooltip contentStyle={{ backgroundColor: 'black', border: 'none', borderRadius: '8px', fontSize: '12px', color: 'white' }} formatter={(value: number, name: string) => [`$${value.toLocaleString()}`, name.charAt(0).toUpperCase() + name.slice(1)]} />
-                                            <Legend wrapperStyle={{fontSize: "12px"}} />
-                                            <Area type="monotone" dataKey="spent" stackId="1" stroke="#F20C8F" fill="#F20C8F" fillOpacity={0.8} />
-                                            <Area type="monotone" dataKey="bookings" stackId="1" stroke="#083A85" fill="#083A85" fillOpacity={0.9} />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500">
-                                        No spending data available
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Spending by Category Chart */}
-                    <div className="bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                        <h2 className="text-base font-semibold text-black mb-2">Spending by Category</h2>
-                        {loading.charts ? (
-                            <div className="h-64 bg-gray-200 animate-pulse rounded-md"></div>
-                        ) : (
-                            <div className="h-64">
-                                {categorySpendingData.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={categorySpendingData} layout="vertical" margin={{ top: 0, right: 10, left: 30, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                            <XAxis type="number" hide />
-                                            <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                            <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ backgroundColor: 'white', border: '1px solid #eee', borderRadius: '8px', fontSize: '12px' }} formatter={(value: number) => `$${value.toLocaleString()}`} />
-                                            <Bar dataKey="spent" fill="#F20C8F" radius={[0, 8, 8, 0]} barSize={12} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500">
-                                        No category data available
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                
-                {/* Recent Payments Table */}
-                <div className="mt-4 bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                    <h2 className="text-base font-semibold text-black mb-2">Recent Payments</h2>
-                    {loading.payments ? (
-                        <div className="h-48 bg-gray-200 animate-pulse rounded-md"></div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            {recentPayments.length > 0 ? (
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="border-b border-gray-200">
-                                            <th className="p-2 text-xs font-semibold text-gray-500">Transaction ID</th>
-                                            <th className="p-2 text-xs font-semibold text-gray-500">Property</th>
-                                            <th className="p-2 text-xs font-semibold text-gray-500">Date</th>
-                                            <th className="p-2 text-xs font-semibold text-gray-500 text-right">Amount</th>
-                                            <th className="p-2 text-xs font-semibold text-gray-500 text-center">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {recentPayments.map((payment) => (
-                                            <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                                <td className="p-2 text-xs text-black font-mono">{payment.id}</td>
-                                                <td className="p-2 text-xs text-gray-700">{payment.property}</td>
-                                                <td className="p-2 text-xs text-gray-700">{payment.date}</td>
-                                                <td className="p-2 text-xs text-black font-medium text-right">${payment.amount.toFixed(2)}</td>
-                                                <td className="p-2 text-xs text-center">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${ 
-                                                        payment.status === 'Completed' 
-                                                            ? 'bg-green-100 text-green-800' 
-                                                            : payment.status === 'Upcoming'
-                                                            ? 'bg-yellow-100 text-yellow-800'
-                                                            : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {payment.status}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <div className="text-center text-gray-500 py-8">
-                                    No recent payments available
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading payments data...</p>
         </div>
+      </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-8">
+            <i className="bi bi-exclamation-triangle text-red-600 text-4xl mb-4" />
+            <h2 className="text-red-800 text-lg font-semibold mb-2">Error Loading Data</h2>
+            <p className="text-red-600 mb-6">{error}</p>
+            <button
+              onClick={() => userId && fetchAllData(userId)}
+              className="bg-[#083A85] text-white px-6 py-3 rounded-lg hover:bg-[#062d6b] transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen">
+      <div className="max-w-8xl mx-auto px-2 sm:px-3 lg:px-4 py-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Payments & Wallet
+          </h1>
+          <p className="text-gray-600">
+            Track your payments, refunds, and transaction history
+          </p>
+        </div>
+
+        {/* Wallet Balance Card */}
+        <div className="mb-8 bg-gradient-to-br from-[#083A85] to-[#062d6b] rounded-2xl p-8 shadow-lg text-white">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <p className="text-white/80 text-sm mb-2">Wallet Balance</p>
+              <h2 className="text-4xl font-bold">
+                {formatCurrency(walletData?.totalBalance)}
+              </h2>
+            </div>
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+              <i className="bi bi-wallet2 text-3xl" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+              <p className="text-white/70 text-xs mb-1">Available</p>
+              <p className="text-xl font-semibold">
+                {formatCurrency(walletData?.availableBalance)}
+              </p>
+            </div>
+            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+              <p className="text-white/70 text-xs mb-1">Pending</p>
+              <p className="text-xl font-semibold">
+                {formatCurrency(walletData?.pendingBalance)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <div className="flex border-b border-gray-200 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'overview'
+                  ? 'text-[#083A85] border-b-2 border-[#083A85]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <i className="bi bi-graph-up mr-2" />
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'transactions'
+                  ? 'text-[#083A85] border-b-2 border-[#083A85]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <i className="bi bi-list-ul mr-2" />
+              Transactions
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-arrow-up-circle text-red-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Total Payments</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats?.totalPayments)}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-arrow-down-circle text-green-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Total Refunds</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats?.totalRefunds)}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-clock-history text-orange-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Pending</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(stats?.pendingAmount)}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-bar-chart text-blue-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Transactions</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats?.transactionCount || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Transactions */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Transactions</h3>
+              <div className="space-y-3">
+                {getFilteredTransactions().slice(0, 5).map(transaction => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-red-100`}>
+                        <i className={`bi ${getTransactionIcon(transaction.status)} ${getTransactionColor(transaction.status)}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{transaction.description || transaction.reference}</p>
+                        <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-semibold text-red-600`}>
+                        - {formatCurrency(transaction.amount)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Status: {transaction.status}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {getFilteredTransactions().length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <i className="bi bi-inbox text-4xl mb-2" />
+                    <p>No transactions yet</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'transactions' && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 mb-6">
+              <select
+                value={transactionFilter}
+                onChange={(e) => setTransactionFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+              >
+                <option value="all">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+
+            {/* Transactions List */}
+            <div className="space-y-3">
+              {getFilteredTransactions().map(transaction => (
+                <div
+                  key={transaction.id}
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-red-100`}>
+                      <i className={`bi ${getTransactionIcon(transaction.status)} text-xl ${getTransactionColor(transaction.status)}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{transaction.description || transaction.reference}</p>
+                      <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
+                      {transaction.reference && (
+                        <p className="text-xs text-gray-400">Ref: {transaction.reference}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-lg font-semibold text-red-600`}>
+                      - {formatCurrency(transaction.amount)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Status: {transaction.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {getFilteredTransactions().length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <i className="bi bi-inbox text-5xl mb-3" />
+                  <p className="text-lg font-medium">No transactions found</p>
+                  <p className="text-sm">Try adjusting your filters</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
-export default Payments;
+export default UnifiedPayments;

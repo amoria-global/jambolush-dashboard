@@ -20,10 +20,7 @@ const NotFound: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50 flex items-center justify-center px-4">
       <div className="max-w-md mx-auto text-center">
         {/* Bootstrap Icons CSS - Add this to your _app.tsx or layout */}
-        <style jsx global>{`
-          @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css');
-        `}</style>
-
+        
         {/* 404 Illustration */}
         <div className="relative mb-8" role="img" aria-label="404 Error Illustration">
           <div className="text-6xl sm:text-8xl font-bold text-transparent bg-gradient-to-r from-blue-900 to-pink-600 bg-clip-text">

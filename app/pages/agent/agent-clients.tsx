@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import api from "@/app/api/apiService"; // Import your API service
+import api from "@/app/api/apiService";
 
-// Interface for guest profile from API
+// Interfaces remain the same
 interface GuestProfile {
   id: number;
   firstName: string;
@@ -21,7 +21,6 @@ interface GuestProfile {
   notes?: string;
 }
 
-// Interface for booking history from API
 interface GuestBookingHistory {
   guestId: number;
   bookings: BookingInfo[];
@@ -46,7 +45,6 @@ interface BookingInfo {
   updatedAt: string;
 }
 
-// Client interface for the component (transformed from API data)
 interface Client {
   id: string;
   name: string;
@@ -63,18 +61,9 @@ interface Client {
   verificationStatus: string;
   totalBookings: number;
   averageRating: number;
+  profileImage?: string;
 }
 
-// API response interface
-interface ApiResponse {
-  guests: GuestProfile[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-// Guest search filters for API
 interface GuestSearchFilters {
   search?: string;
   verificationStatus?: 'verified' | 'unverified' | 'pending';
@@ -86,18 +75,31 @@ interface GuestSearchFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
+interface DashboardStats {
+  totalClients: number;
+  activeClients: number;
+  vipClients: number;
+  totalRevenue: number;
+  averageBookingValue: number;
+  clientRetention: number;
+}
+
 const AgentClientsPage: React.FC = () => {
-  // Original UI state
+  // States
   const [activeTab, setActiveTab] = useState<'All' | Client['status']>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<keyof Client>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [goToPageInput, setGoToPageInput] = useState('');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  const [verificationFilter, setVerificationFilter] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   // API related state
   const [clients, setClients] = useState<Client[]>([]);
@@ -106,17 +108,24 @@ const AgentClientsPage: React.FC = () => {
   const [apiTotal, setApiTotal] = useState(0);
   const [apiTotalPages, setApiTotalPages] = useState(0);
   const [uniqueProperties, setUniqueProperties] = useState<string[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalClients: 0,
+    activeClients: 0,
+    vipClients: 0,
+    totalRevenue: 0,
+    averageBookingValue: 0,
+    clientRetention: 0
+  });
 
-  const pageSize = 8;
+  const pageSize = 12;
 
-  useEffect(() => setCurrentPage(1), [activeTab, searchTerm, startDate, endDate, propertyFilter]);
+  useEffect(() => setCurrentPage(1), [activeTab, searchTerm, startDate, endDate, propertyFilter, verificationFilter]);
 
-  // Update goToPageInput when currentPage changes
   useEffect(() => {
     setGoToPageInput(currentPage.toString());
   }, [currentPage]);
 
-  // Function to transform API guest data to client data
+  // Transform function
   const transformGuestToClient = (guest: GuestProfile, latestBooking?: BookingInfo): Client => {
     const status: Client['status'] = latestBooking 
       ? latestBooking.status === 'confirmed' 
@@ -145,27 +154,25 @@ const AgentClientsPage: React.FC = () => {
       numberOfGuests: latestBooking?.guests || 1,
       verificationStatus: guest.verificationStatus,
       totalBookings: guest.totalBookings,
-      averageRating: guest.averageRating
+      averageRating: guest.averageRating,
+      profileImage: guest.profileImage
     };
   };
 
-  // Function to fetch guests from API
+  // Fetch function
   const fetchAgentGuests = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Get auth token
       const authToken = localStorage.getItem('authToken');
       if (!authToken) {
         setError('Authentication required');
         return;
       }
 
-      // Set authorization header
       api.setAuth(authToken);
 
-      // Prepare filters
       const filters: GuestSearchFilters = {};
       
       if (searchTerm) {
@@ -173,13 +180,9 @@ const AgentClientsPage: React.FC = () => {
       }
       
       if (startDate && endDate) {
-        filters.dateRange = {
-          start: startDate,
-          end: endDate
-        };
+        filters.dateRange = { start: startDate, end: endDate };
       }
 
-      // Map sortBy to API expected values
       const apiSortBy = sortBy === 'name' ? 'name' : 
                        sortBy === 'totalBookings' ? 'totalBookings' :
                        sortBy === 'housePayment' ? 'totalSpent' : 'joinDate';
@@ -187,45 +190,28 @@ const AgentClientsPage: React.FC = () => {
       filters.sortBy = apiSortBy as any;
       filters.sortOrder = sortOrder;
 
-      // Prepare query parameters for GET request
       const queryParams = new URLSearchParams();
-      
-      // Add pagination
       queryParams.append('page', currentPage.toString());
       queryParams.append('limit', pageSize.toString());
       
-      // Add filters as query parameters
-      if (filters.search) {
-        queryParams.append('search', filters.search);
-      }
-      
-      if (filters.sortBy) {
-        queryParams.append('sortBy', filters.sortBy);
-      }
-      
-      if (filters.sortOrder) {
-        queryParams.append('sortOrder', filters.sortOrder);
-      }
-      
+      if (filters.search) queryParams.append('search', filters.search);
+      if (filters.sortBy) queryParams.append('sortBy', filters.sortBy);
+      if (filters.sortOrder) queryParams.append('sortOrder', filters.sortOrder);
       if (filters.dateRange) {
         queryParams.append('dateStart', filters.dateRange.start);
         queryParams.append('dateEnd', filters.dateRange.end);
       }
 
-      // Make API call with query parameters
       const response = await api.get(`/properties/agent/guests?${queryParams.toString()}`);
 
       if (response.data && response.data.success) {
         const guestsData: GuestProfile[] = response.data.data || [];
         
-        // Fetch booking details for each guest to get latest booking info
         const clientsPromises = guestsData.map(async (guest) => {
           try {
-            // Get guest's booking history
             const bookingResponse = await api.get(`/properties/agent/guests/${guest.id}/bookings`);
             const bookings: BookingInfo[] = bookingResponse.data?.bookings || [];
             const latestBooking = bookings.length > 0 ? bookings[0] : undefined;
-            
             return transformGuestToClient(guest, latestBooking);
           } catch (error) {
             console.error(`Failed to fetch bookings for guest ${guest.id}:`, error);
@@ -236,11 +222,22 @@ const AgentClientsPage: React.FC = () => {
         const transformedClients = await Promise.all(clientsPromises);
         setClients(transformedClients);
 
-        // Extract unique properties
         const properties = [...new Set(transformedClients.map(c => c.propertyName).filter(p => p !== 'N/A'))];
         setUniqueProperties(properties);
 
-        // Set pagination info
+        // Calculate dashboard stats
+        const stats = {
+          totalClients: response.data.total || transformedClients.length,
+          activeClients: transformedClients.filter(c => c.status === 'Checked In').length,
+          vipClients: transformedClients.filter(c => c.totalBookings >= 5).length,
+          totalRevenue: transformedClients.reduce((sum, c) => sum + c.housePayment, 0),
+          averageBookingValue: transformedClients.length > 0 
+            ? transformedClients.reduce((sum, c) => sum + c.housePayment, 0) / transformedClients.length 
+            : 0,
+          clientRetention: 85 // Mock value
+        };
+        setDashboardStats(stats);
+
         if (response.data.total !== undefined) {
           setApiTotal(response.data.total);
           setApiTotalPages(response.data.totalPages || Math.ceil(response.data.total / pageSize));
@@ -264,39 +261,37 @@ const AgentClientsPage: React.FC = () => {
     }
   };
 
-  // Fetch data on component mount and when dependencies change
   useEffect(() => {
     fetchAgentGuests();
   }, [currentPage, searchTerm, startDate, endDate, sortBy, sortOrder]);
 
-  // Filter clients locally (since API might not handle all filters)
   const filteredAndSortedClients = useMemo(() => {
     let result = clients.filter(client => {
       const matchesTab = activeTab === 'All' || client.status === activeTab;
       const matchesProperty = propertyFilter === 'all' || client.propertyName === propertyFilter;
-      return matchesTab && matchesProperty;
+      const matchesVerification = verificationFilter === 'all' || client.verificationStatus === verificationFilter;
+      return matchesTab && matchesProperty && matchesVerification;
     });
-
     return result;
-  }, [clients, activeTab, propertyFilter]);
+  }, [clients, activeTab, propertyFilter, verificationFilter]);
 
   const totalClients = filteredAndSortedClients.length;
   const totalPages = Math.max(apiTotalPages, Math.ceil(totalClients / pageSize));
   const paginatedClients = filteredAndSortedClients;
 
-  // Helper functions remain the same
+  // Helper functions
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
   
   const getAvatarColor = (id: string) => {
     const colors = [
-      'bg-gradient-to-br from-purple-500 to-purple-600',
-      'bg-gradient-to-br from-blue-500 to-blue-600',
-      'bg-gradient-to-br from-green-500 to-green-600',
-      'bg-gradient-to-br from-yellow-500 to-yellow-600',
-      'bg-gradient-to-br from-red-500 to-red-600',
-      'bg-gradient-to-br from-indigo-500 to-indigo-600',
-      'bg-gradient-to-br from-pink-500 to-pink-600',
-      'bg-gradient-to-br from-teal-500 to-teal-600',
+      'bg-gray-200',
+      'bg-gray-200',
+      'bg-gray-200',
+      'bg-gray-200',
+      'bg-gray-200',
+      'bg-gray-200',
+      'bg-gray-200',
+      'bg-gray-200',
     ];
     return colors[parseInt(id) % colors.length];
   };
@@ -307,6 +302,23 @@ const AgentClientsPage: React.FC = () => {
       case 'Checked Out': return 'bg-gray-100 text-gray-800';
       case 'Pending': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusIcon = (status: Client['status']) => {
+    switch (status) {
+      case 'Checked In': return 'bi-door-open';
+      case 'Checked Out': return 'bi-door-closed';
+      case 'Pending': return 'bi-clock';
+      default: return 'bi-circle';
+    }
+  };
+
+  const getVerificationBadge = (status: string) => {
+    switch (status) {
+      case 'verified': return { color: 'text-green-600', icon: 'bi-patch-check', label: 'Verified' };
+      case 'pending': return { color: 'text-yellow-600', icon: 'bi-clock', label: 'Pending' };
+      default: return { color: 'text-gray-400', icon: 'bi-x-circle', label: 'Unverified' };
     }
   };
 
@@ -327,448 +339,358 @@ const AgentClientsPage: React.FC = () => {
     setGoToPageInput(currentPage.toString());
   };
 
-  const ClientCard: React.FC<{ client: Client }> = ({ client }) => (
-    <div className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
-      <div className="relative bg-gradient-to-br from-blue-50 to-indigo-100 h-20">
-        <span className={`absolute top-3 left-3 px-3 py-1 text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(client.status)}`}>
-          {client.status}
-        </span>
-        <div className={`absolute -bottom-6 left-4 w-12 h-12 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow-lg`}>
-          <span className="text-white text-base font-bold">{getInitials(client.name)}</span>
-        </div>
-      </div>
-      
-      <div className="p-4 pt-8 flex flex-col flex-grow">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">{client.name}</h3>
-        <p className="text-base text-gray-500 mb-1">{client.email}</p>
-        <p className="text-base text-gray-500 mb-4">{client.phone}</p>
-        
-        <div className="text-base text-gray-600 border-t border-b py-3 my-3 space-y-2">
-          <div className="flex justify-between">
-            <span>Property:</span>
-            <span className="font-medium text-gray-900 text-right truncate ml-2">{client.propertyName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Guests:</span>
-            <span className="font-medium text-gray-900">{client.numberOfGuests} people</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Total Bookings:</span>
-            <span className="font-medium text-gray-900">{client.totalBookings}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Check-in:</span>
-            <span className="font-medium text-gray-900">{new Date(client.checkInDate).toLocaleDateString()}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Check-out:</span>
-            <span className="font-medium text-gray-900">{new Date(client.checkOutDate).toLocaleDateString()}</span>
-          </div>
-        </div>
-        
-        <div className="mt-auto">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <p className="text-lg font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</p>
-              <p className="text-base text-green-600">${client.amountPerClient}/client</p>
+  const handleViewDetails = (client: Client) => {
+    setSelectedClient(client);
+    setShowDetailModal(true);
+  };
+
+  // Client Detail Modal
+  const ClientDetailModal = () => {
+    if (!selectedClient) return null;
+
+    const verification = getVerificationBadge(selectedClient.verificationStatus);
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div className="bg-white rounded-3xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="p-8">
+            <div className="flex justify-between items-start mb-6">
+              <h2 className="text-2xl font-semibold">Guest details</h2>
+              <button 
+                onClick={() => setShowDetailModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <i className="bi bi-x-lg text-xl"></i>
+              </button>
+            </div>
+
+            <div className="flex items-start gap-6 mb-8">
+              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                {selectedClient.profileImage ? (
+                  <img src={selectedClient.profileImage} alt={selectedClient.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-gray-600 text-3xl font-bold">{getInitials(selectedClient.name)}</span>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h3 className="text-2xl font-semibold">{selectedClient.name}</h3>
+                  <span className={`${verification.color} flex items-center gap-1`}>
+                    <i className={`bi ${verification.icon}`}></i>
+                    <span className="text-sm">{verification.label}</span>
+                  </span>
+                </div>
+                <p className="text-gray-600 mb-1">{selectedClient.email}</p>
+                <p className="text-gray-600 mb-3">{selectedClient.phone}</p>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedClient.status)}`}>
+                  {selectedClient.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-4 gap-8 mb-8">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total bookings</p>
+                <p className="text-3xl font-bold">{selectedClient.totalBookings}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Last payment</p>
+                <p className="text-3xl font-bold">${selectedClient.housePayment.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Avg. rating</p>
+                <p className="text-3xl font-bold">{selectedClient.averageRating.toFixed(1)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Guests</p>
+                <p className="text-3xl font-bold">{selectedClient.numberOfGuests}</p>
+              </div>
+            </div>
+
+            <div className="border-t pt-6">
+              <h3 className="font-semibold mb-4">Latest booking</h3>
+              <div className="space-y-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Property</span>
+                  <span className="font-medium">{selectedClient.propertyName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Check-in</span>
+                  <span className="font-medium">{new Date(selectedClient.checkInDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Check-out</span>
+                  <span className="font-medium">{new Date(selectedClient.checkOutDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Booking date</span>
+                  <span className="font-medium">{new Date(selectedClient.bookingDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between pt-4 border-t">
+                  <span className="text-gray-600">Amount per guest</span>
+                  <span className="font-medium text-green-600">${selectedClient.amountPerClient}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="pt-14">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Management</h1>
-            <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <div className="animate-spin mx-auto h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-            <h3 className="text-xl font-medium text-gray-900">Loading clients...</h3>
-            <p className="text-gray-600 mt-2">Please wait while we fetch your client data</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="pt-14">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Management</h1>
-            <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <svg className="mx-auto h-16 w-16 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 className="text-xl font-medium text-gray-900 mt-4">Error Loading Data</h3>
-            <p className="text-gray-600 mt-2">{error}</p>
-            <button 
-              onClick={fetchAgentGuests}
-              className="mt-4 px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-blue-800 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading guests...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="pt-14">
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-white font-sans">
+      <div className="max-w-7xl mx-auto px-4 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Client Management</h1>
-          <p className="text-gray-600 mt-2">Monitor and manage your client portfolio</p>
+        <div className="mb-12">
+          <h1 className="text-3xl font-bold mb-2">Guests</h1>
+          <p className="text-gray-600">Manage your guests and view their details</p>
+        </div>
+
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
+          <div className="p-6 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-1">Total guests</p>
+            <p className="text-3xl font-bold">{dashboardStats.totalClients}</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-1">Checked in</p>
+            <p className="text-3xl font-bold">{dashboardStats.activeClients}</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-1">VIP guests</p>
+            <p className="text-3xl font-bold">{dashboardStats.vipClients}</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-1">Total revenue</p>
+            <p className="text-3xl font-bold">${(dashboardStats.totalRevenue || 0).toLocaleString()}</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-1">Avg. value</p>
+            <p className="text-3xl font-bold">${Math.round(dashboardStats.averageBookingValue)}</p>
+          </div>
+          <div className="p-6 rounded-2xl border border-gray-200">
+            <p className="text-sm text-gray-600 mb-1">Retention</p>
+            <p className="text-3xl font-bold">{dashboardStats.clientRetention}%</p>
+          </div>
+        </div>
+
+        {/* Filters Toggle */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2 text-black font-medium"
+          >
+            <i className="bi bi-funnel text-xl"></i>
+            Filters
+            {(activeTab !== 'All' || propertyFilter !== 'all' || verificationFilter !== 'all' || searchTerm || (startDate && endDate)) && (
+              <span className="bg-black text-white text-xs rounded-full px-2 ml-2">1+</span>
+            )}
+          </button>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-full ${viewMode === 'grid' ? 'bg-gray-100' : ''}`}
+            >
+              <i className="bi bi-grid-3x3-gap text-xl"></i>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-full ${viewMode === 'list' ? 'bg-gray-100' : ''}`}
+            >
+              <i className="bi bi-list text-xl"></i>
+            </button>
+          </div>
         </div>
 
         {/* Filters Section */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Search</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Client name or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <svg className="absolute left-3 top-3 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Status</label>
+        {showFilters && (
+          <div className="mb-8 p-6 border border-gray-200 rounded-2xl">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black"
+              />
               <select 
                 value={activeTab} 
                 onChange={(e) => setActiveTab(e.target.value as 'All' | Client['status'])}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black appearance-none"
               >
-                <option value="All">All Status</option>
+                <option value="All">All statuses</option>
                 <option value="Checked In">Checked In</option>
                 <option value="Checked Out">Checked Out</option>
                 <option value="Pending">Pending</option>
               </select>
-            </div>
-            
-            <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Property</label>
               <select 
                 value={propertyFilter} 
                 onChange={(e) => setPropertyFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                className="px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black appearance-none"
               >
-                <option value="all">All Properties</option>
+                <option value="all">All properties</option>
                 {uniqueProperties.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
-            </div>
-            
-            <div>
-              <label className="block text-base font-medium text-gray-700 mb-2">Booking Date Range</label>
+              <select 
+                value={verificationFilter} 
+                onChange={(e) => setVerificationFilter(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black appearance-none"
+              >
+                <option value="all">All verification</option>
+                <option value="verified">Verified</option>
+                <option value="pending">Pending</option>
+                <option value="unverified">Unverified</option>
+              </select>
               <div className="flex gap-2">
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black"
                 />
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black"
                 />
               </div>
             </div>
           </div>
-          
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-6 gap-4">
-            <p className="text-base text-gray-600">
-              Showing {paginatedClients.length} of {apiTotal} clients
-            </p>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 ${
-                  viewMode === 'grid' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-                Grid View
-              </button>
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2 ${
-                  viewMode === 'list' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                List View
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        {totalClients === 0 && !isLoading && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <h3 className="text-xl font-medium text-gray-900 mt-4">No clients found</h3>
-            <p className="text-gray-600 mt-2">Try adjusting your filters or search criteria</p>
-          </div>
         )}
 
-        {totalClients > 0 && (
-          viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-              {paginatedClients.map(client => <ClientCard key={client.id} client={client} />)}
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
-              {/* Mobile List View */}
-              <div className="block sm:hidden">
-                <div className="divide-y divide-gray-200">
-                  {paginatedClients.map((client) => (
-                    <div key={client.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow`}>
-                            <span className="text-white text-base font-bold">{getInitials(client.name)}</span>
-                          </div>
-                          <div>
-                            <div className="text-base font-semibold text-gray-900">{client.name}</div>
-                            <div className="text-base text-gray-500">{client.email}</div>
-                          </div>
-                        </div>
-                        <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${getStatusColor(client.status)}`}>
-                          {client.status}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3 text-base">
-                        <div>
-                          <span className="text-gray-500">Property:</span>
-                          <div className="font-medium text-gray-900 truncate">{client.propertyName}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Guests:</span>
-                          <div className="font-medium text-gray-900">{client.numberOfGuests}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">House Payment:</span>
-                          <div className="font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Per Client:</span>
-                          <div className="font-bold text-green-600">${client.amountPerClient}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Total Bookings:</span>
-                          <div className="font-medium text-gray-700">{client.totalBookings}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Verification:</span>
-                          <div className="font-medium text-gray-700 capitalize">{client.verificationStatus}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Desktop Table View */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
-                        <button 
-                          onClick={() => handleSort('name')} 
-                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-                        >
-                          <span>Client Info</span>
-                          {sortBy === 'name' && (
-                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+        {/* Content */}
+        {totalClients === 0 && !isLoading ? (
+          <div className="text-center py-24">
+            <i className="bi bi-people text-6xl text-gray-300 mb-4"></i>
+            <h3 className="text-xl font-semibold mb-2">No guests</h3>
+            <p className="text-gray-600">When you have guests, they'll show up here.</p>
+          </div>
+        ) : (
+          <>
+            {/* Grid View */}
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {paginatedClients.map(client => (
+                  <div key={client.id} className="border border-gray-200 rounded-3xl overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="p-6">
+                      <div className="flex items-center mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-4">
+                          {client.profileImage ? (
+                            <img src={client.profileImage} alt={client.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-gray-600 font-bold">{getInitials(client.name)}</span>
                           )}
-                        </button>
-                      </th>
-                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
-                        <button 
-                          onClick={() => handleSort('propertyName')} 
-                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-                        >
-                          <span>Property & Guests</span>
-                          {sortBy === 'propertyName' && (
-                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </button>
-                      </th>
-                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
-                        <button 
-                          onClick={() => handleSort('totalBookings')} 
-                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-                        >
-                          <span>Bookings & Verification</span>
-                          {sortBy === 'totalBookings' && (
-                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </button>
-                      </th>
-                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
-                        <button 
-                          onClick={() => handleSort('housePayment')} 
-                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-                        >
-                          <span>Payment Details</span>
-                          {sortBy === 'housePayment' && (
-                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </button>
-                      </th>
-                      <th className="px-6 py-3 text-left text-base font-medium text-gray-500 uppercase tracking-wider">
-                        <button 
-                          onClick={() => handleSort('status')} 
-                          className="flex items-center space-x-1 hover:text-gray-700 cursor-pointer"
-                        >
-                          <span>Status</span>
-                          {sortBy === 'status' && (
-                            <span className="text-[#083A85]">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </button>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {paginatedClients.map((client, index) => (
-                      <tr key={client.id} className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(client.id)} flex items-center justify-center shadow mr-3 flex-shrink-0`}>
-                              <span className="text-white text-base font-bold">{getInitials(client.name)}</span>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-base font-semibold text-gray-900 truncate">{client.name}</div>
-                              <div className="text-base text-gray-500 truncate">{client.email}</div>
-                              <div className="text-base text-gray-400 truncate">{client.phone}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-base font-medium text-gray-900 truncate max-w-[150px]">{client.propertyName}</div>
-                          <div className="text-base text-gray-500">{client.numberOfGuests} guests</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-base sm:text-base text-gray-900">
-                            <div><strong>Total:</strong> {client.totalBookings} bookings</div>
-                            <div><strong>Status:</strong> <span className="capitalize">{client.verificationStatus}</span></div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-base font-bold text-[#083A85]">${client.housePayment.toLocaleString()}</div>
-                          <div className="text-base text-green-600 font-semibold">${client.amountPerClient}/client</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${getStatusColor(client.status)}`}>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-lg">{client.name}</h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
                             {client.status}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                      <p className="text-gray-600 mb-1">{client.email}</p>
+                      <p className="text-gray-600 mb-4">{client.phone}</p>
+                      <p className="text-sm text-gray-600 mb-2">{client.propertyName} • {client.numberOfGuests} guests</p>
+                      <p className="text-sm text-gray-500 mb-4">{new Date(client.checkInDate).toLocaleDateString()} – {new Date(client.checkOutDate).toLocaleDateString()}</p>
+                      <div className="flex justify-between items-center mb-4">
+                        <span className="font-medium text-xl">${client.housePayment.toLocaleString()}</span>
+                        <span className="text-green-600 text-sm">${client.amountPerClient}/guest</span>
+                      </div>
+                      <button
+                        onClick={() => handleViewDetails(client)}
+                        className="w-full py-3 border border-black rounded-full font-medium hover:bg-gray-50 transition"
+                      >
+                        View details
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          )
+            )}
+
+            {/* List View */}
+            {viewMode === 'list' && (
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-4 px-6 font-medium text-gray-600">Guest</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-600">Property</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-600">Dates</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-600">Status</th>
+                    <th className="text-left py-4 px-6 font-medium text-gray-600">Payout</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedClients.map((client) => (
+                    <tr key={client.id} className="border-b hover:bg-gray-50">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden mr-4">
+                            {client.profileImage ? (
+                              <img src={client.profileImage} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-gray-600 font-medium">{getInitials(client.name)}</span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="font-medium">{client.name}</span>
+                            <div className="text-gray-600">{client.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">{client.propertyName}</td>
+                      <td className="py-4 px-6 text-gray-600">{new Date(client.checkInDate).toLocaleDateString()} – {new Date(client.checkOutDate).toLocaleDateString()}</td>
+                      <td className="py-4 px-6">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(client.status)}`}>
+                          {client.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 font-medium">${client.housePayment.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                disabled={currentPage === 1} 
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = (totalPages <= 5 || currentPage <= 3) ? i + 1 : 
-                                 (currentPage >= totalPages - 2) ? totalPages - 4 + i : 
-                                 currentPage - 2 + i;
-                  return (
-                    <button 
-                      key={i} 
-                      onClick={() => setCurrentPage(pageNum)} 
-                      className={`px-3 py-2 rounded-lg text-base font-medium transition-colors cursor-pointer ${
-                        currentPage === pageNum 
-                          ? 'text-white' 
-                          : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                      }`} 
-                      style={{ backgroundColor: currentPage === pageNum ? '#083A85' : undefined }}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-              </div>
-              
-              <button 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                disabled={currentPage === totalPages} 
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-base text-gray-700">Go to page:</span>
-              <input 
-                type="number" 
-                min="1" 
-                max={totalPages} 
-                value={goToPageInput} 
-                onChange={(e) => setGoToPageInput(e.target.value)} 
-                onBlur={(e) => handleGoToPage(e.target.value)} 
-                onKeyPress={(e) => e.key === 'Enter' && handleGoToPage((e.target as HTMLInputElement).value)} 
-                className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500" 
-              />
-              <span className="text-base text-gray-700">of {totalPages}</span>
-            </div>
+          <div className="flex justify-center gap-4 mt-12">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-6 py-3 border border-gray-300 rounded-full font-medium disabled:opacity-50 hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-6 py-3 border border-gray-300 rounded-full font-medium disabled:opacity-50 hover:bg-gray-50"
+            >
+              Next
+            </button>
           </div>
         )}
+
+        {/* Modals */}
+        {showDetailModal && <ClientDetailModal />}
       </div>
     </div>
   );

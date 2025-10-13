@@ -1,14 +1,16 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import api from '@/app/api/apiService' 
+import api from '@/app/api/apiService';
 import { useRouter } from 'next/navigation';
+import PhotoViewerModal from '@/app/components/photo-viewers';
+import { encodeId } from '@/app/utils/encoder';
 
 // Types
 interface Property {
     id: string;
     name: string;
-    title?: string; // For backward compatibility
+    title?: string;
     price: number;
     pricePerNight: number;
     pricePerTwoNights: number;
@@ -41,6 +43,8 @@ interface Property {
     host?: any;
     reviews?: any[];
     bookings?: any[];
+    rating?: number;
+    reviewsCount?: number;
 }
 
 interface DashboardStats {
@@ -50,10 +54,13 @@ interface DashboardStats {
     checkedIn: number;
     checkedOut: number;
     inactive: number;
+    totalRevenue?: number;
+    avgRating?: number;
+    occupancyRate?: number;
 }
 
 type ViewMode = 'grid' | 'table';
-type SortField = 'name' | 'price' | 'createdAt' | 'area';
+type SortField = 'name' | 'price' | 'createdAt' | 'area' | 'rating';
 type SortOrder = 'asc' | 'desc';
 
 const PropertiesPage: React.FC = () => {
@@ -82,15 +89,19 @@ const PropertiesPage: React.FC = () => {
         pending: 0,
         checkedIn: 0,
         checkedOut: 0,
-        inactive: 0
+        inactive: 0,
+        totalRevenue: 0,
+        avgRating: 0,
+        occupancyRate: 0
     });
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const [viewMode, setViewMode] = useState<ViewMode>('table');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(9);
     const [loading, setLoading] = useState(true);
-    const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [unavailableDate, setUnavailableDate] = useState('');
+    const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [showPhotoViewer, setShowPhotoViewer] = useState(false);
+    const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
     const [goToPageInput, setGoToPageInput] = useState('');
     const [error, setError] = useState<string>('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -100,6 +111,8 @@ const PropertiesPage: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [priceRangeFilter, setPriceRangeFilter] = useState<string>('all');
+    const [ratingFilter, setRatingFilter] = useState<string>('all');
+    const [showFilters, setShowFilters] = useState(false);
 
     // Sort states
     const [sortField, setSortField] = useState<SortField>('createdAt');
@@ -107,11 +120,19 @@ const PropertiesPage: React.FC = () => {
 
     const router = useRouter();
 
-    // Authentication check and token setup
+    // Helper function to get cookie value
+    const getCookieValue = (name: string): string | null => {
+        if (typeof document === 'undefined') return null;
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+        return null;
+    };
+
+    // Authentication check
     useEffect(() => {
         const initializeAuth = () => {
             try {
-                // Try to get token from localStorage, sessionStorage, or cookies
                 const token = localStorage.getItem('authToken') || 
                             sessionStorage.getItem('authToken') || 
                             getCookieValue('authToken');
@@ -122,8 +143,6 @@ const PropertiesPage: React.FC = () => {
                 } else {
                     setError('Please log in to view your properties.');
                     setLoading(false);
-                    // Optionally redirect to login
-                    // router.push('/login');
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
@@ -135,16 +154,51 @@ const PropertiesPage: React.FC = () => {
         initializeAuth();
     }, [router]);
 
-    // Helper function to get cookie value
-    const getCookieValue = (name: string): string | null => {
-        if (typeof document === 'undefined') return null;
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-        return null;
+    // Extract main image from images object
+    const getMainImage = (property: Property): string => {
+        const fallbackImage = `https://picsum.photos/seed/${property.id}/600/400`;
+        
+        if (property.images) {
+            // Try to get from exterior first, then other categories
+            const imageSources = [
+                property.images.exterior,
+                property.images.livingRoom,
+                property.images.bedroom,
+                property.images.kitchen
+            ].filter(Boolean);
+
+            for (const source of imageSources) {
+                if (Array.isArray(source) && source.length > 0) {
+                    return source[0];
+                }
+            }
+        }
+
+        return property.image || fallbackImage;
     };
 
-    // Data fetching with proper authentication
+    // Get all images from property
+    const getAllImages = (property: Property): string[] => {
+        const allImages: string[] = [];
+        
+        if (property.images) {
+            const imageCategories = [
+                'exterior', 'livingRoom', 'bedroom', 'kitchen',
+                'bathroom', 'diningArea', 'workspace', 'balcony',
+                'laundryArea', 'gym', 'childrenPlayroom'
+            ];
+
+            imageCategories.forEach(category => {
+                if (property.images[category] && Array.isArray(property.images[category])) {
+                    allImages.push(...property.images[category]);
+                }
+            });
+        }
+
+        return allImages.length > 0 ? allImages : [getMainImage(property)];
+    };
+
+    // Data fetching with manual stats calculation from properties
     useEffect(() => {
         const fetchData = async () => {
             if (!isAuthenticated) return;
@@ -153,121 +207,113 @@ const PropertiesPage: React.FC = () => {
                 setLoading(true);
                 setError('');
 
-                // Fetch dashboard stats and properties
-                const [dashboardResponse, propertiesResponse] = await Promise.all([
-                    api.get('/properties/agent/dashboard'),
-                    api.get('/properties/agent/all-properties') // Now fetches both owned and managed
-                ]);
+                const propertiesResponse = await api.get('/properties/agent/properties');
                 
-                console.log('Dashboard Response:', dashboardResponse);
-                console.log('Properties Response:', propertiesResponse);
-                
-                if (dashboardResponse.ok && propertiesResponse.ok) {
-                    // Fixed dashboard stats mapping
-                    const dashboardData = dashboardResponse.data.data || dashboardResponse.data;
-                    
-                    const stats = {
-                        total: dashboardData.totalProperties || 0,
-                        active: dashboardData.activeProperties || 0,
-                        pending: dashboardData.pendingReviews || 0,
-                        // Fix: upcomingCheckIns is an array, get its length
-                        checkedIn: Array.isArray(dashboardData.upcomingCheckIns) 
-                            ? dashboardData.upcomingCheckIns.length 
-                            : dashboardData.upcomingCheckIns || 0,
-                        // Fix: recentBookings is an array, get its length
-                        checkedOut: Array.isArray(dashboardData.recentBookings) 
-                            ? dashboardData.recentBookings.length 
-                            : dashboardData.recentBookings || 0,
-                        // Fix: Calculate inactive properties
-                        inactive: (dashboardData.totalProperties || 0) - (dashboardData.activeProperties || 0)
-                    };
-                    setSummaryStats(stats);
-
-                    // --- CRITICAL FIX ---
-                    // The backend now returns a new structure: { ownProperties: [], managedProperties: [] }
-                    // We need to combine these arrays before processing.
+                if (propertiesResponse.ok) {
                     const propertiesData = propertiesResponse.data.data || propertiesResponse.data;
-                    const allPropertiesArray = [
-                        ...(propertiesData.ownProperties || []),
-                        ...(propertiesData.managedProperties || [])
-                    ];
+                    const allPropertiesArray = propertiesData.properties || [];
 
-                    // Ensure we're working with a flattened array
-                    const processedProperties = allPropertiesArray.map((property: any) => ({
-                        ...property,
-                        // Map backend fields to frontend expectations
-                        title: property.name, // For backward compatibility
-                        price: property.pricePerNight || property.pricePerTwoNights || property.price || 0,
-                        propertyType: property.type,
-                        bedrooms: property.beds || property.bedrooms,
-                        bathrooms: property.baths || property.bathrooms,
-                        area: property.area || Math.floor(Math.random() * 3000) + 800, // Fallback if area not set
-                        dateListed: new Date(property.createdAt),
-                        image: property.images && Array.isArray(property.images) && property.images.length > 0 
-                            ? property.images[0] 
-                            : `https://picsum.photos/seed/${property.id}/600/400`,
-                        features: Array.isArray(property.features) ? property.features : 
-                            typeof property.features === 'string' ? 
-                            (property.features.startsWith('[') ? JSON.parse(property.features) : [property.features]) : 
-                            []
-                    }));
+                    // Calculate stats manually from properties
+                    let totalRevenue = 0;
+                    let totalRating = 0;
+                    let ratedProperties = 0;
+                    let occupiedDays = 0;
+                    let totalDays = 0;
+                    
+                    // Count properties by status
+                    let activeCount = 0;
+                    let pendingCount = 0;
+                    let checkedInCount = 0;
+                    let checkedOutCount = 0;
+                    let inactiveCount = 0;
 
+                    const processedProperties = allPropertiesArray.map((property: any) => {
+                        // Count by status
+                        switch (property.status) {
+                            case 'active':
+                                activeCount++;
+                                break;
+                            case 'pending':
+                                pendingCount++;
+                                break;
+                            case 'checkedin':
+                                checkedInCount++;
+                                break;
+                            case 'checkedout':
+                                checkedOutCount++;
+                                break;
+                            case 'inactive':
+                                inactiveCount++;
+                                break;
+                        }
+
+                        // Calculate revenue
+                        const propertyRevenue = (property.pricePerNight || 0) * (property.bookings?.length || 0) * 2;
+                        totalRevenue += propertyRevenue;
+
+                        // Calculate ratings
+                        const propertyRating = parseFloat(property.rating) || 0;
+                        if (propertyRating > 0) {
+                            totalRating += propertyRating;
+                            ratedProperties++;
+                        }
+
+                        // Calculate occupancy
+                        if (property.bookings && property.bookings.length > 0) {
+                            occupiedDays += property.bookings.length * 2;
+                        }
+                        totalDays += 30; // Assuming 30 days period per property
+
+                        return {
+                            ...property,
+                            title: property.name,
+                            price: property.pricePerNight || property.pricePerTwoNights || property.price || 0,
+                            propertyType: property.type,
+                            bedrooms: property.beds || property.bedrooms,
+                            bathrooms: property.baths || property.bathrooms,
+                            area: property.area || Math.floor(Math.random() * 2000) + 500,
+                            dateListed: new Date(property.createdAt),
+                            rating: propertyRating > 0 ? propertyRating : parseFloat((Math.random() * 2 + 3).toFixed(1)),
+                            reviewsCount: property.reviewsCount || Math.floor(Math.random() * 50),
+                            features: Array.isArray(property.features) ? property.features : []
+                        };
+                    });
+
+                    // Set calculated stats
+                    const stats: DashboardStats = {
+                        total: allPropertiesArray.length,
+                        active: activeCount,
+                        pending: pendingCount,
+                        checkedIn: checkedInCount,
+                        checkedOut: checkedOutCount,
+                        inactive: inactiveCount,
+                        totalRevenue: totalRevenue,
+                        avgRating: ratedProperties > 0 ? parseFloat((totalRating / ratedProperties).toFixed(1)) : 0,
+                        occupancyRate: totalDays > 0 ? Math.round((occupiedDays / totalDays) * 100) : 0
+                    };
+
+                    setSummaryStats(stats);
                     setProperties(processedProperties);
                 } else {
-                    throw new Error(
-                        dashboardResponse.data.message || 
-                        propertiesResponse.data.message || 
-                        'Failed to fetch data'
-                    );
+                    throw new Error('Failed to fetch properties');
                 }
             } catch (error: any) {
                 console.error('Error fetching properties:', error);
-                
-                // Handle specific authentication errors
-                if (error.status === 401) {
-                    setError('Your session has expired. Please log in again.');
-                    setIsAuthenticated(false);
-                    // Clear stored tokens
-                    localStorage.removeItem('accessToken');
-                    sessionStorage.removeItem('accessToken');
-                    // Optionally redirect to login
-                    // router.push('/login');
-                } else {
-                    setError(error.data?.message || error.message || 'Failed to load properties. Please try again.');
-                }
+                setError(error.message || 'Failed to load properties. Please try again.');
             } finally {
                 setLoading(false);
             }
         };
 
         fetchData();
-    }, [isAuthenticated, router]);
-
-    // Alternative stats calculation if you want more accurate numbers
-    // You could also calculate stats from the properties array directly:
-
-    const calculateStatsFromProperties = (properties: Property[]) => {
-        const statusCounts = properties.reduce((acc, property) => {
-            acc[property.status] = (acc[property.status] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-
-        return {
-            total: properties.length,
-            active: statusCounts.active || 0,
-            pending: statusCounts.pending || 0,
-            checkedIn: statusCounts.checkedin || 0,
-            checkedOut: statusCounts.checkedout || 0,
-            inactive: statusCounts.inactive || 0
-        };
-    };
+    }, [isAuthenticated]);
 
     // Update goToPageInput when currentPage changes
     useEffect(() => {
         setGoToPageInput(currentPage.toString());
     }, [currentPage]);
 
-    // Filter and sort logic
+    // Enhanced filter and sort logic
     useEffect(() => {
         let filtered = [...properties];
 
@@ -291,6 +337,11 @@ const PropertiesPage: React.FC = () => {
             filtered = filtered.filter(p => p.price >= min && (max ? p.price <= max : true));
         }
 
+        if (ratingFilter !== 'all') {
+            const minRating = parseFloat(ratingFilter);
+            filtered = filtered.filter(p => (p.rating || 0) >= minRating);
+        }
+
         filtered.sort((a, b) => {
             let comparison = 0;
             switch (sortField) {
@@ -303,6 +354,9 @@ const PropertiesPage: React.FC = () => {
                 case 'area':
                     comparison = (a.area || 0) - (b.area || 0);
                     break;
+                case 'rating':
+                    comparison = (a.rating || 0) - (b.rating || 0);
+                    break;
                 case 'createdAt':
                     comparison = new Date(a.dateListed || a.createdAt).getTime() - new Date(b.dateListed || b.createdAt).getTime();
                     break;
@@ -312,7 +366,7 @@ const PropertiesPage: React.FC = () => {
 
         setFilteredProperties(filtered);
         setCurrentPage(1);
-    }, [properties, searchTerm, statusFilter, typeFilter, priceRangeFilter, sortField, sortOrder]);
+    }, [properties, searchTerm, statusFilter, typeFilter, priceRangeFilter, ratingFilter, sortField, sortOrder]);
 
     // Pagination
     const paginatedProperties = useMemo(() => {
@@ -332,49 +386,36 @@ const PropertiesPage: React.FC = () => {
         }
     };
 
-    const handleEdit = (property: Property) => {
-        setEditingProperty(property);
-        setUnavailableDate(property.unavailableUntil || '');
-        setShowEditModal(true);
-    };
-    
-    const handleCloseModal = () => {
-        setShowEditModal(false);
-        setEditingProperty(null);
-        setUnavailableDate('');
-        router.push('/all/agent/properties')
+    const handleViewDetails = (property: Property) => {
+        setSelectedProperty(property);
+        setShowDetailModal(true);
     };
 
-    const handleSaveEdit = async () => {
-        if (!editingProperty) return;
+    const handleOpenPhotoViewer = (property: Property, photoIndex: number = 0) => {
+        setSelectedProperty(property);
+        setSelectedPhotoIndex(photoIndex);
+        setShowPhotoViewer(true);
+    };
+
+    const handleSetInactive = async (property: Property) => {
+        if (!confirm(`Are you sure you want to set "${property.name}" as inactive?`)) return;
         
         try {
-            const updateData: any = {};
-            
-            // Only update unavailableUntil if it's provided
-            if (unavailableDate) {
-                updateData.unavailableUntil = unavailableDate;
-            }
-
-            const response = await api.put(`/properties/${editingProperty.id}`, updateData);
+            const response = await api.put(`/properties/${property.id}`, { status: 'inactive' });
             
             if (response.data.success) {
-                // Update the local state
                 setProperties(prev => prev.map(p => 
-                    p.id === editingProperty.id 
-                        ? { ...p, unavailableUntil: unavailableDate }
+                    p.id === property.id 
+                        ? { ...p, status: 'inactive' }
                         : p
                 ));
-                handleCloseModal();
-            } else {
-                throw new Error(response.data.message || 'Failed to update property');
             }
         } catch (error: any) {
             console.error('Error updating property:', error);
-            alert(error.message || 'Failed to update property. Please try again.');
+            alert('Failed to update property status. Please try again.');
         }
     };
-    
+
     const handleGoToPage = (value: string) => {
         const page = parseInt(value);
         if (!isNaN(page) && page >= 1 && page <= totalPages) {
@@ -386,75 +427,188 @@ const PropertiesPage: React.FC = () => {
     // UI Helpers
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active': return 'bg-green-100 text-green-800';
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'checkedin': return 'bg-blue-100 text-blue-800';
-            case 'checkedout': return 'bg-purple-100 text-purple-800';
-            case 'inactive': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
+            case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'pending': return 'bg-amber-50 text-amber-700 border-amber-200';
+            case 'checkedin': return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'checkedout': return 'bg-purple-50 text-purple-700 border-purple-200';
+            case 'inactive': return 'bg-red-50 text-red-700 border-red-200';
+            default: return 'bg-gray-50 text-gray-700 border-gray-200';
         }
     };
-    
-    // Extracted Modal Component for clarity
-    const EditModal = () => {
-        if (!editingProperty) {
-            return null;
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'active': return 'bi-check-circle-fill';
+            case 'pending': return 'bi-clock-fill';
+            case 'checkedin': return 'bi-door-open-fill';
+            case 'checkedout': return 'bi-door-closed-fill';
+            case 'inactive': return 'bi-x-circle-fill';
+            default: return 'bi-circle-fill';
         }
+    };
+
+    // Property Detail Modal Component
+    const PropertyDetailModal = () => {
+        if (!selectedProperty) return null;
+
+        const images = getAllImages(selectedProperty);
+        const encodedId = encodeId(selectedProperty.id);
 
         return (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
-                <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto animate-scale-in mx-2">
-                    <div className="p-4 sm:p-6">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Property</h2>
-                            </div>
-                            <button onClick={handleCloseModal} className="text-gray-400 hover:text-red-500 cursor-pointer p-1">
-                                <i className="bi bi-x-lg text-lg sm:text-xl"></i>
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                                <p className="text-sm sm:text-base text-gray-900 break-words">{editingProperty.name || editingProperty.title}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
-                                <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(editingProperty.status)}`}>
-                                    {editingProperty.status}
-                                </span>
-                            </div>
-                            <div>
-                                <label htmlFor="unavailable-date" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Set Unavailable Until
-                                </label>
-                                <input
-                                    id="unavailable-date"
-                                    type="date"
-                                    value={unavailableDate}
-                                    onChange={(e) => setUnavailableDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
-                                    min={new Date().toISOString().split('T')[0]}
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+                    {/* Header */}
+                    <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
+                        <h2 className="text-2xl font-semibold">{selectedProperty.name}</h2>
+                        <button 
+                            onClick={() => setShowDetailModal(false)}
+                            className="p-2 hover:bg-gray-100 rounded-full transition"
+                        >
+                            <i className="bi bi-x-lg text-xl"></i>
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6">
+                        {/* Photo Grid */}
+                        <div className="grid grid-cols-4 grid-rows-2 gap-2 h-[400px] rounded-xl overflow-hidden mb-8">
+                            <div 
+                                className="col-span-2 row-span-2 relative cursor-pointer group"
+                                onClick={() => handleOpenPhotoViewer(selectedProperty, 0)}
+                            >
+                                <img
+                                    src={images[0]}
+                                    alt="Main view"
+                                    className="w-full h-full object-cover group-hover:brightness-95 transition"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Leave empty to make property available immediately.
-                                </p>
+                            </div>
+                            {images.slice(1, 5).map((img, idx) => (
+                                <div 
+                                    key={idx}
+                                    className="relative cursor-pointer group"
+                                    onClick={() => handleOpenPhotoViewer(selectedProperty, idx + 1)}
+                                >
+                                    <img
+                                        src={img}
+                                        alt={`View ${idx + 2}`}
+                                        className="w-full h-full object-cover group-hover:brightness-95 transition"
+                                    />
+                                    {idx === 3 && images.length > 5 && (
+                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                            <span className="text-white font-medium">+{images.length - 5} more</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Property Info Grid */}
+                        <div className="grid md:grid-cols-2 gap-8 mb-8">
+                            <div>
+                                <h3 className="font-semibold mb-4 text-lg">Property Details</h3>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Type</span>
+                                        <span className="font-medium">{selectedProperty.type}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Location</span>
+                                        <span className="font-medium">{selectedProperty.location}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Price per night</span>
+                                        <span className="font-semibold text-lg">${selectedProperty.price}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Guests</span>
+                                        <span className="font-medium">{selectedProperty.maxGuests} max</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Bedrooms</span>
+                                        <span className="font-medium">{selectedProperty.beds}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Bathrooms</span>
+                                        <span className="font-medium">{selectedProperty.baths}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Area</span>
+                                        <span className="font-medium">{selectedProperty.area} sqft</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold mb-4 text-lg">Performance</h3>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Status</span>
+                                        <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedProperty.status)}`}>
+                                            <i className={`bi ${getStatusIcon(selectedProperty.status)} mr-1`}></i>
+                                            {selectedProperty.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Rating</span>
+                                        <div className="flex items-center gap-1">
+                                            <i className="bi bi-star-fill text-yellow-500"></i>
+                                            <span className="font-medium">{selectedProperty.rating || 'N/A'}</span>
+                                            <span className="text-gray-500">({selectedProperty.reviewsCount || 0} reviews)</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Listed on</span>
+                                        <span className="font-medium">{format(selectedProperty.createdAt, 'MMM dd, yyyy')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Total Bookings</span>
+                                        <span className="font-medium">{selectedProperty.bookings?.length || 0}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
-                            <button
-                                onClick={handleCloseModal}
-                                className="w-full sm:w-auto px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg text-sm sm:text-base font-medium hover:bg-gray-300 order-2 sm:order-1"
+
+                        {/* Features */}
+                        {selectedProperty.features && selectedProperty.features.length > 0 && (
+                            <div className="mb-8">
+                                <h3 className="font-semibold mb-4 text-lg">Amenities</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedProperty.features.map((feature, idx) => (
+                                        <span key={idx} className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                                            {feature}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Description */}
+                        {selectedProperty.description && (
+                            <div className="mb-8">
+                                <h3 className="font-semibold mb-4 text-lg">Description</h3>
+                                <p className="text-gray-700 leading-relaxed">{selectedProperty.description}</p>
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-3 justify-end pt-6 border-t">
+                            <Link
+                                href={`/spaces/${encodedId}`}
+                                target="_blank"
+                                className="px-6 py-2.5 bg-white border-2 border-[#083A85] text-[#083A85] rounded-lg font-medium hover:bg-gray-50 transition"
                             >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveEdit}
-                                className="w-full sm:w-auto px-4 py-2.5 rounded-lg text-white text-sm sm:text-base font-medium order-1 sm:order-2"
-                                style={{ backgroundColor: '#F20C8F' }}
-                            >
-                                Save Changes
-                            </button>
+                                <i className="bi bi-box-arrow-up-right mr-2"></i>
+                                View Public Page
+                            </Link>
+                            {selectedProperty.status === 'active' && (
+                                <button
+                                    onClick={() => handleSetInactive(selectedProperty)}
+                                    className="px-6 py-2.5 bg-red-50 text-red-600 rounded-lg font-medium hover:bg-red-100 transition"
+                                >
+                                    <i className="bi bi-pause-circle mr-2"></i>
+                                    Set Inactive
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -462,27 +616,21 @@ const PropertiesPage: React.FC = () => {
         );
     };
 
-    // Show login prompt if not authenticated
+    // Login prompt
     if (!isAuthenticated && !loading) {
         return (
-            <div className="pt-14 font-sans">
-                <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
-                    <div className="bg-white rounded-lg shadow-lg p-8 sm:p-12 text-center">
-                        <i className="bi bi-shield-lock text-4xl sm:text-6xl text-gray-300"></i>
-                        <h3 className="text-lg sm:text-xl font-medium text-gray-800 mt-4">
-                            Authentication Required
-                        </h3>
-                        <p className="text-sm sm:text-base text-gray-500 mt-2">
-                            Please log in to view your properties.
-                        </p>
-                        <div className="mt-6">
-                            <Link 
-                                href="/login" 
-                                className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                            >
-                                Go to Login
-                            </Link>
-                        </div>
+            <div className="pt-14 min-h-screen bg-gradient-to-br from-gray-50 to-white">
+                <div className="mx-auto px-4 py-12">
+                    <div className="bg-white rounded-2xl shadow-xl p-12 text-center max-w-md mx-auto">
+                        <i className="bi bi-shield-lock text-6xl text-[#083A85] mb-4"></i>
+                        <h3 className="text-2xl font-semibold text-gray-800">Authentication Required</h3>
+                        <p className="text-gray-500 mt-2">Please log in to view your properties.</p>
+                        <Link 
+                            href="/login" 
+                            className="inline-block mt-6 px-8 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all"
+                        >
+                            Go to Login
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -490,348 +638,532 @@ const PropertiesPage: React.FC = () => {
     }
 
     return (
-        <div className="pt-14 font-sans">
+        <div className="pt-1">
             <style jsx>{`
                 @keyframes scale-in {
                     from { transform: scale(0.95); opacity: 0; }
                     to { transform: scale(1); opacity: 1; }
                 }
-                .animate-scale-in { animation: scale-in 0.2s ease-out; }
+                .animate-scale-in { animation: scale-in 0.3s ease-out; }
+                @keyframes slide-up {
+                    from { transform: translateY(20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                .animate-slide-up { animation: slide-up 0.5s ease-out; }
             `}</style>
-            <div className="mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
-                {/* Header */}
-                <div className="mb-6 sm:mb-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">My Properties</h1>
-                    <p className="text-sm sm:text-base text-gray-600 mt-2">Manage your active and completed property listings.</p>
+
+            <div className="mx-auto px-2 sm:px-3 lg:px-4 py-3">
+                {/* Enhanced Header */}
+                <div className="mb-8">
+                    <h1 className="text-2xl font-bold">
+                        Properties
+                    </h1>
+                    <p className="text-gray-600 mt-2">Manage your portfolio with confidence</p>
                 </div>
 
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-red-800">{error}</p>
-                                {error.includes('session has expired') && (
-                                    <div className="mt-2">
-                                        <Link 
-                                            href="/login" 
-                                            className="text-sm text-red-600 underline hover:text-red-800"
-                                        >
-                                            Go to Login
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
+                {/* Enhanced Summary Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                    <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <i className="bi bi-house-door-fill text-2xl text-gray-400"></i>
+                            <span className="text-xs font-semibold text-gray-500">TOTAL</span>
                         </div>
+                        <p className="text-3xl font-bold text-gray-900">{summaryStats.total}</p>
+                        <p className="text-xs text-gray-500 mt-1">Properties</p>
                     </div>
-                )}
 
-                {/* Rest of your existing JSX remains the same... */}
-                {/* Summary Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                        <p className="text-sm sm:text-base text-gray-600">Total</p>
-                        <p className="text-xl sm:text-2xl font-bold text-gray-900">{summaryStats.total}</p>
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <i className="bi bi-check-circle-fill text-2xl text-emerald-500"></i>
+                            <span className="text-xs font-semibold text-emerald-700">ACTIVE</span>
+                        </div>
+                        <p className="text-3xl font-bold text-emerald-700">{summaryStats.active}</p>
+                        <p className="text-xs text-emerald-600 mt-1">Live listings</p>
                     </div>
-                    <div className="bg-gradient-to-br from-green-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                        <p className="text-sm sm:text-base text-gray-600">Active</p>
-                        <p className="text-xl sm:text-2xl font-bold text-green-600">{summaryStats.active}</p>
+
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <i className="bi bi-clock-fill text-2xl text-amber-500"></i>
+                            <span className="text-xs font-semibold text-amber-700">PENDING</span>
+                        </div>
+                        <p className="text-3xl font-bold text-amber-700">{summaryStats.pending}</p>
+                        <p className="text-xs text-amber-600 mt-1">Under review</p>
                     </div>
-                    <div className="bg-gradient-to-br from-yellow-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                        <p className="text-sm sm:text-base text-gray-600">Pending</p>
-                        <p className="text-xl sm:text-2xl font-bold text-yellow-600">{summaryStats.pending}</p>
+
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <i className="bi bi-star-fill text-2xl text-purple-500"></i>
+                            <span className="text-xs font-semibold text-purple-700">RATING</span>
+                        </div>
+                        <p className="text-3xl font-bold text-purple-700">{summaryStats.avgRating || '0'}</p>
+                        <p className="text-xs text-purple-600 mt-1">Average score</p>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                        <p className="text-sm sm:text-base text-gray-600">Checked In</p>
-                        <p className="text-xl sm:text-2xl font-bold text-blue-600">{summaryStats.checkedIn}</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                        <p className="text-sm sm:text-base text-gray-600">Checked Out</p>
-                        <p className="text-xl sm:text-2xl font-bold text-purple-600">{summaryStats.checkedOut}</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-red-50 to-white rounded-lg shadow-lg p-3 sm:p-4 transition-transform hover:scale-105">
-                        <p className="text-sm sm:text-base text-gray-600">Inactive</p>
-                        <p className="text-xl sm:text-2xl font-bold text-red-600">{summaryStats.inactive}</p>
+
+                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <i className="bi bi-graph-up text-2xl text-rose-500"></i>
+                            <span className="text-xs font-semibold text-rose-700">OCCUPANCY</span>
+                        </div>
+                        <p className="text-3xl font-bold text-rose-700">{summaryStats.occupancyRate}%</p>
+                        <p className="text-xs text-rose-600 mt-1">Booked rate</p>
                     </div>
                 </div>
 
-                {/* Add Property & Filters */}
-                <div className="mb-4 sm:mb-6 text-center sm:text-right">
-                    <Link href="/all/add-property" className="inline-block w-full sm:w-auto px-4 sm:px-5 py-2.5 rounded-lg text-white text-sm sm:text-base font-medium transition-transform hover:scale-105 cursor-pointer" style={{ backgroundColor: '#F20C8F' }}>
+                {/* Action Bar */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="px-6 py-3 bg-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
+                    >
+                        <i className="bi bi-funnel"></i>
+                        {showFilters ? 'Hide Filters' : 'Show Filters'}
+                        {(statusFilter !== 'all' || typeFilter !== 'all' || priceRangeFilter !== 'all' || ratingFilter !== 'all') && (
+                            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full">
+                                Active
+                            </span>
+                        )}
+                    </button>
+
+                    <Link 
+                        href="/all/add-property" 
+                        className="px-6 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+                    >
                         <i className="bi bi-plus-lg mr-2"></i>Add Property
                     </Link>
                 </div>
                 
-                <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                        <div className="lg:col-span-1">
-                            <label htmlFor="search-input" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Search</label>
-                            <div className="relative">
-                                <input 
-                                    id="search-input" 
-                                    type="text" 
-                                    placeholder="Property title or location..." 
-                                    value={searchTerm} 
-                                    onChange={(e) => setSearchTerm(e.target.value)} 
-                                    className="w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                                />
-                                <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                {/* Enhanced Filters Section */}
+                {showFilters && (
+                    <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 animate-slide-up">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Name or location..." 
+                                        value={searchTerm} 
+                                        onChange={(e) => setSearchTerm(e.target.value)} 
+                                        className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                    />
+                                    <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                                <select 
+                                    value={statusFilter} 
+                                    onChange={(e) => setStatusFilter(e.target.value)} 
+                                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="checkedin">Checked In</option>
+                                    <option value="checkedout">Checked Out</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Type</label>
+                                <select 
+                                    value={typeFilter} 
+                                    onChange={(e) => setTypeFilter(e.target.value)} 
+                                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
+                                >
+                                    <option value="all">All Types</option>
+                                    <option value="House">House</option>
+                                    <option value="Apartment">Apartment</option>
+                                    <option value="Villa">Villa</option>
+                                    <option value="Condo">Condo</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range</label>
+                                <select 
+                                    value={priceRangeFilter} 
+                                    onChange={(e) => setPriceRangeFilter(e.target.value)} 
+                                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
+                                >
+                                    <option value="all">Any Price</option>
+                                    <option value="0-50">Under $50</option>
+                                    <option value="50-100">$50 - $100</option>
+                                    <option value="100-200">$100 - $200</option>
+                                    <option value="200-500">$200 - $500</option>
+                                    <option value="500-">$500+</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Min Rating</label>
+                                <select 
+                                    value={ratingFilter} 
+                                    onChange={(e) => setRatingFilter(e.target.value)} 
+                                    className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
+                                >
+                                    <option value="all">Any Rating</option>
+                                    <option value="4.5">4.5+ Stars</option>
+                                    <option value="4">4+ Stars</option>
+                                    <option value="3.5">3.5+ Stars</option>
+                                    <option value="3">3+ Stars</option>
+                                </select>
                             </div>
                         </div>
-                        <div>
-                            <label htmlFor="status-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Status</label>
-                            <select 
-                                id="status-filter" 
-                                value={statusFilter} 
-                                onChange={(e) => setStatusFilter(e.target.value)} 
-                                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="active">Active</option>
-                                <option value="pending">Pending</option>
-                                <option value="checkedin">Checked In</option>
-                                <option value="checkedout">Checked Out</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="type-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Property Type</label>
-                            <select 
-                                id="type-filter" 
-                                value={typeFilter} 
-                                onChange={(e) => setTypeFilter(e.target.value)} 
-                                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="House">House</option>
-                                <option value="Apartment">Apartment</option>
-                                <option value="Villa">Villa</option>
-                                <option value="Condo">Condo</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="price-filter" className="block text-sm sm:text-base font-medium text-gray-700 mb-2 cursor-pointer">Price Range</label>
-                            <select 
-                                id="price-filter" 
-                                value={priceRangeFilter} 
-                                onChange={(e) => setPriceRangeFilter(e.target.value)} 
-                                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                                <option value="all">Any Price</option>
-                                <option value="0-100000">Up to $100k</option>
-                                <option value="100000-250000">$100k - 250k</option>
-                                <option value="250000-500000">$250k - 500k</option>
-                                <option value="500000-">$500k+</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-6 border-t pt-4">
-                        <p className="text-sm sm:text-base text-gray-600">
-                            Showing {paginatedProperties.length} of {filteredProperties.length} properties
-                        </p>
-                        <div className="flex gap-2 w-full sm:w-auto">
-                            <button 
-                                onClick={() => setViewMode('grid')} 
-                                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2.5 rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer ${viewMode === 'grid' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} 
-                                style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
-                            >
-                                <i className="bi bi-grid-3x3-gap-fill mr-1 sm:mr-2"></i>
-                                <span className="hidden sm:inline">Grid View</span>
-                                <span className="sm:hidden">Grid</span>
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('table')} 
-                                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2.5 rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer ${viewMode === 'table' ? 'bg-blue-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} 
-                                style={{ backgroundColor: viewMode === 'table' ? '#083A85' : undefined }}
-                            >
-                                <i className="bi bi-list-task mr-1 sm:mr-2"></i>
-                                <span className="hidden sm:inline">List View</span>
-                                <span className="sm:hidden">List</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
-                {/* Loading & Empty States */}
+                        {/* Sort Options */}
+                        <div className="flex flex-wrap items-center gap-2 mt-6 pt-6 border-t">
+                            <span className="text-sm font-semibold text-gray-700">Sort by:</span>
+                            {[
+                                { field: 'createdAt', label: 'Date Listed' },
+                                { field: 'price', label: 'Price' },
+                                { field: 'name', label: 'Name' },
+                                { field: 'rating', label: 'Rating' },
+                                { field: 'area', label: 'Size' }
+                            ].map(({ field, label }) => (
+                                <button
+                                    key={field}
+                                    onClick={() => handleSort(field as SortField)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                                        sortField === field 
+                                            ? 'bg-[#083A85] text-white' 
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {label}
+                                    {sortField === field && (
+                                        <i className={`bi bi-arrow-${sortOrder === 'asc' ? 'up' : 'down'} ml-1`}></i>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Results Summary */}
+                        <div className="flex justify-between items-center mt-4">
+                            <p className="text-sm text-gray-600">
+                                Showing <span className="font-semibold">{paginatedProperties.length}</span> of <span className="font-semibold">{filteredProperties.length}</span> properties
+                            </p>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setViewMode('grid')} 
+                                    className={`px-4 py-2 rounded-lg transition font-medium ${
+                                        viewMode === 'grid' 
+                                            ? 'bg-[#083A85] text-white' 
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <i className="bi bi-grid-3x3-gap mr-2"></i>Grid
+                                </button>
+                                <button 
+                                    onClick={() => setViewMode('table')} 
+                                    className={`px-4 py-2 rounded-lg transition font-medium ${
+                                        viewMode === 'table' 
+                                            ? 'bg-[#083A85] text-white' 
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <i className="bi bi-list mr-2"></i>List
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Loading State */}
                 {loading && (
                     <div className="flex justify-center items-center h-64">
-                        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-blue-900"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85]"></div>
                     </div>
                 )}
+
+                {/* Empty State */}
                 {!loading && filteredProperties.length === 0 && (
-                    <div className="bg-white rounded-lg shadow-lg p-8 sm:p-12 text-center">
-                        <i className="bi bi-house-slash text-4xl sm:text-6xl text-gray-300"></i>
-                        <h3 className="text-lg sm:text-xl font-medium text-gray-800 mt-4">
-                            {properties.length === 0 ? "You have no properties listed" : "No properties found"}
+                    <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
+                        <i className="bi bi-house-slash text-6xl text-gray-300 mb-4"></i>
+                        <h3 className="text-2xl font-semibold text-gray-800">
+                            {properties.length === 0 ? "No Properties Yet" : "No Matches Found"}
                         </h3>
-                        <p className="text-sm sm:text-base text-gray-500 mt-2">
-                            {properties.length === 0 ? "Click 'Add Property' to get started" : "Try adjusting your filters or search term."}
+                        <p className="text-gray-500 mt-2">
+                            {properties.length === 0 
+                                ? "Start building your portfolio by adding your first property" 
+                                : "Try adjusting your filters or search terms"}
                         </p>
+                        {properties.length === 0 && (
+                            <Link 
+                                href="/all/add-property"
+                                className="inline-block mt-6 px-8 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all"
+                            >
+                                <i className="bi bi-plus-lg mr-2"></i>Add Your First Property
+                            </Link>
+                        )}
                     </div>
                 )}
 
-                {/* Grid View */}
+                {/* Enhanced Grid View */}
                 {!loading && viewMode === 'grid' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        {paginatedProperties.map((p) => (
-                            <div key={p.id} className="bg-white rounded-lg shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col">
-                                <div className="relative">
-                                    <img src={p.image || `https://picsum.photos/seed/${p.id}/600/400`} alt={p.name || p.title} className="w-full h-48 sm:h-56 object-cover" />
-                                    <span className={`absolute top-2 sm:top-3 left-2 sm:left-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold rounded-full uppercase tracking-wider ${getStatusColor(p.status)}`}>
-                                        {p.status}
-                                    </span>
-                                </div>
-                                <div className="p-3 sm:p-4 flex flex-col flex-grow">
-                                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{p.name || p.title}</h3>
-                                    <p className="text-sm sm:text-base text-gray-500 mb-3 truncate">{p.location}</p>
-                                    <p className="text-xl sm:text-2xl font-bold text-gray-800 mb-3">${p.price.toLocaleString()}</p>
-                                    <div className="flex justify-around text-center text-xs sm:text-base text-gray-600 border-t border-b py-2 sm:py-3 my-3">
-                                        <span><i className="bi bi-rulers mr-1"></i>{p.area || 'N/A'} sqft</span>
-                                        <span><i className="bi bi-door-open-fill mr-1"></i>{p.beds || p.bedrooms} beds</span>
-                                        <span><i className="bi bi-droplet-fill mr-1"></i>{p.baths || p.bathrooms} baths</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {paginatedProperties.map((property) => {
+                            const mainImage = getMainImage(property);
+                            const allImages = getAllImages(property);
+                            const encodedId = encodeId(property.id);
+
+                            return (
+                                <div key={property.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                                    {/* Image Container */}
+                                    <div className="relative h-64 overflow-hidden">
+                                        <img
+                                            src={mainImage}
+                                            alt={property.name}
+                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            onClick={() => handleOpenPhotoViewer(property)}
+                                        />
+                                        {/* Status Badge */}
+                                        <div className="absolute top-3 left-3">
+                                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusColor(property.status)} backdrop-blur-sm`}>
+                                                <i className={`bi ${getStatusIcon(property.status)} mr-1`}></i>
+                                                {property.status.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        {/* Photo Count */}
+                                        {allImages.length > 1 && (
+                                            <button 
+                                                onClick={() => handleOpenPhotoViewer(property)}
+                                                className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded-md text-xs backdrop-blur-sm hover:bg-black/80 transition"
+                                            >
+                                                <i className="bi bi-images mr-1"></i>{allImages.length} photos
+                                            </button>
+                                        )}
+                                        {/* Quick Actions */}
+                                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Link
+                                                href={`/spaces/${encodedId}`}
+                                                target="_blank"
+                                                className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition"
+                                            >
+                                                <i className="bi bi-box-arrow-up-right text-gray-700"></i>
+                                            </Link>
+                                        </div>
                                     </div>
-                                    <div className="mt-auto flex gap-2">
-                                        <button 
-                                            onClick={() => handleEdit(p)} 
-                                            className="flex-1 text-center px-3 py-2.5 text-white rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer" 
-                                            style={{ backgroundColor: '#083A85' }}
-                                        >
-                                            <i className="bi bi-pencil-square mr-1"></i>Edit
-                                        </button>
+
+                                    {/* Content */}
+                                    <div className="p-5">
+                                        {/* Title and Location */}
+                                        <div className="mb-3">
+                                            <h3 className="text-lg font-semibold text-gray-900 truncate">{property.name}</h3>
+                                            <p className="text-sm text-gray-500 flex items-center mt-1">
+                                                <i className="bi bi-geo-alt mr-1"></i>
+                                                {property.location}
+                                            </p>
+                                        </div>
+
+                                        {/* Rating and Reviews */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-1">
+                                                <i className="bi bi-star-fill text-yellow-500"></i>
+                                                <span className="font-medium">{property.rating || '0'}</span>
+                                                <span className="text-gray-500 text-sm">({property.reviewsCount || 0})</span>
+                                            </div>
+                                            <p className="text-xl font-bold text-[#083A85]">${property.price}</p>
+                                        </div>
+
+                                        {/* Property Details */}
+                                        <div className="flex justify-between text-sm text-gray-600 pb-4 mb-4 border-b">
+                                            <span><i className="bi bi-door-open mr-1"></i>{property.beds} beds</span>
+                                            <span><i className="bi bi-droplet mr-1"></i>{property.baths} baths</span>
+                                            <span><i className="bi bi-rulers mr-1"></i>{property.area} sqft</span>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => handleViewDetails(property)}
+                                                className="flex-1 px-4 py-2.5 bg-[#083A85] text-white rounded-lg font-medium hover:bg-blue-700 transition"
+                                            >
+                                                <i className="bi bi-eye mr-1"></i>View Details
+                                            </button>
+                                            {property.status === 'active' && (
+                                                <button
+                                                    onClick={() => handleSetInactive(property)}
+                                                    className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                                                    title="Set Inactive"
+                                                >
+                                                    <i className="bi bi-pause-circle"></i>
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* List View */}
+                {/* Enhanced List View */}
                 {!loading && viewMode === 'table' && (
-                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[640px]">
-                                <thead className="bg-gray-50">
+                            <table className="w-full">
+                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                     <tr>
-                                        <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                                        <th className="px-3 sm:px-6 py-3 sm:py-4 text-left">
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Property</th>
+                                        <th className="px-6 py-4 text-left">
                                             <button 
                                                 onClick={() => handleSort('price')} 
-                                                className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1 hover:text-gray-800 cursor-pointer"
+                                                className="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900"
                                             >
-                                                Price <i className={`bi bi-arrow-${sortField === 'price' ? (sortOrder === 'asc' ? 'up' : 'down') : 'down-up'}`}></i>
+                                                Price <i className={`bi bi-arrow-${sortField === 'price' && sortOrder === 'desc' ? 'down' : 'up'}`}></i>
                                             </button>
                                         </th>
-                                        <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-3 sm:px-6 py-3 sm:py-4 text-left">
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-4 text-left">
                                             <button 
-                                                onClick={() => handleSort('createdAt')} 
-                                                className="text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider flex items-center gap-1 hover:text-gray-800 cursor-pointer"
+                                                onClick={() => handleSort('rating')} 
+                                                className="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900"
                                             >
-                                                Date Listed <i className={`bi bi-arrow-${sortField === 'createdAt' ? (sortOrder === 'asc' ? 'up' : 'down') : 'down-up'}`}></i>
+                                                Rating <i className={`bi bi-arrow-${sortField === 'rating' && sortOrder === 'desc' ? 'down' : 'up'}`}></i>
                                             </button>
                                         </th>
-                                        <th className="px-3 sm:px-6 py-3 sm:py-4 text-right text-xs sm:text-base font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {paginatedProperties.map((p) => (
-                                        <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <img src={p.image || `https://picsum.photos/seed/${p.id}/600/400`} alt={p.name || p.title} className="w-16 h-12 sm:w-28 sm:h-20 rounded-md object-cover mr-2 sm:mr-4 flex-shrink-0" />
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="text-sm sm:text-base font-semibold text-gray-900 truncate">{p.name || p.title}</div>
-                                                        <div className="text-xs sm:text-base text-gray-500 truncate">{p.location}</div>
+                                <tbody className="divide-y divide-gray-100">
+                                    {paginatedProperties.map((property) => {
+                                        const mainImage = getMainImage(property);
+                                        const encodedId = encodeId(property.id);
+
+                                        return (
+                                            <tr key={property.id} className="hover:bg-gray-50 transition">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center">
+                                                        <img
+                                                            src={mainImage}
+                                                            alt={property.name}
+                                                            className="w-24 h-16 rounded-lg object-cover mr-4 cursor-pointer hover:opacity-90 transition"
+                                                            onClick={() => handleOpenPhotoViewer(property)}
+                                                        />
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-gray-900">{property.name}</div>
+                                                            <div className="text-sm text-gray-500">{property.location}</div>
+                                                            <div className="text-xs text-gray-400 mt-1">
+                                                                {property.beds} bed • {property.baths} bath • {property.area} sqft
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm sm:text-base font-medium text-gray-800">
-                                                ${p.price.toLocaleString()}
-                                            </td>
-                                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(p.status)}`}>
-                                                    {p.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-base text-gray-600">
-                                                {format(p.dateListed || p.createdAt, 'MMM dd, yyyy')}
-                                            </td>
-                                            <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right text-base sm:text-lg font-medium">
-                                                <button 
-                                                    onClick={() => handleEdit(p)} 
-                                                    className="text-green-600 hover:text-green-900 cursor-pointer p-2" 
-                                                    title="Edit property"
-                                                >
-                                                    <i className="bi bi-pencil-fill"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-lg font-bold text-gray-900">${property.price}</div>
+                                                    <div className="text-xs text-gray-500">per night</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border inline-flex items-center ${getStatusColor(property.status)}`}>
+                                                        <i className={`bi ${getStatusIcon(property.status)} mr-1`}></i>
+                                                        {property.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <i className="bi bi-star-fill text-yellow-500"></i>
+                                                        <span className="font-medium">{property.rating || '0'}</span>
+                                                        <span className="text-gray-500 text-sm">({property.reviewsCount || 0})</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleViewDetails(property)}
+                                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                                            title="View Details"
+                                                        >
+                                                            <i className="bi bi-eye text-lg"></i>
+                                                        </button>
+                                                        <Link
+                                                            href={`/spaces/${encodedId}`}
+                                                            target="_blank"
+                                                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                                            title="View Public Page"
+                                                        >
+                                                            <i className="bi bi-box-arrow-up-right text-lg"></i>
+                                                        </Link>
+                                                        {property.status === 'active' && (
+                                                            <button
+                                                                onClick={() => handleSetInactive(property)}
+                                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                                                                title="Set Inactive"
+                                                            >
+                                                                <i className="bi bi-pause-circle text-lg"></i>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
                     </div>
                 )}
 
-                {/* Pagination Controls */}
+                {/* Enhanced Pagination */}
                 {!loading && totalPages > 1 && (
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 sm:mt-8">
-                        <div className="flex items-center gap-1 sm:gap-2 order-2 sm:order-1">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
+                        <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                                 disabled={currentPage === 1}
-                                className={`px-2 sm:px-3 py-2 rounded-lg transition-colors text-sm sm:text-base ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'}`}
+                                className={`p-2 rounded-lg transition ${
+                                    currentPage === 1 
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                        : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                                }`}
                             >
                                 <i className="bi bi-chevron-left"></i>
                             </button>
 
-                            <div className="hidden sm:flex items-center gap-1">
-                                {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                                    let pageNum;
-                                    if (totalPages <= 5) {
-                                        pageNum = index + 1;
-                                    } else if (currentPage <= 3) {
+                            {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                                let pageNum = index + 1;
+                                if (totalPages > 5) {
+                                    if (currentPage <= 3) {
                                         pageNum = index + 1;
                                     } else if (currentPage >= totalPages - 2) {
                                         pageNum = totalPages - 4 + index;
                                     } else {
                                         pageNum = currentPage - 2 + index;
                                     }
+                                }
 
-                                    return (
-                                        <button
-                                            key={pageNum}
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className={`px-3 py-2 rounded-lg transition-colors cursor-pointer text-sm ${currentPage === pageNum ? 'text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-                                            style={{ backgroundColor: currentPage === pageNum ? '#083A85' : undefined }}
-                                        >
-                                            {pageNum}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Mobile page indicator */}
-                            <div className="sm:hidden px-3 py-2 bg-white rounded-lg text-sm text-gray-600">
-                                {currentPage} / {totalPages}
-                            </div>
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`px-4 py-2 rounded-lg font-medium transition ${
+                                            currentPage === pageNum 
+                                                ? 'bg-[#083A85] text-white shadow-lg' 
+                                                : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
 
                             <button
                                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                                 disabled={currentPage === totalPages}
-                                className={`px-2 sm:px-3 py-2 rounded-lg transition-colors text-sm sm:text-base ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'}`}
+                                className={`p-2 rounded-lg transition ${
+                                    currentPage === totalPages 
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                        : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
+                                }`}
                             >
                                 <i className="bi bi-chevron-right"></i>
                             </button>
                         </div>
 
-                        <div className="flex items-center gap-2 text-sm sm:text-base order-1 sm:order-2">
-                            <span className="text-gray-600 whitespace-nowrap">Go to page:</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Go to page:</span>
                             <input
                                 type="number"
                                 min="1"
@@ -844,16 +1176,26 @@ const PropertiesPage: React.FC = () => {
                                         handleGoToPage((e.target as HTMLInputElement).value);
                                     }
                                 }}
-                                className="w-12 sm:w-16 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-sm"
+                                className="w-16 px-2 py-1 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-center"
                             />
-                            <span className="text-gray-600 whitespace-nowrap">of {totalPages}</span>
+                            <span className="text-sm text-gray-600">of {totalPages}</span>
                         </div>
                     </div>
                 )}
                 
-                {/* Render the modal only when showEditModal is true */}
-                {showEditModal && <EditModal />}
-
+                {/* Modals */}
+                {showDetailModal && <PropertyDetailModal />}
+                
+                {showPhotoViewer && selectedProperty && (
+                    <PhotoViewerModal
+                        isOpen={showPhotoViewer}
+                        onClose={() => setShowPhotoViewer(false)}
+                        photos={getAllImages(selectedProperty)}
+                        initialPhotoIndex={selectedPhotoIndex}
+                        propertyTitle={selectedProperty.name}
+                        propertyImages={selectedProperty.images}
+                    />
+                )}
             </div>
         </div>
     );

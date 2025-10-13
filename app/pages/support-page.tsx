@@ -1,3 +1,4 @@
+"use client"
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/apiService'; // Adjust the import path as needed
 
@@ -280,11 +281,11 @@ const HelpSupportCenter: React.FC = () => {
   };
 
   return (
-    <div className="pt-14 bg-gray-50 min-h-screen">
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen pt-5">
+      <div className="mx-auto p-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-[#083A85]">Help & Support Center</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[#083A85]">Help & Support Center</h1>
           <p className="text-gray-600 mt-2">Find answers to your questions or get in touch with our support team.</p>
         </div>
 
