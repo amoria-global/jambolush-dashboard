@@ -66,6 +66,52 @@ interface WithdrawalRequest {
   withdrawalMethod?: WithdrawalMethod;
 }
 
+interface AccountFormat {
+  label: string;
+  placeholder: string;
+  example: string;
+  minLength: number;
+  maxLength: number;
+  pattern?: string;
+}
+
+interface WithdrawalProvider {
+  id: string;
+  code: string;
+  name: string;
+  type: 'BANK' | 'MOBILE_MONEY';
+  country: string;
+  currency: string;
+  active: boolean;
+  accountFormat: AccountFormat;
+  logo?: string;
+  color?: string;
+  fees?: {
+    withdrawalFee: string;
+    note: string;
+  };
+  supportsDeposits?: boolean;
+  supportsPayouts?: boolean;
+}
+
+interface AvailableProvidersResponse {
+  success: boolean;
+  country: string;
+  countryName: string;
+  currency: string;
+  count: number;
+  data: {
+    banks: WithdrawalProvider[];
+    mobileMoney: WithdrawalProvider[];
+    all: WithdrawalProvider[];
+  };
+  summary: {
+    totalProviders: number;
+    banks: number;
+    mobileMoney: number;
+  };
+}
+
 const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   const router = useRouter();
   const [userId, setUserId] = useState<number | null>(null);
@@ -76,6 +122,10 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   const [withdrawalMethods, setWithdrawalMethods] = useState<WithdrawalMethod[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
+
+  // Available Providers
+  const [availableProviders, setAvailableProviders] = useState<WithdrawalProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
 
   // UI States
   const [loading, setLoading] = useState(true);
@@ -90,10 +140,11 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   // Add Withdrawal Method Modal
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
   const [newMethod, setNewMethod] = useState({
-    methodType: 'MOBILE_MONEY',
-    provider: 'MTN',
-    phoneNumber: '',
-    accountName: ''
+    methodType: 'MOBILE_MONEY' as 'BANK' | 'MOBILE_MONEY',
+    providerId: '',
+    accountNumber: '',
+    accountName: '',
+    provider: null as WithdrawalProvider | null
   });
 
   // Transaction Filters
@@ -107,7 +158,23 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
       setUserId(uid);
       fetchAllData(uid);
     }
+    // Fetch available providers
+    fetchAvailableProviders();
   }, []);
+
+  const fetchAvailableProviders = async () => {
+    try {
+      setLoadingProviders(true);
+      const response = await api.get('/transactions/withdrawal-methods/rwanda');
+      if (response.data.success) {
+        setAvailableProviders(response.data.data.all || []);
+      }
+    } catch (err) {
+      console.error('Error fetching available providers:', err);
+    } finally {
+      setLoadingProviders(false);
+    }
+  };
 
   const fetchAllData = async (uid: number) => {
     try {
@@ -179,8 +246,29 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   };
 
   const handleAddWithdrawalMethod = async () => {
-    if (!userId || !newMethod.provider || !newMethod.phoneNumber || !newMethod.accountName) {
+    if (!userId || !newMethod.providerId || !newMethod.accountNumber || !newMethod.accountName) {
       alert('Please fill in all required fields');
+      return;
+    }
+
+    if (!newMethod.provider) {
+      alert('Please select a valid provider');
+      return;
+    }
+
+    // Validate account number using provider's pattern
+    if (newMethod.provider.accountFormat.pattern) {
+      const pattern = new RegExp(newMethod.provider.accountFormat.pattern);
+      if (!pattern.test(newMethod.accountNumber)) {
+        alert(`Invalid ${newMethod.provider.accountFormat.label}. ${newMethod.provider.accountFormat.example ? `Example: ${newMethod.provider.accountFormat.example}` : ''}`);
+        return;
+      }
+    }
+
+    // Validate length
+    if (newMethod.accountNumber.length < newMethod.provider.accountFormat.minLength ||
+        newMethod.accountNumber.length > newMethod.provider.accountFormat.maxLength) {
+      alert(`${newMethod.provider.accountFormat.label} must be between ${newMethod.provider.accountFormat.minLength} and ${newMethod.provider.accountFormat.maxLength} characters`);
       return;
     }
 
@@ -190,10 +278,15 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
         methodType: newMethod.methodType,
         accountName: newMethod.accountName,
         accountDetails: {
-          provider: newMethod.provider,
-          phoneNumber: newMethod.phoneNumber,
-          country: 'RWA',
-          currency: 'RWF'
+          providerId: newMethod.provider.id,
+          providerName: newMethod.provider.name,
+          providerCode: newMethod.provider.code,
+          accountNumber: newMethod.accountNumber,
+          accountType: newMethod.methodType,
+          country: newMethod.provider.country,
+          currency: newMethod.provider.currency,
+          ...(newMethod.methodType === 'MOBILE_MONEY' ? { phoneNumber: newMethod.accountNumber } : {}),
+          ...(newMethod.methodType === 'BANK' ? { bankAccountNumber: newMethod.accountNumber } : {})
         },
         isDefault: withdrawalMethods.length === 0 // Set as default if it's the first method
       });
@@ -201,7 +294,13 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
       if (response.data.success) {
         setWithdrawalMethods([...withdrawalMethods, response.data.data]);
         setShowAddMethodModal(false);
-        setNewMethod({ methodType: 'MOBILE_MONEY', provider: 'MTN', phoneNumber: '', accountName: '' });
+        setNewMethod({
+          methodType: 'MOBILE_MONEY',
+          providerId: '',
+          accountNumber: '',
+          accountName: '',
+          provider: null
+        });
 
         // If it's the first method, set it as selected
         if (withdrawalMethods.length === 0) {
@@ -981,41 +1080,104 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
         {/* Add Method Modal */}
         {showAddMethodModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-              <div className="p-6 border-b border-gray-200">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
                 <h3 className="text-xl font-semibold text-gray-900">Add Withdrawal Method</h3>
               </div>
               <div className="p-6 space-y-4">
+                {/* Method Type Selector */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Provider <span className="text-red-500">*</span>
+                    Method Type <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={newMethod.provider}
-                    onChange={(e) => setNewMethod({ ...newMethod, provider: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
-                  >
-                    <option value="MTN">MTN Mobile Money</option>
-                    <option value="Airtel">Airtel Money</option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setNewMethod({ ...newMethod, methodType: 'MOBILE_MONEY', providerId: '', accountNumber: '', provider: null })}
+                      className={`px-4 py-3 rounded-lg border-2 font-medium transition-all ${
+                        newMethod.methodType === 'MOBILE_MONEY'
+                          ? 'border-[#083A85] bg-blue-50 text-[#083A85]'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <i className="bi bi-phone mr-2" />
+                      Mobile Money
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewMethod({ ...newMethod, methodType: 'BANK', providerId: '', accountNumber: '', provider: null })}
+                      className={`px-4 py-3 rounded-lg border-2 font-medium transition-all ${
+                        newMethod.methodType === 'BANK'
+                          ? 'border-[#083A85] bg-blue-50 text-[#083A85]'
+                          : 'border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <i className="bi bi-bank mr-2" />
+                      Bank
+                    </button>
+                  </div>
                 </div>
 
+                {/* Provider Selector */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number <span className="text-red-500">*</span>
+                    {newMethod.methodType === 'BANK' ? 'Bank' : 'Mobile Money Provider'} <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={newMethod.phoneNumber}
-                    onChange={(e) => setNewMethod({ ...newMethod, phoneNumber: e.target.value })}
-                    placeholder="0780000000 or 0731234567"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {newMethod.provider === 'MTN' ? 'MTN: 078XXXXXXX or 079XXXXXXX' : 'Airtel: 073XXXXXXX'}
-                  </p>
+                  {loadingProviders ? (
+                    <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                      Loading providers...
+                    </div>
+                  ) : (
+                    <select
+                      value={newMethod.providerId}
+                      onChange={(e) => {
+                        const selectedProvider = availableProviders.find(p => p.id === e.target.value);
+                        setNewMethod({
+                          ...newMethod,
+                          providerId: e.target.value,
+                          provider: selectedProvider || null
+                        });
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                    >
+                      <option value="">Select {newMethod.methodType === 'BANK' ? 'a bank' : 'a provider'}</option>
+                      {availableProviders
+                        .filter(p => p.type === newMethod.methodType && p.active)
+                        .map(provider => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                  {newMethod.provider && newMethod.provider.fees && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      <i className="bi bi-info-circle mr-1" />
+                      {newMethod.provider.fees.note}
+                    </p>
+                  )}
                 </div>
 
+                {/* Dynamic Account Number Field */}
+                {newMethod.provider && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {newMethod.provider.accountFormat.label} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newMethod.accountNumber}
+                      onChange={(e) => setNewMethod({ ...newMethod, accountNumber: e.target.value })}
+                      placeholder={newMethod.provider.accountFormat.placeholder}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {newMethod.provider.accountFormat.example}
+                    </p>
+                  </div>
+                )}
+
+                {/* Account Name */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Account Name <span className="text-red-500">*</span>
@@ -1028,7 +1190,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    This should match the name registered on your mobile money account
+                    This should match the name registered on your {newMethod.methodType === 'BANK' ? 'bank' : 'mobile money'} account
                   </p>
                 </div>
 
@@ -1039,11 +1201,17 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                   </p>
                 </div>
               </div>
-              <div className="p-6 border-t border-gray-200 flex gap-3">
+              <div className="p-6 border-t border-gray-200 flex gap-3 sticky bottom-0 bg-white">
                 <button
                   onClick={() => {
                     setShowAddMethodModal(false);
-                    setNewMethod({ methodType: 'MOBILE_MONEY', provider: 'MTN', phoneNumber: '', accountName: '' });
+                    setNewMethod({
+                      methodType: 'MOBILE_MONEY',
+                      providerId: '',
+                      accountNumber: '',
+                      accountName: '',
+                      provider: null
+                    });
                   }}
                   className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 >
@@ -1051,7 +1219,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                 </button>
                 <button
                   onClick={handleAddWithdrawalMethod}
-                  disabled={!newMethod.phoneNumber || !newMethod.accountName}
+                  disabled={!newMethod.providerId || !newMethod.accountNumber || !newMethod.accountName}
                   className="flex-1 px-4 py-3 bg-[#083A85] text-white rounded-lg hover:bg-[#062d6b] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Method
