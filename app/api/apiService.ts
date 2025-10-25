@@ -1765,7 +1765,8 @@ async requestWithdrawalOTP(amount: number): Promise<APIResponse<BackendResponse<
 async verifyAndWithdraw(data: {
   otp: string;
   amount: number;
-  method?: 'MOBILE' | 'BANK';
+  withdrawalMethodId?: string;
+  method?: 'MOBILE' | 'BANK' | 'MOBILE_MONEY';
   destination?: any;
 }): Promise<APIResponse<BackendResponse<{
   withdrawalId: string;
@@ -1814,6 +1815,39 @@ async getWithdrawalInfo(): Promise<APIResponse<BackendResponse<{
   currency: string;
 }>>> {
   return this.get<BackendResponse<any>>('/payments/withdrawal/info');
+  }
+
+/**
+ * Get withdrawal history
+ */
+async getWithdrawalHistory(filters?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<APIResponse<BackendResponse<{
+  withdrawals: any[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}>>> {
+  const params: Record<string, any> = {};
+
+  if (filters) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params[key] = value;
+      }
+    });
+  }
+
+  return this.get<BackendResponse<any>>('/payments/withdrawal/history', { params });
   }
 
   // ============ SETTINGS API METHODS ============

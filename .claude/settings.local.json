@@ -4,7 +4,10 @@
       "Bash(npm run build:*)",
       "Bash(git checkout:*)",
       "Bash(awk:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []

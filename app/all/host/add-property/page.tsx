@@ -5,6 +5,7 @@ import api from '@/app/api/apiService';
 import uploadDocumentToSupabase from '@/app/api/storage';
 import { useRouter } from 'next/navigation';
 import AlertNotification from '@/app/components/notify';
+import PropertyMapSelector from '@/app/components/PropertyMapSelector';
 
 interface User {
   id: string;
@@ -67,11 +68,28 @@ interface PropertyImages {
   childrenPlayroom: ImageFile[];
 }
 
+interface AddressComponent {
+  street?: string;
+  neighborhood?: string;
+  city?: string;
+  district?: string;
+  region?: string;
+  country?: string;
+  postalCode?: string;
+}
+
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 interface LocationDetails {
   type: 'upi' | 'address' | '';
   upi: string;
   upiDocument: DocumentFile | null;
   address: string;
+  coordinates?: Coordinates;
+  addressComponents?: AddressComponent;
 }
 
 interface FormData {
@@ -104,6 +122,7 @@ const AddPropertyPage: React.FC = () => {
   const [submitSuccess, setSubmitSuccess] = useState<string>('');
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isMapModalOpen, setIsMapModalOpen] = useState<boolean>(false);
   const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
   const [isExistingHost, setIsExistingHost] = useState<boolean>(false);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
@@ -648,10 +667,42 @@ const AddPropertyPage: React.FC = () => {
         type: value as 'upi' | 'address',
         upi: '',
         address: '',
-        upiDocument: null
+        upiDocument: null,
+        coordinates: undefined,
+        addressComponents: undefined
       }
     }));
-    
+
+    // Clear validation errors
+    if (validationErrors.location) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.location;
+        return newErrors;
+      });
+    }
+  };
+
+  // Handler for map location selection
+  const handleMapLocationSelect = (locationData: {
+    latitude: number;
+    longitude: number;
+    address: string;
+    addressComponents: AddressComponent;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      location: {
+        ...prev.location,
+        address: locationData.address,
+        coordinates: {
+          latitude: locationData.latitude,
+          longitude: locationData.longitude
+        },
+        addressComponents: locationData.addressComponents
+      }
+    }));
+
     // Clear validation errors
     if (validationErrors.location) {
       setValidationErrors(prev => {
@@ -1545,6 +1596,19 @@ const AddPropertyPage: React.FC = () => {
                           <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2 cursor-pointer">
                             Property Address <span className="text-red-500">*</span>
                           </label>
+
+                          {/* Map Selection Button */}
+                          <button
+                            type="button"
+                            onClick={() => setIsMapModalOpen(true)}
+                            className="w-full mb-3 px-4 py-3 bg-gradient-to-r from-[#083A85] to-[#0a4499] text-white rounded-lg sm:rounded-xl font-medium text-sm sm:text-base hover:from-[#0a4499] hover:to-[#083A85] transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                          >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                            </svg>
+                            Select Location on Map
+                          </button>
+
                           <input
                             type="text"
                             name="address"
@@ -1555,7 +1619,44 @@ const AddPropertyPage: React.FC = () => {
                               validationErrors.location ? 'border-red-500' : 'border-gray-300'
                             }`}
                           />
-                          <p className="mt-1 text-xs text-gray-500">Include full address details for easy location identification</p>
+
+                          {/* Show coordinates if available */}
+                          {formData.location.coordinates && (
+                            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <div className="flex-1">
+                                  <p className="text-xs font-semibold text-green-800 mb-1">Location Selected</p>
+                                  <div className="text-xs text-green-700 space-y-1">
+                                    <p><span className="font-medium">Coordinates:</span> {formData.location.coordinates.latitude.toFixed(6)}, {formData.location.coordinates.longitude.toFixed(6)}</p>
+                                    {formData.location.addressComponents && (
+                                      <div className="mt-2">
+                                        <p className="font-medium mb-1">Address Details:</p>
+                                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                                          {formData.location.addressComponents.city && (
+                                            <p><span className="font-medium">City:</span> {formData.location.addressComponents.city}</p>
+                                          )}
+                                          {formData.location.addressComponents.district && (
+                                            <p><span className="font-medium">District:</span> {formData.location.addressComponents.district}</p>
+                                          )}
+                                          {formData.location.addressComponents.region && (
+                                            <p><span className="font-medium">Region:</span> {formData.location.addressComponents.region}</p>
+                                          )}
+                                          {formData.location.addressComponents.country && (
+                                            <p><span className="font-medium">Country:</span> {formData.location.addressComponents.country}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="mt-1 text-xs text-gray-500">Use the map to select exact location or enter address manually</p>
                         </div>
                       )}
 
@@ -2053,6 +2154,21 @@ const AddPropertyPage: React.FC = () => {
           }
         `}</style>
       </div>
+
+      {/* Property Map Selector Modal */}
+      <PropertyMapSelector
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        onLocationSelect={handleMapLocationSelect}
+        initialLocation={
+          formData.location.coordinates
+            ? {
+                lat: formData.location.coordinates.latitude,
+                lng: formData.location.coordinates.longitude
+              }
+            : undefined
+        }
+      />
     </>
   );
 };
