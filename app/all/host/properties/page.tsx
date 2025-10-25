@@ -350,8 +350,8 @@ const HostPropertiesPage: React.FC = () => {
                     setProperties(processedProperties);
                 } else {
                     throw new Error(
-                        dashboardResponse.message || 
-                        propertiesResponse.message || 
+                        (dashboardResponse.data as any)?.message ||
+                        (propertiesResponse.data as any)?.message ||
                         'Failed to fetch data'
                     );
                 }

@@ -425,7 +425,7 @@ const EnhancedAgentPerformanceDashboard: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error fetching enhanced dashboard:', err);
-      setError(err.response?.data?.message || 'Failed to fetch dashboard data '+err);
+      setError(err.response?.data?.message || 'Failed to fetch dashboard data ');
     }
   };
 

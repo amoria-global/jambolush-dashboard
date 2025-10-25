@@ -217,7 +217,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setUserSession(session);
         setUser(userData);
         setIsAuthenticated(true);
-        await fetchUserData(authToken);
+        await fetchUserData(authToken, userData.userType, userData.id);
 
       } else {
         setIsAuthenticated(false);
@@ -247,7 +247,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       const userId = user?.id;
 
       if (userId && (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide')) {
-        const walletResponse = await handleApiCall(() => api.get(`/transactions/user/${userId}`));
+        const walletResponse = await handleApiCall(() => api.get(`/transactions/wallet/${userId}`));
         if (walletResponse.data && walletResponse.data.success) {
           setWalletData(walletResponse.data.data);
           // Update balance from wallet data
@@ -261,7 +261,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
   };
 
-  const fetchUserData = async (authToken: string) => {
+  const fetchUserData = async (authToken: string, userRole?: UserRole, userId?: string) => {
     try {
       await fetchNotifications();
     } catch (error) {
@@ -269,10 +269,19 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     }
 
     try {
-      if (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide') {
-        await fetchWalletData();
+      // Use passed userRole or fallback to userSession
+      const role = userRole || userSession?.role;
+      const uid = userId || user?.id;
+
+      if ((role === 'host' || role === 'agent' || role === 'tourguide') && uid) {
+        const walletResponse = await handleApiCall(() => api.get(`/transactions/wallet/${uid}`));
+        if (walletResponse.data && walletResponse.data.success) {
+          setWalletData(walletResponse.data.data);
+          setBalance(walletResponse.data.data.availableBalance || 0);
+        }
       }
     } catch (error) {
+      console.error('Error fetching wallet data:', error);
       setBalance(0);
     }
 
@@ -346,18 +355,20 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     return () => clearInterval(pollInterval);
   }, [isAuthenticated, notifications]);
 
-  // Add wallet polling interval
+  // Add wallet polling interval - 30 seconds auto-refresh
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    if (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide') {
+    const userRole = userSession?.role;
+    if (userRole === 'host' || userRole === 'agent' || userRole === 'tourguide') {
+      // Set up polling interval (initial fetch is done by fetchUserData on login)
       const walletPollInterval = setInterval(() => {
         fetchWalletData();
       }, 30000); // Refresh every 30 seconds
 
       return () => clearInterval(walletPollInterval);
     }
-  }, [isAuthenticated, user, userSession]);
+  }, [isAuthenticated, user?.id, userSession?.role]);
 
   useEffect(() => {
     const handleNotificationUpdate = () => {
@@ -501,7 +512,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         if (updatedUser.userType !== user.userType) {
           const authToken = localStorage.getItem('authToken');
           if (authToken) {
-            fetchUserData(authToken);
+            fetchUserData(authToken, updatedUser.userType, updatedUser.id);
           }
         }
       }
@@ -647,11 +658,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                       <span className="text-xs font-bold text-[#083A85] leading-tight">
                         {walletData.availableBalance?.toLocaleString() || '0'} {walletData.currency || 'RWF'}
                       </span>
-                      {walletData.pendingBalance > 0 && (
-                        <span className="text-[10px] text-gray-500 font-medium leading-tight">
-                          +{walletData.pendingBalance?.toLocaleString()} pending
-                        </span>
-                      )}
                     </div>
                   ) : (
                     <span className="text-xs text-gray-500 font-medium">No wallet data</span>

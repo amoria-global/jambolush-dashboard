@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService';
+import AlertNotification from '@/app/components/notify';
 
 interface UnifiedEarningsProps {
   userType: 'agent' | 'host' | 'tourguide';
@@ -55,15 +56,48 @@ interface TransactionStats {
 
 interface WithdrawalRequest {
   id: string;
-  userId: number;
+  userId?: number;
   amount: number;
-  withdrawalMethodId: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
-  requestedAt: string;
+  currency: string;
+  method: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  reference: string;
+  destination: {
+    holderName: string;
+    accountNumber: string;
+    providerCode: string;
+    providerName: string;
+    providerType: string;
+    countryCode: string;
+    currency: string;
+  };
+  withdrawalMethod?: {
+    id: string;
+    methodType: string;
+    accountName: string;
+    providerName: string;
+    providerCode: string;
+    accountNumber: string;
+  };
+  failureReason: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  withdrawalMethodId?: string;
+  requestedAt?: string;
   processedAt?: string;
-  reference?: string;
   notes?: string;
-  withdrawalMethod?: WithdrawalMethod;
+}
+
+interface WithdrawalHistoryResponse {
+  withdrawals: WithdrawalRequest[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 interface AccountFormat {
@@ -137,6 +171,15 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<string>('');
 
+  // OTP Verification States
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpMessageId, setOtpMessageId] = useState<string | null>(null);
+  const [otpExpiresIn, setOtpExpiresIn] = useState<number>(0);
+  const [maskedPhone, setMaskedPhone] = useState<string>('');
+
   // Add Withdrawal Method Modal
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
   const [newMethod, setNewMethod] = useState({
@@ -151,6 +194,12 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [dateRange, setDateRange] = useState('30d');
 
+  // Notification State
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  } | null>(null);
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('userSession') || '{}');
     const uid = user.id || user.userId;
@@ -161,6 +210,11 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
     // Fetch available providers
     fetchAvailableProviders();
   }, []);
+
+  // Notification helper
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    setNotification({ message, type });
+  };
 
   const fetchAvailableProviders = async () => {
     try {
@@ -216,25 +270,56 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
         }
       }
 
-      // Fetch withdrawal requests - mock data for now since endpoint might not exist yet
-      // TODO: Replace with actual API call when endpoint is available
-      // const requestsResponse = await api.get(`/transactions/withdrawals/${uid}`);
-      // For now, create mock withdrawal requests from DEBIT transactions
-      const mockRequests = historyResponse.data.data
-        ?.filter((t: Transaction) => t.type === 'DEBIT' && t.description?.toLowerCase().includes('withdrawal'))
-        .map((t: Transaction) => ({
-          id: t.id,
-          userId: uid,
-          amount: Math.abs(t.amount),
-          withdrawalMethodId: '',
-          status: 'completed' as const,
-          requestedAt: t.createdAt,
-          processedAt: t.createdAt,
-          reference: t.reference,
-          notes: t.description
-        })) || [];
+      // Fetch withdrawal methods
+      const requestsResponse = await api.get(`/transactions/withdrawal-methods/${uid}`);
+      if (methodsResponse.data.success) {
+        setWithdrawalMethods(methodsResponse.data.data || []);
+        // Set first default method as selected
+        const defaultMethod = methodsResponse.data.data.find((m: WithdrawalMethod) => m.isDefault);
+        if (defaultMethod) {
+          setSelectedMethod(defaultMethod.id);
+        }
+      }
 
-      setWithdrawalRequests(mockRequests);
+      // Fetch withdrawal history from API
+      try {
+        const withdrawalHistoryResponse = await api.getWithdrawalHistory({
+          page: 1,
+          limit: 50
+        });
+
+        if (withdrawalHistoryResponse.data.success && withdrawalHistoryResponse.data.data) {
+          const withdrawals = withdrawalHistoryResponse.data.data.withdrawals || [];
+
+          // Transform the withdrawal data to match our interface
+          const transformedWithdrawals = withdrawals.map((w: any) => ({
+            id: w.id,
+            userId: uid,
+            amount: w.amount,
+            currency: w.currency,
+            method: w.method,
+            status: w.status.toLowerCase(),
+            reference: w.reference,
+            destination: w.destination,
+            withdrawalMethod: w.withdrawalMethod,
+            failureReason: w.failureReason,
+            createdAt: w.createdAt,
+            completedAt: w.completedAt,
+            requestedAt: w.createdAt,
+            processedAt: w.completedAt,
+            notes: w.failureReason || undefined
+          }));
+
+          setWithdrawalRequests(transformedWithdrawals);
+        } else {
+          // If API fails, fall back to empty array
+          setWithdrawalRequests([]);
+        }
+      } catch (err) {
+        console.error('Error fetching withdrawal history:', err);
+        // Fall back to empty array on error
+        setWithdrawalRequests([]);
+      }
 
       setError(null);
     } catch (err: any) {
@@ -247,12 +332,23 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
 
   const handleAddWithdrawalMethod = async () => {
     if (!userId || !newMethod.providerId || !newMethod.accountNumber || !newMethod.accountName) {
-      alert('Please fill in all required fields');
+      showNotification('Please fill in all required fields', 'warning');
       return;
     }
 
     if (!newMethod.provider) {
-      alert('Please select a valid provider');
+      showNotification('Please select a valid provider', 'warning');
+      return;
+    }
+
+    // Check if user already has a withdrawal method of this type
+    const existingMethodOfType = withdrawalMethods.find(m => m.methodType === newMethod.methodType);
+    if (existingMethodOfType) {
+      const methodTypeName = newMethod.methodType === 'BANK' ? 'bank account' : 'mobile money account';
+      showNotification(
+        `You already have a ${methodTypeName}. You can only have one bank account and one mobile money account. Please delete the existing ${methodTypeName} first if you want to add a different one.`,
+        'error'
+      );
       return;
     }
 
@@ -260,7 +356,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
     if (newMethod.provider.accountFormat.pattern) {
       const pattern = new RegExp(newMethod.provider.accountFormat.pattern);
       if (!pattern.test(newMethod.accountNumber)) {
-        alert(`Invalid ${newMethod.provider.accountFormat.label}. ${newMethod.provider.accountFormat.example ? `Example: ${newMethod.provider.accountFormat.example}` : ''}`);
+        showNotification(`Invalid ${newMethod.provider.accountFormat.label}. ${newMethod.provider.accountFormat.example ? `Example: ${newMethod.provider.accountFormat.example}` : ''}`, 'error');
         return;
       }
     }
@@ -268,7 +364,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
     // Validate length
     if (newMethod.accountNumber.length < newMethod.provider.accountFormat.minLength ||
         newMethod.accountNumber.length > newMethod.provider.accountFormat.maxLength) {
-      alert(`${newMethod.provider.accountFormat.label} must be between ${newMethod.provider.accountFormat.minLength} and ${newMethod.provider.accountFormat.maxLength} characters`);
+      showNotification(`${newMethod.provider.accountFormat.label} must be between ${newMethod.provider.accountFormat.minLength} and ${newMethod.provider.accountFormat.maxLength} characters`, 'error');
       return;
     }
 
@@ -307,11 +403,11 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
           setSelectedMethod(response.data.data.id);
         }
 
-        alert(response.data.message);
+        showNotification(response.data.message, 'success');
       }
     } catch (err: any) {
       console.error('Error adding withdrawal method:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to add withdrawal method');
+      showNotification(err.response?.data?.message || err.message || 'Failed to add withdrawal method', 'error');
     }
   };
 
@@ -322,54 +418,176 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
 
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid amount');
+      showNotification('Please enter a valid amount', 'warning');
       return;
     }
 
     if (walletData && amount > walletData.availableBalance) {
-      alert('Insufficient balance');
+      showNotification('Insufficient balance', 'error');
+      return;
+    }
+
+    // Ensure wallet is in USD
+    if (walletData && walletData.currency !== 'USD') {
+      showNotification('Withdrawals are only available for USD wallets. Please contact support to convert your wallet currency.', 'error');
+      return;
+    }
+
+    // Validate minimum and maximum withdrawal amounts (USD)
+    if (amount < 1) {
+      showNotification('Minimum withdrawal amount is $1 USD', 'warning');
+      return;
+    }
+
+    if (amount > 10000) {
+      showNotification('Maximum withdrawal amount is $10,000 USD', 'warning');
       return;
     }
 
     try {
-      // Create a withdrawal request
-      const selectedMethodData = withdrawalMethods.find(m => m.id === selectedMethod);
+      setOtpLoading(true);
+      setOtpError(null);
 
-      // Create new withdrawal request
-      const newRequest: WithdrawalRequest = {
-        id: `WR${Date.now()}`,
-        userId,
-        amount,
-        withdrawalMethodId: selectedMethod,
-        status: 'pending',
-        requestedAt: new Date().toISOString(),
-        withdrawalMethod: selectedMethodData,
-        notes: `Withdrawal to ${selectedMethodData?.accountDetails?.provider} - ${selectedMethodData?.accountDetails?.phoneNumber}`
-      };
+      // Request OTP
+      const response = await api.requestWithdrawalOTP(amount);
 
-      // Add to state
-      setWithdrawalRequests([newRequest, ...withdrawalRequests]);
+      if (response.data.success) {
+        const { messageId, expiresIn, maskedPhone: phone } = response.data.data;
 
-      alert(`Withdrawal request for ${amount} ${walletData?.currency} submitted successfully! It will be processed within 24 hours.`);
-      setShowWithdrawModal(false);
-      setWithdrawAmount('');
-      setActiveTab('withdrawals');
+        setOtpMessageId(messageId);
+        setOtpExpiresIn(expiresIn);
+        setMaskedPhone(phone);
 
-      // TODO: In production, call actual API endpoint
-      // const response = await api.post('/transactions/withdrawals', {
-      //   userId,
-      //   amount,
-      //   withdrawalMethodId: selectedMethod
-      // });
-
-      // Refresh data
-      if (userId) {
-        fetchAllData(userId);
+        // Close withdrawal modal and show OTP modal
+        setShowWithdrawModal(false);
+        setShowOtpModal(true);
+      } else {
+        showNotification(response.data.message || 'Failed to send OTP', 'error');
       }
     } catch (err: any) {
-      console.error('Error processing withdrawal:', err);
-      alert(err.response?.data?.message || 'Failed to process withdrawal');
+      console.error('Error requesting OTP:', err);
+      const errorMessage = err?.response?.data?.message || err?.data?.message || 'Failed to request OTP';
+      showNotification(errorMessage, 'error');
+    } finally {
+      setOtpLoading(false);
     }
+  };
+
+  const handleVerifyOtpAndWithdraw = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setOtpError('Invalid withdrawal amount');
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+      setOtpError(null);
+
+      // Verify OTP and process withdrawal
+      const response = await api.verifyAndWithdraw({
+        otp: otpCode,
+        amount,
+        withdrawalMethodId: selectedMethod,
+        method: 'MOBILE'
+      });
+
+      if (response.data.success) {
+        const withdrawalData = response.data.data;
+
+        // Create new withdrawal request for UI
+        const newRequest: WithdrawalRequest = {
+          id: withdrawalData.withdrawalId,
+          userId: userId!,
+          amount: withdrawalData.amount,
+          withdrawalMethodId: selectedMethod,
+          status: 'pending',
+          requestedAt: new Date().toISOString(),
+          reference: withdrawalData.reference,
+          notes: `Withdrawal via ${withdrawalData.method}`,
+          currency: '',
+          method: '',
+          destination: {
+            holderName: '',
+            accountNumber: '',
+            providerCode: '',
+            providerName: '',
+            providerType: '',
+            countryCode: '',
+            currency: ''
+          },
+          failureReason: null,
+          createdAt: '',
+          completedAt: null
+        };
+
+        // Add to state
+        setWithdrawalRequests([newRequest, ...withdrawalRequests]);
+
+        // Close modals and reset
+        setShowOtpModal(false);
+        setOtpCode('');
+        setWithdrawAmount('');
+        setSelectedMethod('');
+        setActiveTab('withdrawals');
+
+        showNotification(`Withdrawal request submitted successfully! Reference: ${withdrawalData.reference}`, 'success');
+
+        // Refresh data
+        if (userId) {
+          fetchAllData(userId);
+        }
+      } else {
+        setOtpError(response.data.message || 'Failed to verify OTP');
+      }
+    } catch (err: any) {
+      console.error('Error verifying OTP:', err);
+      const errorMessage = err?.response?.data?.message || err?.data?.message || 'Failed to verify OTP';
+      setOtpError(errorMessage);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+      setOtpError(null);
+
+      const response = await api.resendWithdrawalOTP(amount);
+
+      if (response.data.success) {
+        const { messageId, expiresIn } = response.data.data;
+        setOtpMessageId(messageId);
+        setOtpExpiresIn(expiresIn);
+        showNotification('OTP has been resent to your phone', 'success');
+      } else {
+        setOtpError(response.data.message || 'Failed to resend OTP');
+      }
+    } catch (err: any) {
+      console.error('Error resending OTP:', err);
+      const errorMessage = err?.response?.data?.message || err?.data?.message || 'Failed to resend OTP';
+      setOtpError(errorMessage);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleCancelOtp = () => {
+    setShowOtpModal(false);
+    setOtpCode('');
+    setOtpError(null);
+    setShowWithdrawModal(true);
   };
 
   const setDefaultMethod = async (methodId: string) => {
@@ -430,7 +648,10 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   };
 
   const formatCurrency = (amount: number) => {
-    return `${amount.toLocaleString()} ${walletData?.currency || 'RWF'}`;
+    const currency = walletData?.currency || 'USD';
+    return currency === 'USD'
+      ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : `${amount.toLocaleString()} ${currency}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -562,13 +783,19 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
 
           <button
             onClick={() => setShowWithdrawModal(true)}
-            disabled={!walletData || walletData.availableBalance <= 0 || withdrawalMethods.filter(m => m.isVerified).length === 0}
+            disabled={!walletData || walletData.availableBalance <= 0 || withdrawalMethods.filter(m => m.isVerified).length === 0 || walletData.currency !== 'USD'}
             className="w-full bg-white text-[#083A85] py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <i className="bi bi-arrow-up-circle mr-2" />
             Withdraw Funds
           </button>
-          {withdrawalMethods.filter(m => m.isVerified).length === 0 && (
+          {walletData && walletData.currency !== 'USD' && (
+            <p className="text-white/70 text-xs mt-2 text-center">
+              <i className="bi bi-exclamation-triangle mr-1" />
+              Withdrawals are only available for USD wallets
+            </p>
+          )}
+          {withdrawalMethods.filter(m => m.isVerified).length === 0 && walletData?.currency === 'USD' && (
             <p className="text-white/70 text-xs mt-2 text-center">
               Add and verify a withdrawal method to withdraw funds
             </p>
@@ -829,26 +1056,32 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-900 text-lg">
-                            {formatCurrency(request.amount)}
+                            {request.currency === 'USD'
+                              ? `$${request.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : `${request.amount.toLocaleString()} ${request.currency}`
+                            }
                           </h3>
                           <p className="text-sm text-gray-600 mt-1">
-                            {request.withdrawalMethod?.accountDetails?.provider || 'Mobile Money'} - {' '}
-                            {request.withdrawalMethod?.accountDetails?.phoneNumber || request.withdrawalMethod?.accountName}
+                            {request.destination?.providerName || request.withdrawalMethod?.providerName || 'Mobile Money'} - {' '}
+                            {request.destination?.holderName || request.withdrawalMethod?.accountName}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
-                            Requested: {formatDate(request.requestedAt)}
+                            Account: {request.destination?.accountNumber || request.withdrawalMethod?.accountNumber}
                           </p>
-                          {request.processedAt && request.status === 'completed' && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Requested: {formatDate(request.createdAt || request.requestedAt || '')}
+                          </p>
+                          {(request.completedAt || request.processedAt) && request.status === 'completed' && (
                             <p className="text-xs text-gray-500">
-                              Processed: {formatDate(request.processedAt)}
+                              Processed: {formatDate(request.completedAt || request.processedAt || '')}
                             </p>
                           )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${getWithdrawalStatusColor(request.status)}`}>
-                          <i className={`bi ${getWithdrawalStatusIcon(request.status)}`} />
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 ${getWithdrawalStatusColor(request.status.toLowerCase())}`}>
+                          <i className={`bi ${getWithdrawalStatusIcon(request.status.toLowerCase())}`} />
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1).toLowerCase()}
                         </span>
                         {request.reference && (
                           <span className="text-xs text-gray-500">
@@ -858,13 +1091,13 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                       </div>
                     </div>
 
-                    {request.notes && (
+                    {(request.notes || request.failureReason) && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">{request.notes}</p>
+                        <p className="text-sm text-gray-600">{request.notes || request.failureReason}</p>
                       </div>
                     )}
 
-                    {request.status === 'pending' && (
+                    {request.status.toLowerCase() === 'pending' && (
                       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <p className="text-sm text-blue-800 flex items-start gap-2">
                           <i className="bi bi-info-circle mt-0.5" />
@@ -873,7 +1106,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                       </div>
                     )}
 
-                    {request.status === 'processing' && (
+                    {request.status.toLowerCase() === 'processing' && (
                       <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                         <p className="text-sm text-yellow-800 flex items-start gap-2">
                           <i className="bi bi-arrow-repeat animate-spin mt-0.5" />
@@ -882,11 +1115,15 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                       </div>
                     )}
 
-                    {request.status === 'failed' && (
+                    {request.status.toLowerCase() === 'failed' && (
                       <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
                         <p className="text-sm text-red-800 flex items-start gap-2">
                           <i className="bi bi-exclamation-triangle mt-0.5" />
-                          <span>This withdrawal failed. Please contact support or try again with a different method.</span>
+                          <span>
+                            This withdrawal failed.
+                            {request.failureReason && ` Reason: ${request.failureReason}`}
+                            {!request.failureReason && ' Please contact support or try again with a different method.'}
+                          </span>
                         </p>
                       </div>
                     )}
@@ -917,12 +1154,21 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
             <div className="flex justify-end">
               <button
                 onClick={() => setShowAddMethodModal(true)}
-                className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d6b] transition-colors font-medium"
+                disabled={withdrawalMethods.length >= 2}
+                className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d6b] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <i className="bi bi-plus-circle mr-2" />
                 Add Withdrawal Method
               </button>
             </div>
+            {withdrawalMethods.length >= 2 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <i className="bi bi-info-circle mr-2" />
+                  You have reached the maximum limit of withdrawal methods (one bank account and one mobile money account). Please delete an existing method to add a different one.
+                </p>
+              </div>
+            )}
 
             {/* Withdrawal Methods List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -937,15 +1183,28 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#083A85] to-[#062d6b] rounded-lg flex items-center justify-center">
-                        <i className="bi bi-phone text-white text-xl" />
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                        method.methodType === 'BANK'
+                          ? 'bg-gradient-to-br from-purple-500 to-purple-700'
+                          : 'bg-gradient-to-br from-[#083A85] to-[#062d6b]'
+                      }`}>
+                        <i className={`bi ${method.methodType === 'BANK' ? 'bi-bank' : 'bi-phone'} text-white text-xl`} />
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">
-                          {method.accountDetails?.provider || method.methodType}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-900">
+                            {method.accountDetails?.providerName || method.methodType}
+                          </p>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            method.methodType === 'BANK'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {method.methodType === 'BANK' ? 'Bank' : 'Mobile Money'}
+                          </span>
+                        </div>
                         <p className="text-sm text-gray-500">
-                          {method.accountDetails?.phoneNumber || 'N/A'}
+                          {method.accountDetails?.accountNumber || method.accountDetails?.phoneNumber || 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -1024,10 +1283,10 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     onChange={(e) => setSelectedMethod(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
                   >
-                    <option value="">Select method</option>
+                    <option value="">Select withdrawal method</option>
                     {withdrawalMethods.filter(m => m.isVerified).map(method => (
                       <option key={method.id} value={method.id}>
-                        {method.accountDetails?.provider || method.methodType} - {method.accountDetails?.phoneNumber}
+                        {method.methodType === 'BANK' ? '🏦' : '📱'} {method.accountDetails?.providerName || method.methodType} - {method.accountDetails?.accountNumber || method.accountDetails?.phoneNumber}
                       </option>
                     ))}
                   </select>
@@ -1041,18 +1300,30 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amount ({walletData?.currency})
+                    Amount (USD)
                   </label>
-                  <input
-                    type="number"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
-                  />
-                  <p className="text-sm text-gray-500 mt-2">
-                    Available: {formatCurrency(walletData?.availableBalance || 0)}
-                  </p>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 text-lg">$</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      placeholder="0.00"
+                      min="1"
+                      step="0.01"
+                      className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-sm text-gray-500">
+                      Available: {formatCurrency(walletData?.availableBalance || 0)}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Min: $1.00
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="p-6 border-t border-gray-200 flex gap-3">
@@ -1067,10 +1338,125 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                 </button>
                 <button
                   onClick={handleWithdraw}
-                  disabled={!withdrawAmount || !selectedMethod}
+                  disabled={!withdrawAmount || !selectedMethod || otpLoading}
                   className="flex-1 px-4 py-3 bg-[#083A85] text-white rounded-lg hover:bg-[#062d6b] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Withdraw
+                  {otpLoading ? (
+                    <>
+                      <i className="bi bi-arrow-repeat animate-spin mr-2" />
+                      Sending OTP...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-shield-lock mr-2" />
+                      Request OTP
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* OTP Verification Modal */}
+        {showOtpModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-gray-900">Verify OTP</h3>
+                  <button
+                    onClick={handleCancelOtp}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <i className="bi bi-x-lg text-xl" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <i className="bi bi-shield-lock text-blue-600 text-2xl mt-1" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 mb-1">
+                        OTP Sent Successfully
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        A 6-digit verification code has been sent to {maskedPhone}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Withdrawal amount: {formatCurrency(parseFloat(withdrawAmount) || 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enter 6-Digit OTP Code
+                  </label>
+                  <input
+                    type="text"
+                    value={otpCode}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setOtpCode(value);
+                      setOtpError(null);
+                    }}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-center text-2xl tracking-widest font-mono"
+                    autoFocus
+                  />
+                  {otpError && (
+                    <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
+                      <i className="bi bi-exclamation-circle" />
+                      {otpError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={otpLoading}
+                    className="text-[#083A85] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <i className="bi bi-arrow-clockwise mr-1" />
+                    Resend OTP
+                  </button>
+                  <span className="text-gray-500">
+                    <i className="bi bi-clock mr-1" />
+                    Expires in {Math.floor(otpExpiresIn / 60)} min
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex gap-3">
+                <button
+                  onClick={handleCancelOtp}
+                  disabled={otpLoading}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleVerifyOtpAndWithdraw}
+                  disabled={otpLoading || otpCode.length !== 6}
+                  className="flex-1 px-4 py-3 bg-[#083A85] text-white rounded-lg hover:bg-[#062d6b] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {otpLoading ? (
+                    <>
+                      <i className="bi bi-arrow-repeat animate-spin mr-2" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-check-circle mr-2" />
+                      Verify & Withdraw
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -1083,6 +1469,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
                 <h3 className="text-xl font-semibold text-gray-900">Add Withdrawal Method</h3>
+                <p className="text-sm text-gray-500 mt-1">You can have one bank account and one mobile money account</p>
               </div>
               <div className="p-6 space-y-4">
                 {/* Method Type Selector */}
@@ -1094,7 +1481,8 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     <button
                       type="button"
                       onClick={() => setNewMethod({ ...newMethod, methodType: 'MOBILE_MONEY', providerId: '', accountNumber: '', provider: null })}
-                      className={`px-4 py-3 rounded-lg border-2 font-medium transition-all ${
+                      disabled={withdrawalMethods.some(m => m.methodType === 'MOBILE_MONEY')}
+                      className={`px-4 py-3 rounded-lg border-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         newMethod.methodType === 'MOBILE_MONEY'
                           ? 'border-[#083A85] bg-blue-50 text-[#083A85]'
                           : 'border-gray-300 hover:border-gray-400'
@@ -1102,11 +1490,18 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     >
                       <i className="bi bi-phone mr-2" />
                       Mobile Money
+                      {withdrawalMethods.some(m => m.methodType === 'MOBILE_MONEY') && (
+                        <div className="text-xs mt-1 text-orange-600">
+                          <i className="bi bi-check-circle-fill mr-1" />
+                          Already added
+                        </div>
+                      )}
                     </button>
                     <button
                       type="button"
                       onClick={() => setNewMethod({ ...newMethod, methodType: 'BANK', providerId: '', accountNumber: '', provider: null })}
-                      className={`px-4 py-3 rounded-lg border-2 font-medium transition-all ${
+                      disabled={withdrawalMethods.some(m => m.methodType === 'BANK')}
+                      className={`px-4 py-3 rounded-lg border-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         newMethod.methodType === 'BANK'
                           ? 'border-[#083A85] bg-blue-50 text-[#083A85]'
                           : 'border-gray-300 hover:border-gray-400'
@@ -1114,6 +1509,12 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     >
                       <i className="bi bi-bank mr-2" />
                       Bank
+                      {withdrawalMethods.some(m => m.methodType === 'BANK') && (
+                        <div className="text-xs mt-1 text-orange-600">
+                          <i className="bi bi-check-circle-fill mr-1" />
+                          Already added
+                        </div>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1229,6 +1630,17 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
           </div>
         )}
       </div>
+
+      {/* Notification */}
+      {notification && (
+        <AlertNotification
+          message={notification.message}
+          type={notification.type}
+          position="top-right"
+          size="sm"
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
   );
 };
