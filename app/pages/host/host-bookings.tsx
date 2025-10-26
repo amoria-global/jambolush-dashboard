@@ -25,10 +25,36 @@ interface Property {
   id: number;
   name: string;
   location?: string;
+  images?: string; // JSON string containing property images
 }
 
 type ViewMode = 'grid' | 'list';
 type SortField = 'date' | 'amount' | 'property' | 'guest';
+
+// Helper function to extract first image from property images JSON
+const getFirstPropertyImage = (imagesJson?: string): string => {
+  if (!imagesJson) {
+    return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+  }
+
+  try {
+    const images = typeof imagesJson === 'string' ? JSON.parse(imagesJson) : imagesJson;
+
+    // Check each category for images in priority order
+    const categories = ['exterior', 'livingRoom', 'bedroom', 'kitchen', 'bathroom', 'diningArea', 'balcony', 'workspace', 'laundryArea', 'gym', 'childrenPlayroom'];
+
+    for (const category of categories) {
+      if (images[category] && Array.isArray(images[category]) && images[category].length > 0) {
+        return images[category][0];
+      }
+    }
+
+    // Fallback to placeholder
+    return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+  } catch (error) {
+    return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+  }
+};
 
 // Custom hook for debounced values
 const useDebounce = (value: string, delay: number) => {
@@ -160,7 +186,8 @@ const BookingsPage: React.FC = () => {
         const propertyList = response.data.data.map((p: any) => ({
           id: p.id,
           name: p.name,
-          location: p.location || ''
+          location: p.location || '',
+          images: p.images
         }));
         setProperties(propertyList);
       } else {
@@ -210,10 +237,18 @@ const BookingsPage: React.FC = () => {
       });
 
       if (response.data && response.data.success && response.data.data) {
-        const fetchedBookings = (response.data.data.bookings || []).map((b: BookingInfo) => ({
-          ...b,
-          propertyImage: `https://picsum.photos/seed/${b.propertyId}/600/400`
-        }));
+        const fetchedBookings = (response.data.data.bookings || []).map((b: BookingInfo) => {
+          // Find the property to get its images
+          const property = properties.find(p => p.id === b.propertyId);
+          const propertyImage = property?.images
+            ? getFirstPropertyImage(property.images)
+            : 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+
+          return {
+            ...b,
+            propertyImage
+          };
+        });
         setBookings(fetchedBookings);
       } else {
         setBookings([]);

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import api from "../api/apiService";
+import CheckInOutButton from './checkin-checkout-button';
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
 type TourGuideType = 'freelancer' | 'employed';
@@ -633,6 +634,11 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                   <i className="bi bi-arrow-right"></i>
                 </button>
               </div>
+            )}
+
+            {/* Check-in/Check-out Button for Host and Tour Guide */}
+            {(user.userType === 'host' || user.userType === 'tourguide') && (
+              <CheckInOutButton userType={user.userType} />
             )}
 
             {/* Wallet Display in TopBar */}

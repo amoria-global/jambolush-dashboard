@@ -30,6 +30,7 @@ interface AgentProperty {
     hostName?: string;
     relationshipType: 'owned' | 'managed';
     commissionRate: number;
+    images?: string; // JSON string containing property images
 }
 
 type ViewMode = 'grid' | 'list';
@@ -155,19 +156,40 @@ const AgentBookingsPage: React.FC = () => {
         );
     };
 
+    // Helper function to extract first image from property images JSON
+    const getFirstPropertyImage = useCallback((imagesJson: string): string => {
+        try {
+            const images = typeof imagesJson === 'string' ? JSON.parse(imagesJson) : imagesJson;
+
+            // Check each category for images in priority order
+            const categories = ['exterior', 'livingRoom', 'bedroom', 'kitchen', 'bathroom', 'diningArea', 'balcony', 'workspace', 'laundryArea', 'gym', 'childrenPlayroom'];
+
+            for (const category of categories) {
+                if (images[category] && Array.isArray(images[category]) && images[category].length > 0) {
+                    return images[category][0];
+                }
+            }
+
+            // Fallback to placeholder
+            return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+        } catch (error) {
+            return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+        }
+    }, []);
+
     // Fetch properties
     const fetchProperties = useCallback(async () => {
         try {
             setPropertiesLoading(true);
             const response = await api.get('/properties/agent/properties');
-            
+
             if (response.data && response.data.success) {
-                
+
                 const { properties } = response.data.data;
                 const allProperties = [
                     ...(properties || []).map((p: any) => ({ ...p, relationshipType: 'managed' as const })),
                 ];
-                
+
                 setProperties(allProperties);
             }
         } catch (err: any) {
@@ -217,14 +239,20 @@ const AgentBookingsPage: React.FC = () => {
             results.forEach((result) => {
                 if (result.status === 'fulfilled' && result.value.success) {
                     const { propertyName, propertyId, bookings: propertyBookings } = result.value;
-                    
+
+                    // Find the property to get its images
+                    const property = properties.find(p => p.id === propertyId);
+                    const propertyImage = property?.images
+                        ? getFirstPropertyImage(property.images)
+                        : 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+
                     const bookingsWithPropertyInfo = propertyBookings.map((booking: any) => ({
                         ...booking,
                         propertyName,
                         propertyId,
-                        propertyImage: `https://picsum.photos/seed/${propertyId}/600/400`
+                        propertyImage
                     }));
-                    
+
                     allBookings.push(...bookingsWithPropertyInfo);
                 } else {
                     failedProperties++;
