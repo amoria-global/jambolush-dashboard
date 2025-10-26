@@ -64,21 +64,34 @@ const UserMyBookings: React.FC = () => {
     }
   };
 
-  // Transform backend booking data to frontend format
-  const transformBookingData = (backendBooking: any): Booking => {
-    const propertyImages = backendBooking.property?.images;
-    let propertyImage = 'https://picsum.photos/600/400';
-    
-    // Extract first available image from any category
-    if (propertyImages && typeof propertyImages === 'object') {
-      const imageCategories = ['exterior', 'livingRoom', 'bedroom', 'kitchen'];
-      for (const category of imageCategories) {
-        if (propertyImages[category] && propertyImages[category].length > 0) {
-          propertyImage = propertyImages[category][0];
-          break;
+  // Helper function to extract first image from property images JSON
+  const getFirstPropertyImage = (imagesJson?: any): string => {
+    if (!imagesJson) {
+      return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+    }
+
+    try {
+      const images = typeof imagesJson === 'string' ? JSON.parse(imagesJson) : imagesJson;
+
+      // Check each category for images in priority order
+      const categories = ['exterior', 'livingRoom', 'bedroom', 'kitchen', 'bathroom', 'diningArea', 'balcony', 'workspace', 'laundryArea', 'gym', 'childrenPlayroom'];
+
+      for (const category of categories) {
+        if (images[category] && Array.isArray(images[category]) && images[category].length > 0) {
+          return images[category][0];
         }
       }
+
+      // Fallback to placeholder
+      return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
+    } catch (error) {
+      return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
     }
+  };
+
+  // Transform backend booking data to frontend format
+  const transformBookingData = (backendBooking: any): Booking => {
+    const propertyImage = getFirstPropertyImage(backendBooking.property?.images);
 
     return {
       id: backendBooking.id,

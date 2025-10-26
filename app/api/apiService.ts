@@ -2137,6 +2137,36 @@ async getWithdrawalHistory(filters?: {
   }): Promise<APIResponse<BackendResponse<any>>> {
     return this.put<BackendResponse<any>>('/auth/me', profileData);
   }
+
+  // ============ CHECK-IN/CHECK-OUT API METHODS ============
+
+  /**
+   * Confirm property booking check-in (Host only)
+   */
+  async confirmPropertyCheckIn(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
+    return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/checkin`);
+  }
+
+  /**
+   * Confirm property booking check-out (Host only)
+   */
+  async confirmPropertyCheckOut(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
+    return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/checkout`);
+  }
+
+  /**
+   * Confirm tour booking check-in (Tour guide only)
+   */
+  async confirmTourCheckIn(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
+    return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId}/checkin`);
+  }
+
+  /**
+   * Confirm tour booking check-out (Tour guide only)
+   */
+  async confirmTourCheckOut(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
+    return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId}/checkout`);
+  }
 }
 
 // Export singleton instance for frontend use

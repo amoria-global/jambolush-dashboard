@@ -78,6 +78,20 @@ const GuestToursPage: React.FC = () => {
     return fallback;
   };
 
+  // Helper function to get first tour image
+  const getFirstTourImage = (tourData: any): string => {
+    // Priority: mainImage > images.main[0] > images array[0] > fallback
+    if (tourData.mainImage) return tourData.mainImage;
+    if (tourData.images?.main && Array.isArray(tourData.images.main) && tourData.images.main.length > 0) {
+      return tourData.images.main[0];
+    }
+    if (tourData.image) return tourData.image;
+    if (Array.isArray(tourData.images) && tourData.images.length > 0) {
+      return tourData.images[0];
+    }
+    return 'https://images.unsplash.com/photo-1500835556837-99ac94a94552?w=600&h=400&fit=crop';
+  };
+
   const transformTourData = (apiTour: any): Tour => ({
     id: apiTour.id,
     title: apiTour.title || apiTour.name,
@@ -86,7 +100,7 @@ const GuestToursPage: React.FC = () => {
     price: apiTour.price || apiTour.pricePerPerson || 0,
     bookings: apiTour.bookings || apiTour.totalBookings || 0,
     date: apiTour.date || apiTour.schedule?.startDate || new Date().toISOString(),
-    image: apiTour.image || apiTour.images?.[0] || `https://picsum.photos/seed/tour${apiTour.id}/600/400`,
+    image: getFirstTourImage(apiTour),
     description: apiTour.description || 'Tour description',
     duration: apiTour.duration || '2 hours',
     location: apiTour.location,
