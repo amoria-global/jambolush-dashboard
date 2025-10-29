@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService';
+import { createViewDetailsUrl } from '@/app/utils/encoder';
 
 // Types based on your backend service
 interface BookingInfo {
@@ -98,6 +100,8 @@ const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
 };
 
 const BookingsPage: React.FC = () => {
+  const router = useRouter();
+
   // Date formatting helper
   const format = useCallback((date: Date | string, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -313,9 +317,9 @@ const BookingsPage: React.FC = () => {
   }, [sortField, sortOrder]);
 
   const handleViewDetails = useCallback((booking: BookingInfo) => {
-    setSelectedBooking(booking);
-    setShowModal(true);
-  }, []);
+    const url = createViewDetailsUrl(booking.id, 'booking');
+    router.push(url);
+  }, [router]);
 
   const handleEditBooking = useCallback((booking: BookingInfo) => {
     if (!checkKYCStatus()) return;

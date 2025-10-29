@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
-import api from '../../api/apiService'; 
+import { useRouter } from 'next/navigation';
+import api from '../../api/apiService';
 import AlertNotification from '@/app/components/notify';
-import { encodeId } from '@/app/utils/encoder';
+import { encodeId, createViewDetailsUrl } from '@/app/utils/encoder';
 
 // Types
 interface Booking {
@@ -41,6 +42,8 @@ interface NotificationState {
 }
 
 const UserMyBookings: React.FC = () => {
+  const router = useRouter();
+
   // Date formatting helper function
   const format = (date: Date, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -267,8 +270,8 @@ const UserMyBookings: React.FC = () => {
   };
 
   const handleViewDetails = (booking: Booking) => {
-    setSelectedBooking(booking);
-    setShowModal(true);
+    const url = createViewDetailsUrl(booking.id, 'booking');
+    router.push(url);
   };
 
   const handleCancelClick = (bookingId: string) => {
