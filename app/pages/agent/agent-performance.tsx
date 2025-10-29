@@ -1,194 +1,131 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/app/api/apiService';
+import { set } from 'date-fns';
 
-// ============================================================================
-// UNIFIED INTERFACES - Combining Dashboard & Performance Data
-// ============================================================================
-
-interface UnifiedAgentPerformance {
-  // Profile Information
-  profile: {
-    id: number;
-    name: string;
-    location: string;
-    tier: string;
-    status: string;
-    avatar: string;
+// --- ENHANCED INTERFACES ---
+interface EnhancedAgentDashboard {
+  totalClients: number;
+  activeClients: number;
+  totalCommissions: number;
+  pendingCommissions: number;
+  avgCommissionPerBooking: number;
+  recentBookings: AgentBookingInfo[];
+  monthlyCommissions: MonthlyCommissionData[];
+  additionalKPIs: AdditionalAgentKPIs;
+  performanceTrends: {
+    conversionTrend: Array<{ month: string; rate: number }>;
+    retentionTrend: Array<{ month: string; rate: number }>;
+    revenueTrend: Array<{ month: string; revenue: number }>;
+    satisfactionTrend: Array<{ month: string; score: number }>;
   };
-
-  // Core Performance Metrics
-  coreMetrics: {
-    finalScore: {
-      current: number;
-      change: number;
-    };
-    agentRank: {
-      position: number;
-      totalAgents: number;
-    };
-  };
-
-  // Financial KPIs
-  financialKPIs: {
-    monthlyIncome: {
-      value: number;
-      change: number;
-    };
-    totalEarnings: number;
-    totalEarningsOverall: number;
-    availableBalance: number;
-    pendingBalance: number;
-    heldBalance: number;
-    totalCommissionsPending: number;
-    totalCommissionsPaid: number;
-    totalCommissionsFailed: number;
-    escrowHeld: number;
-    avgCommissionPerBooking: number;
-  };
-
-  // Operational KPIs
-  operationalKPIs: {
-    totalBookings: number;
-    totalManagedProperties: number;
-    listingsLive: number;
-    leadsGenerated: number;
-    totalClients: number;
-    activeClients: number;
-    engagementRate: {
-      value: number;
-      change: number;
-    };
-    ownerRating: {
-      value: number;
-      change: number;
-    };
-    dropRate: {
-      value: number;
-      change: number;
+  competitiveMetrics: {
+    marketRanking: number;
+    totalAgentsInMarket: number;
+    marketSharePercentage: number;
+    competitorComparison: {
+      averageCommission: number;
+      averageProperties: number;
+      averageClientRetention: number;
     };
   };
-
-  // Performance Categories
-  categoryBreakdown: {
-    quality: number;
-    productivity: number;
-    reliability: number;
-    financialImpact: number;
-    compliance: number;
+  clientSegmentation: {
+    newClients: number;
+    repeatClients: number;
+    vipClients: number;
+    inactiveClients: number;
   };
-
-  // Goal Tracking
-  goals: {
-    engagementRate: { target: number; current: number; progress: number };
-    listingSuccess: { target: number; current: number; progress: number };
-    monthlyIncome: { target: number; current: number; progress: number };
-    dropRate: { target: number; current: number; progress: number };
-  };
-
-  // Monthly Performance
-  monthlyPerformance: Array<{
-    month: string;
-    commission: number;
-    bookings: number;
-    escrowAmount: number;
-    pendingAmount: number;
-    paidAmount: number;
-    failedAmount: number;
-  }>;
-
-  // Recent Activity
-  recentBookings: Array<{
-    id: string;
-    clientName: string;
-    commission: number;
-    commissionStatus: string;
-    bookingDate: string;
-    transactionData: any;
-  }>;
-
-  recentManagedProperties: Array<{
-    id: number;
-    name: string;
-    location: string;
-    type: string;
-    category: string;
-    pricePerNight: number;
-    status: string;
-    averageRating: number;
-    totalBookings: number;
-    totalReviews: number;
-    images?: string; // JSON string containing property images
-  }>;
-
-  topAgents: Array<{
-    name: string;
-    finalScore: number;
-    tier: string;
-    income: number;
-  }>;
 }
 
-// Helper function to extract first image from property images JSON
-const getFirstPropertyImage = (imagesJson?: string): string => {
-  if (!imagesJson) {
-    return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
-  }
+interface AdditionalAgentKPIs {
+  conversionRate: number;
+  averageResponseTime: number;
+  customerRetentionRate: number;
+  revenuePerClient: number;
+  bookingSuccessRate: number;
+  portfolioGrowthRate: number;
+  leadGenerationRate: number;
+  commissionGrowthRate: number;
+  averageDaysOnMarket: number;
+  propertyViewsToBookingRatio: number;
+  clientSatisfactionScore: number;
+  marketPenetration: number;
+  averageCommissionPerProperty: number;
+  propertyUtilizationRate: number;
+  crossSellingSuccess: number;
+}
 
-  try {
-    const images = typeof imagesJson === 'string' ? JSON.parse(imagesJson) : imagesJson;
+interface AgentBookingInfo {
+  id: string;
+  clientName: string;
+  bookingType: string;
+  commission: number;
+  commissionStatus: string;
+  bookingDate: string;
+  createdAt: string;
+}
 
-    // Check each category for images in priority order
-    const categories = ['exterior', 'livingRoom', 'bedroom', 'kitchen', 'bathroom', 'diningArea', 'balcony', 'workspace', 'laundryArea', 'gym', 'childrenPlayroom'];
+interface MonthlyCommissionData {
+  month: string;
+  commission: number;
+  bookings: number;
+}
 
-    for (const category of categories) {
-      if (images[category] && Array.isArray(images[category]) && images[category].length > 0) {
-        return images[category][0];
-      }
-    }
+interface AgentEarnings {
+  totalEarnings: number;
+  totalBookings: number;
+  periodEarnings: number;
+  periodBookings: number;
+  commissionBreakdown: CommissionBreakdown[];
+  timeRange: string;
+}
 
-    // Fallback to placeholder
-    return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
-  } catch (error) {
-    return 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
-  }
-};
+interface CommissionBreakdown {
+  bookingType: string;
+  totalCommission: number;
+  bookingCount: number;
+}
 
+interface PropertyPerformance {
+  propertyId: number;
+  propertyName: string;
+  bookings: number;
+  revenue: number;
+  occupancyRate: number;
+  agentCommission: number;
+  averageRating: number;
+}
+
+type ViewMode = 'overview' | 'kpis' | 'earnings' | 'performance';
 type TabMode = 'overview' | 'financial' | 'operational' | 'goals' | 'properties';
-
-// ============================================================================
-// REUSABLE UI COMPONENTS
-// ============================================================================
 
 const MetricCard = ({
   title,
   value,
   subValue,
-  trend,
   icon,
   color = 'blue',
+  trend,
   format = 'number'
 }: {
   title: string;
-  value: number | string;
+  value: number;
   subValue?: string;
-  trend?: number;
   icon: string;
-  color?: 'blue' | 'green' | 'red' | 'purple' | 'orange' | 'indigo' | 'yellow';
+  color?: string;
+  trend?: number;
   format?: 'number' | 'currency' | 'percentage';
 }) => {
-  const colorMap = {
-    blue: 'bg-blue-50 text-[#083A85]',
-    green: 'bg-green-50 text-green-600',
-    red: 'bg-red-50 text-red-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
+  const colorMap: any = {
+    blue: 'bg-blue-100 text-blue-600',
+    green: 'bg-green-100 text-green-600',
+    purple: 'bg-purple-100 text-purple-600',
+    orange: 'bg-orange-100 text-orange-600',
+    red: 'bg-red-100 text-red-600',
+    yellow: 'bg-yellow-100 text-yellow-600',
+    indigo: 'bg-indigo-100 text-indigo-600',
   };
 
-  const formatValue = (val: number | string): string => {
-    if (typeof val === 'string') return val;
-
+  const formatValue = (val: number): string => {
     switch (format) {
       case 'currency':
         return `$${val.toLocaleString()}`;
@@ -207,7 +144,7 @@ const MetricCard = ({
           <p className="text-2xl font-bold text-gray-900">{formatValue(value)}</p>
           {subValue && <p className="text-xs text-gray-500 mt-1">{subValue}</p>}
         </div>
-        <div className={`p-3 rounded-lg ${colorMap[color]}`}>
+        <div className={`p-3 rounded-lg ${colorMap[color] || colorMap.blue}`}>
           <i className={`bi ${icon} text-xl`}></i>
         </div>
       </div>
@@ -221,6 +158,60 @@ const MetricCard = ({
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const RadialProgress = ({ value, max = 100, size = 120, label }: { value: number; max?: number; size?: number; label?: string }) => {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const timeout = setTimeout(() => setProgress(value), 100);
+    return () => clearTimeout(timeout);
+  }, [value]);
+
+  const percentage = Math.min(100, (progress / max) * 100);
+  const strokeWidth = 10;
+  const radius = (size - strokeWidth) / 2;
+  const viewBox = `0 0 ${size} ${size}`;
+  const dashArray = radius * Math.PI * 2;
+  const dashOffset = dashArray - (dashArray * percentage) / 100;
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} viewBox={viewBox}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#e5e7eb"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#083A85"
+          strokeWidth={strokeWidth}
+          strokeDasharray={dashArray}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+        />
+        <text
+          x="50%"
+          y="50%"
+          dominantBaseline="middle"
+          textAnchor="middle"
+          className="text-2xl font-bold"
+          fill="#1f2937"
+        >
+          {percentage.toFixed(0)}%
+        </text>
+      </svg>
+      {label && <p className="mt-2 text-sm text-gray-600">{label}</p>}
     </div>
   );
 };
@@ -297,7 +288,7 @@ const CategoryRadar = ({ categories }: { categories: any }) => {
   };
 
   const pathData = categoryData
-    .map((cat, i) => {
+    .map((cat: any, i) => {
       const point = getPoint(cat.value, i);
       return `${i === 0 ? 'M' : 'L'} ${point.x} ${point.y}`;
     })
@@ -346,7 +337,7 @@ const CategoryRadar = ({ categories }: { categories: any }) => {
           />
 
           {/* Data points */}
-          {categoryData.map((cat, i) => {
+          {categoryData.map((cat: any, i) => {
             const point = getPoint(cat.value, i);
             return (
               <circle
@@ -362,7 +353,7 @@ const CategoryRadar = ({ categories }: { categories: any }) => {
           })}
 
           {/* Labels */}
-          {categoryData.map((cat, i) => {
+          {categoryData.map((cat: any, i) => {
             const labelPoint = getPoint(maxScore + 20, i);
             return (
               <text
@@ -381,7 +372,7 @@ const CategoryRadar = ({ categories }: { categories: any }) => {
 
         {/* Legend */}
         <div className="grid grid-cols-2 gap-3 w-full">
-          {categoryData.map((cat, i) => (
+          {categoryData.map((cat: any, i) => (
             <div key={i} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div
@@ -506,114 +497,91 @@ const ScoreCircle = ({ score, label, maxScore = 100 }: { score: number; label: s
 };
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+const getFirstPropertyImage = (images: string | string[] | undefined): string => {
+  if (!images) return '/placeholder-property.jpg';
+  if (typeof images === 'string') return images;
+  if (Array.isArray(images) && images.length > 0) return images[0];
+  return '/placeholder-property.jpg';
+};
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
 const UnifiedAgentPerformance: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [activeTab, setActiveTab] = useState<TabMode>('overview');
-  const [performanceData, setPerformanceData] = useState<UnifiedAgentPerformance | null>(null);
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+  
+  // Data states
+  const [dashboard, setDashboard] = useState<EnhancedAgentDashboard | null>(null);
+  const [earnings, setEarnings] = useState<AgentEarnings | null>(null);
+  const [propertyPerformance, setPropertyPerformance] = useState<PropertyPerformance[]>([]);
 
-  // Fetch and combine both API endpoints
-  const fetchUnifiedData = async () => {
+  // Fetch enhanced agent dashboard data
+  const fetchEnhancedDashboard = async () => {
+    try {
+      const response = await api.get('/properties/agent/dashboard/enhanced');
+      if (response.data && response.data.success) {
+        setDashboard(response.data.data);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch dashboard data');
+    }
+  };
+
+  // Fetch agent earnings
+  const fetchEarnings = async () => {
+    try {
+      const response = await api.get('/properties/agent/earnings', {
+        params: { timeRange }
+      });
+      if (response.data && response.data.success) {
+        setEarnings(response.data.data);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch earnings data');
+    }
+  };
+
+  // Fetch property performance
+  const fetchPropertyPerformance = async () => {
+    try {
+      const response = await api.get('/properties/agent/properties/performance', {
+        params: { timeRange }
+      });
+      if (response.data && response.data.success) {
+        setPropertyPerformance(response.data.data.properties || []);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch property performance data');
+    }
+  };
+
+  // Load all data
+  const loadData = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const [performanceRes, dashboardRes] = await Promise.all([
-        api.get('/properties/agent/performance'),
-        api.get('/properties/agent/dashboard'),
+      await Promise.all([
+        fetchEnhancedDashboard(),
+        fetchEarnings(),
+        fetchPropertyPerformance()
       ]);
-
-      if (!performanceRes.data?.success || !dashboardRes.data?.success) {
-        throw new Error('Failed to fetch performance data');
-      }
-
-      const perfData = performanceRes.data.data;
-      const dashData = dashboardRes.data.data;
-
-      // Combine both responses into unified structure
-      const unified: UnifiedAgentPerformance = {
-        profile: perfData.profile,
-        coreMetrics: {
-          finalScore: perfData.finalScore,
-          agentRank: perfData.agentRank,
-        },
-        financialKPIs: {
-          monthlyIncome: perfData.monthlyIncome,
-          totalEarnings: dashData.summaryStats.totalEarnings,
-          totalEarningsOverall: dashData.summaryStats.totalEarningsOverall,
-          availableBalance: dashData.walletOverview.availableBalance,
-          pendingBalance: dashData.walletOverview.pendingBalance,
-          heldBalance: dashData.walletOverview.heldBalance,
-          totalCommissionsPending: dashData.commissions.pending,
-          totalCommissionsPaid: dashData.commissions.paid,
-          totalCommissionsFailed: dashData.commissions.failed,
-          escrowHeld: dashData.commissions.escrowHeld,
-          avgCommissionPerBooking: dashData.commissions.avgPerBooking,
-        },
-        operationalKPIs: {
-          totalBookings: dashData.summaryStats.totalBookings,
-          totalManagedProperties: dashData.summaryStats.totalManagedProperties,
-          listingsLive: perfData.statsThisMonth.listingsLive,
-          leadsGenerated: perfData.statsThisMonth.leadsGenerated,
-          totalClients: dashData.summaryStats.totalClients,
-          activeClients: dashData.summaryStats.activeClients,
-          engagementRate: perfData.engagementRate,
-          ownerRating: perfData.ownerRating,
-          dropRate: perfData.dropRate,
-        },
-        categoryBreakdown: perfData.categoryBreakdown,
-        goals: {
-          engagementRate: {
-            target: perfData.goalTracking.engagementRateGoal.target,
-            current: perfData.goalTracking.engagementRateGoal.current,
-            progress: (perfData.goalTracking.engagementRateGoal.current / perfData.goalTracking.engagementRateGoal.target) * 100,
-          },
-          listingSuccess: {
-            target: perfData.goalTracking.listingSuccessGoal.target,
-            current: perfData.goalTracking.listingSuccessGoal.current,
-            progress: (perfData.goalTracking.listingSuccessGoal.current / perfData.goalTracking.listingSuccessGoal.target) * 100,
-          },
-          monthlyIncome: {
-            target: perfData.goalTracking.monthlyIncomeGoal.target,
-            current: perfData.goalTracking.monthlyIncomeGoal.current,
-            progress: (perfData.goalTracking.monthlyIncomeGoal.current / perfData.goalTracking.monthlyIncomeGoal.target) * 100,
-          },
-          dropRate: {
-            target: perfData.goalTracking.dropRateGoal.target,
-            current: perfData.goalTracking.dropRateGoal.current,
-            progress: perfData.goalTracking.dropRateGoal.current <= perfData.goalTracking.dropRateGoal.target
-              ? 100
-              : (perfData.goalTracking.dropRateGoal.target / perfData.goalTracking.dropRateGoal.current) * 100,
-          },
-        },
-        monthlyPerformance: dashData.monthlyCommissions.map((mc: any) => ({
-          month: mc.month,
-          commission: mc.commission,
-          bookings: mc.bookings,
-          escrowAmount: mc.escrowAmount,
-          pendingAmount: mc.pendingAmount,
-          paidAmount: mc.paidAmount,
-          failedAmount: mc.failedAmount,
-        })),
-        recentBookings: dashData.recentBookings,
-        recentManagedProperties: dashData.recentManagedProperties,
-        topAgents: perfData.topAgents,
-      };
-
-      setPerformanceData(unified);
-    } catch (err: any) {
-      console.error('Error fetching unified data:', err);
-      setError(err.response?.data?.message || 'Failed to load performance data');
+    } catch (err) {
+      setError('An unexpected error occurred while loading data.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchUnifiedData();
+    loadData();
   }, []);
 
   if (loading) {
@@ -627,7 +595,7 @@ const UnifiedAgentPerformance: React.FC = () => {
     );
   }
 
-  if (error || !performanceData) {
+  if (error || !dashboard) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20 px-4">
         <div className="max-w-2xl mx-auto">
@@ -636,7 +604,7 @@ const UnifiedAgentPerformance: React.FC = () => {
             <h3 className="text-xl font-bold text-red-800 mb-2">Error Loading Data</h3>
             <p className="text-red-600 mb-4">{error || 'Unknown error occurred'}</p>
             <button
-              onClick={fetchUnifiedData}
+              onClick={loadData}
               className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Retry
@@ -647,7 +615,73 @@ const UnifiedAgentPerformance: React.FC = () => {
     );
   }
 
-  const { profile, coreMetrics, financialKPIs, operationalKPIs, categoryBreakdown, goals, monthlyPerformance } = performanceData;
+  // Ensure dashboard has required properties or use defaults
+  const dashboardData: any = {
+    ...(dashboard || {}),
+    recentBookings: (dashboard as any)?.recentBookings || dashboard?.recentBookings || [],
+    topAgents: (dashboard as any)?.topAgents || [],
+    recentManagedProperties: (dashboard as any)?.recentManagedProperties || []
+  };
+
+  // Extract available data or use placeholders
+  const profile = {
+    name: 'Agent',
+    agentId: '',
+    rating: 0,
+    avatar: '/default-avatar.png',
+    location: '',
+    tier: 'Standard',
+    status: 'active',
+    joinDate: new Date().toISOString()
+  };
+  const coreMetrics = {
+    score: 0,
+    rank: 0,
+    finalScore: { current: 0, change: 0 },
+    tier: { current: 'Standard', change: 0 },
+    agentRank: { current: 0, total: 0, change: 0, position: 0, totalAgents: 0 }
+  };
+  const financialKPIs = {
+    totalEarningsOverall: dashboard.totalCommissions || 0,
+    availableBalance: 0,
+    pendingBalance: dashboard.pendingCommissions || 0,
+    heldBalance: 0,
+    monthlyIncome: { value: 0, change: 0 },
+    totalCommissionsPaid: dashboard.totalCommissions || 0,
+    totalCommissionsPending: dashboard.pendingCommissions || 0,
+    totalCommissionsFailed: 0,
+    escrowHeld: 0,
+    totalRevenueGenerated: 0,
+    totalRevenue: 0,
+    avgBookingValue: dashboard.avgCommissionPerBooking || 0,
+    avgCommissionPerBooking: dashboard.avgCommissionPerBooking || 0,
+    commissionRate: 0
+  };
+  const operationalKPIs = {
+    totalBookings: dashboardData.recentBookings?.length || 0,
+    totalManagedProperties: 0,
+    listingsLive: 0,
+    totalClients: dashboard.totalClients || 0,
+    activeClients: dashboard.activeClients || 0,
+    leadsGenerated: 0,
+    engagementRate: { value: 0, change: 0 },
+    ownerRating: { value: 0, change: 0 },
+    dropRate: { value: 0, change: 0 }
+  };
+  const categoryBreakdown = {
+    quality: 0,
+    productivity: 0,
+    reliability: 0,
+    financialImpact: 0,
+    compliance: 0
+  };
+  const goals = {
+    engagementRate: { current: 0, target: 100, progress: 0 },
+    listingSuccess: { current: 0, target: 100, progress: 0 },
+    monthlyIncome: { current: 0, target: 10000, progress: 0 },
+    dropRate: { current: 0, target: 5, progress: 0 }
+  };
+  const monthlyPerformance: any[] = [];
 
   return (
     <div className="min-h-screen bg-gray-50 pt-4 px-4">
@@ -1059,7 +1093,7 @@ const UnifiedAgentPerformance: React.FC = () => {
                     { name: 'Reliability', value: categoryBreakdown.reliability, icon: 'bi-shield-check', color: 'purple' },
                     { name: 'Financial Impact', value: categoryBreakdown.financialImpact, icon: 'bi-graph-up', color: 'orange' },
                     { name: 'Compliance', value: categoryBreakdown.compliance, icon: 'bi-clipboard-check', color: 'red' },
-                  ].map((cat) => (
+                  ].map((cat: any) => (
                     <div key={cat.name}>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -1083,9 +1117,9 @@ const UnifiedAgentPerformance: React.FC = () => {
             {/* Recent Bookings */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Bookings</h3>
-              {performanceData.recentBookings.length > 0 ? (
+              {dashboardData.recentBookings.length > 0 ? (
                 <div className="space-y-3">
-                  {performanceData.recentBookings.slice(0, 5).map((booking) => (
+                  {dashboardData.recentBookings.slice(0, 5).map((booking: any) => (
                     <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{booking.clientName}</p>
@@ -1216,7 +1250,7 @@ const UnifiedAgentPerformance: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Top Performers</h3>
               <div className="space-y-3">
-                {performanceData.topAgents.map((agent, index) => (
+                {dashboardData.topAgents.map((agent: any, index: number) => (
                   <div
                     key={index}
                     className={`flex items-center justify-between p-4 rounded-lg ${
@@ -1282,9 +1316,9 @@ const UnifiedAgentPerformance: React.FC = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Managed Properties</h3>
-              {performanceData.recentManagedProperties.length > 0 ? (
+              {dashboardData.recentManagedProperties.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {performanceData.recentManagedProperties.map((property) => (
+                  {dashboardData.recentManagedProperties.map((property: any) => (
                     <div
                       key={property.id}
                       className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200"

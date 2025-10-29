@@ -654,6 +654,39 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
       : `${amount.toLocaleString()} ${currency}`;
   };
 
+  /**
+   * Calculate withdrawal fee based on USD amount
+   * Conversion rate: 1 USD = 1400 RWF
+   * Fee Structure (in RWF):
+   * - Up to 1,000,000 RWF: 600 RWF
+   * - 1,000,001 to 5,000,000 RWF: 1,200 RWF
+   * - Above 5,000,000 RWF: 3,000 RWF
+   */
+  const calculateWithdrawalFee = (amountUSD: number) => {
+    const USD_TO_RWF = 1400;
+    const amountRWF = amountUSD * USD_TO_RWF;
+
+    let feeRWF = 0;
+    if (amountRWF <= 1000000) {
+      feeRWF = 600;
+    } else if (amountRWF <= 5000000) {
+      feeRWF = 1200;
+    } else {
+      feeRWF = 3000;
+    }
+
+    // Convert fee back to USD
+    const feeUSD = feeRWF / USD_TO_RWF;
+
+    return {
+      feeUSD,
+      feeRWF,
+      amountRWF,
+      totalUSD: amountUSD + feeUSD,
+      totalRWF: amountRWF + feeRWF
+    };
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -1391,6 +1424,48 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Fee Information */}
+                {(() => {
+                  const amount = parseFloat(withdrawAmount) || 0;
+                  if (amount > 0) {
+                    const feeInfo = calculateWithdrawalFee(amount);
+                    return (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <i className="bi bi-info-circle text-amber-600 text-xl mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-amber-900 mb-2">
+                              Fee Structure
+                            </p>
+                            <div className="space-y-1 text-xs text-amber-800">
+                              <div className="flex justify-between">
+                                <span>Withdrawal amount:</span>
+                                <span className="font-medium">{formatCurrency(amount)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Amount in RWF:</span>
+                                <span className="font-medium">{feeInfo.amountRWF.toLocaleString()} RWF</span>
+                              </div>
+                              <div className="flex justify-between border-t border-amber-300 pt-1 mt-1">
+                                <span>Processing fee:</span>
+                                <span className="font-medium">{formatCurrency(feeInfo.feeUSD)} ({feeInfo.feeRWF.toLocaleString()} RWF)</span>
+                              </div>
+                              <div className="flex justify-between border-t border-amber-300 pt-1 mt-1 font-semibold">
+                                <span>Total to be deducted:</span>
+                                <span className="text-amber-900">{formatCurrency(feeInfo.totalUSD)}</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-amber-700 mt-2 italic">
+                              * Conversion rate: 1 USD = 1,400 RWF
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import CheckInOutModal from './checkin-checkout-modal';
-import AlertNotification from '@/app/components/notify';
 
 interface CheckInOutButtonProps {
   userType: 'host' | 'tourguide';
@@ -11,14 +10,6 @@ interface CheckInOutButtonProps {
 const CheckInOutButton: React.FC<CheckInOutButtonProps> = ({ userType }) => {
   const [showModal, setShowModal] = useState(false);
   const [action, setAction] = useState<'checkin' | 'checkout'>('checkin');
-  const [notification, setNotification] = useState<{
-    message: string;
-    type: 'success' | 'error' | 'info' | 'warning';
-  } | null>(null);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
-    setNotification({ message, type });
-  };
 
   const handleOpenModal = (actionType: 'checkin' | 'checkout') => {
     setAction(actionType);
@@ -27,14 +18,6 @@ const CheckInOutButton: React.FC<CheckInOutButtonProps> = ({ userType }) => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-  };
-
-  const handleSuccess = (message: string) => {
-    showNotification(message, 'success');
-  };
-
-  const handleError = (message: string) => {
-    showNotification(message, 'error');
   };
 
   return (
@@ -75,26 +58,13 @@ const CheckInOutButton: React.FC<CheckInOutButtonProps> = ({ userType }) => {
         </div>
       </div>
 
-      {/* Independent Modal using Portal */}
+      {/* Independent Modal using Portal - Modal now handles its own notifications */}
       <CheckInOutModal
         isOpen={showModal}
         onClose={handleCloseModal}
         action={action}
         userType={userType}
-        onSuccess={handleSuccess}
-        onError={handleError}
       />
-
-      {/* Notification */}
-      {notification && (
-        <AlertNotification
-          message={notification.message}
-          type={notification.type}
-          position="top-right"
-          size="sm"
-          onClose={() => setNotification(null)}
-        />
-      )}
     </>
   );
 };

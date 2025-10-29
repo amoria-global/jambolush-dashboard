@@ -2141,7 +2141,145 @@ async getWithdrawalHistory(filters?: {
   // ============ CHECK-IN/CHECK-OUT API METHODS ============
 
   /**
-   * Confirm property booking check-in (Host only)
+   * STEP 1: Verify booking ID and retrieve booking details (Two-step check-in process)
+   *
+   * This endpoint retrieves comprehensive booking information including:
+   * - Guest details (name, phone, email)
+   * - Booking amount and payment details
+   * - Stay rules and schedules (check-in/check-out times)
+   * - Property/tour details
+   * - Other relevant guest information
+   *
+   * The booking code is NOT required at this step - only the booking ID.
+   */
+  async getBookingDetailsForCheckin(bookingId: string): Promise<APIResponse<BackendResponse<{
+    bookingId: string;
+    guest: {
+      name: string;
+      phone: string;
+      email: string;
+      guestCount: number;
+    };
+    booking: {
+      amount: number;
+      currency: string;
+      paymentStatus: string;
+      bookingDate: string;
+    };
+    schedule: {
+      checkInDate: string;
+      checkOutDate: string;
+      checkInTime?: string;
+      checkOutTime?: string;
+      duration?: string;
+    };
+    property: {
+      type: string;
+      name: string;
+      location: string;
+    };
+    rules?: string[];
+    status: string;
+    isAlreadyCheckedIn?: boolean;
+    specialRequests?: string;
+    notes?: string;
+  }>>> {
+    return this.post<BackendResponse<any>>('/checkin/verify-booking', { bookingId });
+  }
+
+  /**
+   * STEP 2: Confirm check-in with booking code (Two-step check-in process)
+   *
+   * This endpoint completes the check-in process by verifying the booking code.
+   * After successful verification:
+   * - Booking status is updated to CHECKED_IN
+   * - Funds are released from pendingBalance to available balance
+   * - Host/Agent/Guide can now withdraw their earnings
+   * - Optional instructions are sent to the guest via email/SMS
+   */
+  async confirmCheckinWithCode(
+    bookingId: string,
+    bookingCode: string,
+    instructions?: string
+  ): Promise<APIResponse<BackendResponse<{
+    bookingId: string;
+    checkInValidated: boolean;
+    checkInValidatedAt: string;
+    fundsReleased: boolean;
+  }>>> {
+    return this.post<BackendResponse<any>>('/checkin/confirm', {
+      bookingId,
+      bookingCode: bookingCode.toUpperCase(),
+      instructions: instructions?.trim() || undefined
+    });
+  }
+
+  /**
+   * Check if user can withdraw from a specific booking
+   */
+  async canWithdrawFromBooking(bookingId: string): Promise<APIResponse<BackendResponse<{
+    canWithdraw: boolean;
+    reason?: string;
+  }>>> {
+    return this.get<BackendResponse<any>>(`/checkin/can-withdraw/${bookingId}`);
+  }
+
+  /**
+   * Get check-in status for a booking
+   */
+  async getCheckinStatus(bookingId: string): Promise<APIResponse<BackendResponse<{
+    bookingId: string;
+    isCheckedIn: boolean;
+    checkInValidatedAt?: string;
+    paymentStatus: string;
+    status: string;
+  }>>> {
+    return this.get<BackendResponse<any>>(`/checkin/status/${bookingId}`);
+  }
+
+  /**
+   * Mark payment as collected for pay-at-property bookings
+   *
+   * This endpoint verifies and marks payment as collected using transaction reference.
+   * The transaction reference (or externalId) is provided to the guest when payment is confirmed.
+   * Must be called before check-in can be completed for pay-at-property bookings.
+   */
+  async collectPaymentAtProperty(transactionReference: string): Promise<APIResponse<BackendResponse<{
+    bookingId: string;
+    paymentCollected: boolean;
+    paymentCollectedAt: string;
+    paymentAmount: number;
+    transaction: {
+      reference: string;
+      externalId: string;
+      amount: number;
+      currency: string;
+      completedAt: string;
+      deletedOldTransactions?: number;
+    };
+  }>>> {
+    return this.post<BackendResponse<any>>('/checkin/collect-payment', {
+      transactionReference: transactionReference.trim()
+    });
+  }
+
+  /**
+   * Resend booking code to guest
+   *
+   * This endpoint resends the 6-character booking code to the guest
+   * via email and/or SMS if they forgot or lost it.
+   */
+  async resendBookingCode(bookingId: string): Promise<APIResponse<BackendResponse<{
+    sent: boolean;
+    destination: string;
+  }>>> {
+    return this.post<BackendResponse<any>>('/checkin/resend-code', {
+      bookingId
+    });
+  }
+
+  /**
+   * Confirm property booking check-in (Host only) - Legacy single-step method
    */
   async confirmPropertyCheckIn(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
     return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/checkin`);
@@ -2155,7 +2293,7 @@ async getWithdrawalHistory(filters?: {
   }
 
   /**
-   * Confirm tour booking check-in (Tour guide only)
+   * Confirm tour booking check-in (Tour guide only) - Legacy single-step method
    */
   async confirmTourCheckIn(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
     return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId}/checkin`);

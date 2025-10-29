@@ -1,169 +1,186 @@
-//app/utils/browserNotifications.ts
+/**
+ * Browser Notifications Utility
+ * Handles browser push notifications with permission management
+ */
 
-export class BrowserNotificationManager {
-  private static instance: BrowserNotificationManager;
-  private permission: NotificationPermission = 'default';
-  private enabled: boolean = true;
-
-  private constructor() {
-    this.enabled = typeof window !== 'undefined'
-      ? localStorage.getItem('browserNotifications') !== 'false'
-      : true;
-    this.checkPermission();
+/**
+ * Request permission for browser notifications
+ * @returns Promise with permission state
+ */
+export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
+  if (!('Notification' in window)) {
+    console.warn('This browser does not support notifications');
+    return 'denied';
   }
 
-  static getInstance(): BrowserNotificationManager {
-    if (!BrowserNotificationManager.instance) {
-      BrowserNotificationManager.instance = new BrowserNotificationManager();
-    }
-    return BrowserNotificationManager.instance;
+  if (Notification.permission === 'granted') {
+    return 'granted';
   }
 
-  private checkPermission() {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      this.permission = Notification.permission;
-    }
-  }
-
-  async requestPermission(): Promise<boolean> {
-    if (!('Notification' in window)) {
-      console.warn('This browser does not support notifications');
-      return false;
-    }
-
-    if (this.permission === 'granted') {
-      return true;
-    }
-
-    if (this.permission === 'denied') {
-      return false;
-    }
-
+  if (Notification.permission !== 'denied') {
     const permission = await Notification.requestPermission();
-    this.permission = permission;
-    return permission === 'granted';
+    return permission;
   }
 
-  setEnabled(enabled: boolean) {
-    this.enabled = enabled;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('browserNotifications', enabled.toString());
-    }
+  return Notification.permission;
+};
+
+/**
+ * Check if notifications are supported and permitted
+ * @returns boolean indicating if notifications can be shown
+ */
+export const canShowNotifications = (): boolean => {
+  return 'Notification' in window && Notification.permission === 'granted';
+};
+
+/**
+ * Show a browser notification
+ * @param title - Notification title
+ * @param options - Notification options
+ */
+export const showNotification = (
+  title: string,
+  options?: NotificationOptions
+): Notification | null => {
+  if (!canShowNotifications()) {
+    console.warn('Cannot show notification: Permission not granted');
+    return null;
   }
 
-  isEnabled(): boolean {
-    return this.enabled;
-  }
-
-  canShowNotifications(): boolean {
-    return this.enabled && this.permission === 'granted' && typeof window !== 'undefined' && 'Notification' in window;
-  }
-
-  async showNotification(
-    title: string,
-    options: {
-      body?: string;
-      icon?: string;
-      badge?: string;
-      tag?: string;
-      requireInteraction?: boolean;
-      silent?: boolean;
-      data?: any;
-      actions?: NotificationOptions[];
-    } = {}
-  ): Promise<Notification | null> {
-    if (!this.canShowNotifications()) {
-      return null;
-    }
-
-    // Don't show browser notification if the page is visible
-    if (typeof window !== 'undefined' && !document.hidden) {
-      return null;
-    }
-
-    try {
-      const notification = new Notification(title, {
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        ...options,
-      });
-
-      // Auto-close after 10 seconds unless requireInteraction is true
-      if (!options.requireInteraction) {
-        setTimeout(() => {
-          notification.close();
-        }, 10000);
-      }
-
-      return notification;
-    } catch (error) {
-      console.warn('Error showing browser notification:', error);
-      return null;
-    }
-  }
-
-  async showNotificationFromData(notification: {
-    id: string;
-    title: string;
-    message: string;
-    type: 'info' | 'success' | 'warning' | 'error';
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    actionUrl?: string;
-    category: string;
-  }): Promise<Notification | null> {
-    const icon = this.getIconForType(notification.type);
-    const requireInteraction = notification.priority === 'urgent';
-
-    const browserNotification = await this.showNotification(notification.title, {
-      body: notification.message,
-      icon,
-      tag: `notification_${notification.id}`,
-      requireInteraction,
-      data: {
-        notificationId: notification.id,
-        actionUrl: notification.actionUrl,
-        type: notification.type,
-        priority: notification.priority,
-      }
+  try {
+    const notification = new Notification(title, {
+      icon: '/logo.png',
+      badge: '/logo.png',
+      ...options,
     });
 
-    if (browserNotification) {
-      browserNotification.onclick = () => {
-        // Focus the window
-        window.focus();
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+      notification.close();
+    }, 5000);
 
-        // Navigate to action URL if available
-        if (notification.actionUrl) {
-          window.location.href = notification.actionUrl;
-        } else {
-          window.location.href = '/all/notifications';
-        }
-
-        browserNotification.close();
-      };
-    }
-
-    return browserNotification;
+    return notification;
+  } catch (error) {
+    console.error('Error showing notification:', error);
+    return null;
   }
+};
 
-  private getIconForType(type: string): string {
-    // You can replace these with actual icon URLs
-    switch (type) {
-      case 'success':
-        return '/favicon.ico'; // Replace with success icon URL
-      case 'warning':
-        return '/favicon.ico'; // Replace with warning icon URL
-      case 'error':
-        return '/favicon.ico'; // Replace with error icon URL
-      case 'info':
-      default:
-        return '/favicon.ico'; // Replace with info icon URL
-    }
+/**
+ * Show a notification with custom options
+ * @param title - Notification title
+ * @param body - Notification body text
+ * @param type - Type of notification (affects icon)
+ */
+export const showCustomNotification = (
+  title: string,
+  body: string,
+  type: 'success' | 'info' | 'warning' | 'error' = 'info'
+): Notification | null => {
+  const icons = {
+    success: '✅',
+    info: 'ℹ️',
+    warning: '⚠️',
+    error: '❌',
+  };
+
+  return showNotification(title, {
+    body,
+    icon: `/icons/${type}.png`,
+    tag: `${type}-${Date.now()}`,
+    requireInteraction: type === 'error',
+  });
+};
+
+/**
+ * Check if browser notifications are enabled in settings
+ */
+export const isEnabled = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const enabled = localStorage.getItem('browserNotificationsEnabled');
+  return enabled === 'true';
+};
+
+/**
+ * Enable browser notifications
+ */
+export const enable = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('browserNotificationsEnabled', 'true');
   }
+};
 
-  getPermissionStatus(): NotificationPermission {
-    return this.permission;
+/**
+ * Disable browser notifications
+ */
+export const disable = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('browserNotificationsEnabled', 'false');
   }
-}
+};
 
-export default BrowserNotificationManager.getInstance();
+/**
+ * Get current browser notification permission status
+ */
+export const getPermissionStatus = (): NotificationPermission => {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return 'denied';
+  }
+  return Notification.permission;
+};
+
+/**
+ * Set browser notifications enabled status
+ */
+export const setBrowserNotificationsEnabled = (enabled: boolean): void => {
+  if (enabled) {
+    enable();
+  } else {
+    disable();
+  }
+};
+
+/**
+ * Alias for requestNotificationPermission
+ */
+export const requestPermission = requestNotificationPermission;
+
+/**
+ * Alias for enable
+ */
+export const setEnabled = (enabled: boolean) => {
+  if (enabled) {
+    enable();
+  } else {
+    disable();
+  }
+};
+
+/**
+ * Show notification from notification data object
+ */
+export const showNotificationFromData = (notificationData: any): Notification | null => {
+  if (!notificationData) return null;
+
+  return showNotification(notificationData.title || "Notification", {
+    body: notificationData.message || notificationData.body || "",
+    icon: notificationData.icon || "/logo.png",
+    tag: notificationData.id || `notification-${Date.now()}`,
+    requireInteraction: notificationData.priority === 'urgent',
+  });
+};
+
+export default {
+  requestNotificationPermission,
+  requestPermission,
+  canShowNotifications,
+  showNotification,
+  showCustomNotification,
+  showNotificationFromData,
+  isEnabled,
+  enable,
+  disable,
+  getPermissionStatus,
+  setBrowserNotificationsEnabled,
+  setEnabled,
+};

@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '@/app/api/apiService'; // Import your API service
-import { encodeId } from '@/app/utils/encoder';
 
 // Types
 interface WishlistItem {
@@ -91,13 +90,9 @@ const WishlistPage: React.FC = () => {
         // Fetch data from GET /bookings/wishlist
         const response: any = await api.get('/bookings/wishlist');
 
-        if (response.success || response.data?.success) {
-          // Handle nested response structure
-          const responseData = response.data?.data || response.data || response;
-          const items = responseData.items || [];
-
+        if (response.success) {
           // Map API response to the frontend's WishlistItem interface
-          const mappedData = items.map((item: any): WishlistItem => ({
+          const mappedData = response.data.data.items.map((item: any): WishlistItem => ({
             id: item.id, // The unique ID of the wishlist entry
             propertyId: item.itemId,
             title: item.itemDetails.name || 'N/A',
@@ -244,9 +239,8 @@ const WishlistPage: React.FC = () => {
   };
 
   const handleMoveToBookings = (item: WishlistItem) => {
-    const encodedPropertyId = encodeId(item.propertyId);
-    const paymentUrl = `https://jambolush.com/spaces/${encodedPropertyId}`;
-    window.open(paymentUrl, '_blank');
+    alert(`Moving "${item.title}" to bookings...`);
+    // In real app, this would make an API call
   };
 
   const handleOpenReviewModal = (item: WishlistItem) => {
@@ -311,11 +305,11 @@ const WishlistPage: React.FC = () => {
   };
 
   return (
-    <div className="pt-1 px-2 sm:px-4">
-      <div className="mx-auto py-2">
+    <div className="pt-14 px-2 sm:px-4">
+      <div className="mx-auto py-8">
         {/* Header */}
         <div className="mb-8 text-center sm:text-left">
-          <h1 className="text-xl sm:text-2xl font-bold text-black">My Wishlist</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-[#083A85]">My Wishlist</h1>
           <p className="text-gray-600 mt-2 text-base sm:text-lg">Track and manage your favorite properties</p>
         </div>
 

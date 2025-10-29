@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '@/app/api/apiService';
+import { set } from 'date-fns';
 
 // Types
 interface AgentBookingInfo {
@@ -117,20 +118,20 @@ const AgentBookingsPage: React.FC = () => {
         return true;
     };
 
-    const fetchUserData = async () => {
-        try {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                api.setAuth(token);
-                const response = await api.get('/auth/me');
-                if (response.data) {
-                    setUser(response.data);
-                }
-            }
-        } catch (error) {
-            setError('Failed to fetch user data');
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+        const response = await api.get('/auth/me');
+        if (response.data) {
+          setUser(response.data);
         }
-    };
+      }
+    } catch (error) {
+        setError('Failed to fetch user data');
+    }
+  };
 
     const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
         if (!isOpen) return null;
@@ -185,12 +186,23 @@ const AgentBookingsPage: React.FC = () => {
 
             if (response.data && response.data.success) {
 
-                const { properties } = response.data.data;
+                const { ownProperties, managedProperties } = response.data.data;
                 const allProperties = [
-                    ...(properties || []).map((p: any) => ({ ...p, relationshipType: 'managed' as const })),
+                    ...(ownProperties || []).map((p: any) => ({ ...p, relationshipType: 'owned' as const })),
+                    ...(managedProperties || []).map((p: any) => ({ ...p, relationshipType: 'managed' as const }))
                 ];
 
-                setProperties(allProperties);
+                const propertyList = allProperties.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    location: p.location,
+                    hostEmail: p.hostEmail || 'N/A',
+                    hostName: p.hostName || 'Unknown',
+                    relationshipType: p.relationshipType,
+                    commissionRate: p.commissionRate || 0
+                }));
+                
+                setProperties(propertyList);
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to fetch properties');
@@ -227,6 +239,7 @@ const AgentBookingsPage: React.FC = () => {
                     }
                     return { success: false, propertyId: property.id, error: 'No data' };
                 } catch (error) {
+                    setError(`Failed to fetch bookings for property`);
                     return { success: false, propertyId: property.id, error };
                 }
             });
@@ -261,8 +274,8 @@ const AgentBookingsPage: React.FC = () => {
 
             setBookings(allBookings);
             
-            if (failedProperties > 0 && failedProperties < properties.length) {
-                console.log(`${failedProperties} properties failed to load bookings.`);
+            if (failedProperties > 0) {
+                setError(`${failedProperties} properties failed to load bookings.`);
             }
             
         } catch (err: any) {

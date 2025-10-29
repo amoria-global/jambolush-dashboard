@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
 import api from "../api/apiService";
-import CheckInOutButton from './checkin-checkout-button';
 
 type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
 type TourGuideType = 'freelancer' | 'employed';
@@ -74,7 +73,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [authInitialized, setAuthInitialized] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -82,8 +80,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [balance, setBalance] = useState<number>(0);
   const [messagesCount, setMessagesCount] = useState<number>(0);
-  const [walletData, setWalletData] = useState<any>(null);
-  const [walletLoading, setWalletLoading] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
@@ -92,48 +88,71 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   const [frontend_url, setFrontEnd] = useState<string>('https://jambolush.com');
 
+  // Expose test function for debugging (remove in production)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).testLogout = () => {
+        console.log('🧪 Testing logout function...');
+        handleLogout();
+      };
+      
+      (window as any).test401 = () => {
+        console.log('🧪 Testing 401 detection...');
+        const fakeError = { response: { status: 401 } };
+        handleApiCall(() => Promise.reject(fakeError)).catch(() => {});
+      };
+    }
+  }, []);
+
   useEffect(() => { 
     if (process.env.FRONTEND_URL) {
       setFrontEnd(process.env.FRONTEND_URL);
     }
   }, []);
 
-  // Complete session cleanup function
-  const clearAllSessionData = () => {
-    // Clear localStorage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userSession');
-    
-    // Clear sessionStorage if any
-    sessionStorage.removeItem('authToken');
-    sessionStorage.removeItem('refreshToken');
-    sessionStorage.removeItem('userSession');
-    
-    // Reset all state
-    setUser(null);
-    setUserSession(null);
-    setIsAuthenticated(false);
-    setAuthInitialized(false);
-    setNotifications([]);
-    setBalance(0);
-    setMessagesCount(0);
-    setIsLoading(false);
-    setIsRedirecting(false);
-    setIsLoggingOut(false);
-    setIsProfileOpen(false);
-    setIsNotificationsOpen(false);
-    
-    // Clear API auth
-    api.clearAuth();
-  };
+  // Add global error handler as backup
+  useEffect(() => {
+    const handleGlobalError = (event: any) => {
+      const error = event.detail || event.error || event;
+      console.log('Global error caught:', error);
+      
+      if (error?.response?.status === 401 || error?.status === 401) {
+        console.log('🚨 Global 401 error detected - redirecting to login');
+        handleLogout();
+      }
+    };
+
+    // Listen for unhandled promise rejections that might contain 401s
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      console.log('Unhandled rejection:', error);
+      
+      if (error?.response?.status === 401 || error?.status === 401) {
+        console.log('🚨 Unhandled 401 rejection detected - redirecting to login');
+        handleLogout();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleGlobalError);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleGlobalError);
+    };
+  }, []);
 
   // Add 401 error handling to API calls
   const handleApiCall = async <T,>(apiCall: () => Promise<T>): Promise<T> => {
     try {
       return await apiCall();
     } catch (error: any) {
-      // Check for unauthorized errors
+      console.log('API Error caught:', error);
+      console.log('Error response:', error?.response);
+      console.log('Error status:', error?.response?.status);
+      console.log('Direct error status:', error?.status);
+      
+      // Check multiple possible error structures
       const isUnauthorized = 
         error?.response?.status === 401 ||
         error?.status === 401 ||
@@ -143,15 +162,16 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         (error?.response?.data && error.response.data.statusCode === 401);
       
       if (isUnauthorized) {
+        console.log('🚨 401 Unauthorized detected - redirecting to login');
         handleLogout();
-        return Promise.reject(error);
+        return Promise.reject(error); // Don't continue processing
       }
       throw error;
     }
   };
 
   const fetchUserSession = async () => {
-    if (authInitialized || isLoggingOut) return;
+    if (authInitialized) return; // Prevent multiple calls
     
     try {
       setIsLoading(true);
@@ -174,11 +194,14 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         url.searchParams.delete('token');
         url.searchParams.delete('refresh_token');
         window.history.replaceState({}, '', url.toString());
+        
+        console.log('Token retrieved from URL and stored');
       } else {
         authToken = localStorage.getItem('authToken');
       }
 
       if (!authToken) {
+        console.log('No token found');
         setIsAuthenticated(false);
         setIsLoading(false);
         return;
@@ -188,24 +211,32 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       api.setAuth(authToken);
       
       // Call the /auth/me endpoint with 401 handling
+      console.log('📡 Calling /auth/me endpoint...');
       const response = await handleApiCall(() => api.get('auth/me'));
+      
+      console.log('=== TOPBAR DEBUG: API Response ===', response);
 
-      // Check the actual API response structure
+      // FIXED: Check the actual API response structure from your logs
       if (response.data && response.data.id) {
         const userData: UserProfile = {
           ...response.data,
           id: response.data.id.toString()
         };
         
+        console.log('=== TOPBAR DEBUG: User Data ===', userData);
+        
         const validRoles: UserRole[] = ['guest', 'host', 'agent', 'tourguide'];
         if (!validRoles.includes(userData.userType)) {
+          console.error('Invalid user role:', userData.userType);
           handleLogout();
           return;
         }
 
-        // Log KYC status but allow dashboard access
+        // FIXED: Remove problematic KYC redirect that was preventing authentication
+        // Just log KYC status but don't redirect - let user access dashboard
         if ((userData.userType === 'host' || userData.userType === 'tourguide' || userData.userType === 'agent') && !userData.kycCompleted) {
-          // Show notification instead of blocking access
+          console.log('User KYC not completed, but allowing dashboard access');
+          // You can show a banner or notification instead of redirecting
         }
 
         // Create user session
@@ -218,12 +249,21 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setUserSession(session);
         setUser(userData);
         setIsAuthenticated(true);
-        await fetchUserData(authToken, userData.userType, userData.id);
+        await fetchUserData(authToken);
+        console.log('✅ TopBar User session established successfully');
 
       } else {
+        console.log('Invalid response structure:', response.data);
         setIsAuthenticated(false);
       }
     } catch (error: any) {
+      console.error('❌ Failed to fetch user session:', error);
+      console.log('Error details:', {
+        status: error?.response?.status || error?.status,
+        statusCode: error?.response?.statusCode || error?.statusCode,
+        message: error?.message
+      });
+      
       // Check if this is a 401 error that wasn't caught by handleApiCall
       const isUnauthorized = 
         error?.response?.status === 401 ||
@@ -232,57 +272,34 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         error?.statusCode === 401;
         
       if (isUnauthorized) {
+        console.log('🚨 401 detected in fetchUserSession catch block');
         handleLogout();
         return;
       }
       
+      // Don't logout on network errors, just show unauthenticated state
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchWalletData = async () => {
-    try {
-      setWalletLoading(true);
-      const userId = user?.id;
-
-      if (userId && (userSession?.role === 'host' || userSession?.role === 'agent' || userSession?.role === 'tourguide')) {
-        const walletResponse = await handleApiCall(() => api.get(`/transactions/wallet/${userId}`));
-        if (walletResponse.data && walletResponse.data.success) {
-          setWalletData(walletResponse.data.data);
-          // Update balance from wallet data
-          setBalance(walletResponse.data.data.availableBalance || 0);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching wallet data:', error);
-    } finally {
-      setWalletLoading(false);
-    }
-  };
-
-  const fetchUserData = async (authToken: string, userRole?: UserRole, userId?: string) => {
+  const fetchUserData = async (authToken: string) => {
     try {
       await fetchNotifications();
     } catch (error) {
-      // Handle silently - non-critical
+      console.error('Failed to fetch notifications:', error);
     }
 
     try {
-      // Use passed userRole or fallback to userSession
-      const role = userRole || userSession?.role;
-      const uid = userId || user?.id;
-
-      if ((role === 'host' || role === 'agent' || role === 'tourguide') && uid) {
-        const walletResponse = await handleApiCall(() => api.get(`/transactions/wallet/${uid}`));
-        if (walletResponse.data && walletResponse.data.success) {
-          setWalletData(walletResponse.data.data);
-          setBalance(walletResponse.data.data.availableBalance || 0);
+      if (userSession?.role === 'host' || userSession?.role === 'agent') {
+        const balanceResponse = await handleApiCall(() => api.get('user/balance'));
+        if (balanceResponse.data && balanceResponse.data.balance !== undefined) {
+          setBalance(balanceResponse.data.balance);
         }
       }
     } catch (error) {
-      console.error('Error fetching wallet data:', error);
+      console.error('Failed to fetch balance:', error);
       setBalance(0);
     }
 
@@ -292,42 +309,30 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         setMessagesCount(messagesResponse.data.count);
       }
     } catch (error) {
+      console.error('Failed to fetch messages count:', error);
       setMessagesCount(0);
     }
   };
 
-  const fetchNotifications = async (checkForNew: boolean = false) => {
+  const fetchNotifications = async () => {
     try {
       setNotificationsLoading(true);
-
-      const response = await handleApiCall(() => api.getNotifications({
+      
+      const response = await handleApiCall(() => api.get('/notifications', { params: {
         limit: 10,
         sortField: 'timestamp',
         sortOrder: 'desc'
-      }));
+      }}));
 
-      if (response.data && response.data.success && response.data.data.notifications) {
-        const transformedNotifications = response.data.data.notifications.map((notification: any) => ({
+      if (response.data && response.data.data) {
+        const transformedNotifications = response.data.data.map((notification: any) => ({
           ...notification,
           timestamp: new Date(notification.timestamp)
         }));
-
-        // Check for new notifications if requested
-        if (checkForNew && notifications.length > 0) {
-          const existingIds = new Set(notifications.map(n => n.id));
-          const newNotifications = transformedNotifications.filter(n => !existingIds.has(n.id));
-
-          // Show toast for new notifications
-          newNotifications.forEach(notification => {
-            window.dispatchEvent(new CustomEvent('newNotificationReceived', {
-              detail: { notification }
-            }));
-          });
-        }
-
         setNotifications(transformedNotifications);
       }
     } catch (error) {
+      console.error('Failed to fetch notifications:', error);
       setNotifications([]);
     } finally {
       setNotificationsLoading(false);
@@ -342,7 +347,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         n.id === notificationId ? { ...n, isRead: true } : n
       ));
     } catch (error) {
-      // Handle silently - non-critical
+      console.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -350,29 +355,15 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
     if (!isAuthenticated) return;
 
     const pollInterval = setInterval(() => {
-      fetchNotifications(true); // Check for new notifications when polling
+      fetchNotifications();
     }, 30000);
 
     return () => clearInterval(pollInterval);
-  }, [isAuthenticated, notifications]);
-
-  // Add wallet polling interval - 30 seconds auto-refresh
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-
-    const userRole = userSession?.role;
-    if (userRole === 'host' || userRole === 'agent' || userRole === 'tourguide') {
-      // Set up polling interval (initial fetch is done by fetchUserData on login)
-      const walletPollInterval = setInterval(() => {
-        fetchWalletData();
-      }, 30000); // Refresh every 30 seconds
-
-      return () => clearInterval(walletPollInterval);
-    }
-  }, [isAuthenticated, user?.id, userSession?.role]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handleNotificationUpdate = () => {
+      console.log('TopBar: Notification updated, refreshing notifications');
       fetchNotifications();
     };
 
@@ -438,31 +429,37 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   const handleLogout = async () => {
-    if (isLoggingOut) return; // Prevent multiple logout calls
-    
-    setIsLoggingOut(true);
-    setIsRedirecting(true);
+    console.log('🔄 Starting logout process...');
     
     try {
+      setIsRedirecting(true);
       if (isAuthenticated) {
+        console.log('📡 Calling logout API...');
         await api.logout();
+        console.log('✅ Logout API call successful');
       }
     } catch (error) {
+      console.error('❌ Logout API call failed:', error);
       // Continue with local cleanup even if API fails
-    } finally {
-      // Always perform complete cleanup
-      clearAllSessionData();
-      
-      // Broadcast logout event for other components
-      window.dispatchEvent(new CustomEvent('userLogout', { 
-        detail: { timestamp: Date.now() } 
-      }));
-      
-      const redirectUrl = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
-      
-      // Force redirect
-      window.location.href = redirectUrl;
     }
+
+    console.log('🧹 Cleaning up local storage and state...');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userSession');
+    setUser(null);
+    setUserSession(null);
+    setIsAuthenticated(false);
+    setNotifications([]);
+    setBalance(0);
+    setMessagesCount(0);
+    setAuthInitialized(false);
+    
+    const redirectUrl = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
+    console.log('🚀 Redirecting to:', redirectUrl);
+    
+    // Immediate redirect without setTimeout
+    window.location.href = redirectUrl;
   };
 
   // Initialize authentication on component mount
@@ -474,28 +471,23 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
 
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'authToken' && !e.newValue && isAuthenticated && !isLoggingOut) {
+      if (e.key === 'authToken' && !e.newValue && isAuthenticated) {
+        console.log('Auth token removed from localStorage, logging out');
         handleLogout();
       }
     };
 
-    const handleUserLogout = () => {
-      clearAllSessionData();
-    };
-
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', handleStorageChange);
-      window.addEventListener('userLogout', handleUserLogout);
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('userLogout', handleUserLogout);
-      };
+      return () => window.removeEventListener('storage', handleStorageChange);
     }
-  }, [isAuthenticated, isLoggingOut]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const handleProfileUpdate = (event: CustomEvent) => {
-      if (user && event.detail.user && !isLoggingOut) {
+      if (user && event.detail.user) {
+        console.log('TopBar: Profile updated, refreshing user data');
+        
         const updatedUser = {
           ...user,
           ...event.detail.user,
@@ -513,14 +505,15 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         if (updatedUser.userType !== user.userType) {
           const authToken = localStorage.getItem('authToken');
           if (authToken) {
-            fetchUserData(authToken, updatedUser.userType, updatedUser.id);
+            fetchUserData(authToken);
           }
         }
       }
     };
 
     const handleProfileImageUpdate = (event: CustomEvent) => {
-      if (user && event.detail.profile && !isLoggingOut) {
+      if (user && event.detail.profile) {
+        console.log('TopBar: Profile image updated');
         setUser({ ...user, profile: event.detail.profile });
       }
     };
@@ -532,7 +525,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
       window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
       window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
     };
-  }, [user, userSession, isLoggingOut]);
+  }, [user, userSession]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -597,25 +590,25 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   return (
-    <div className="fixed top-0 right-0 left-0 lg:left-60 flex items-center justify-between px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-30 transition-all duration-300">
+    <div className="fixed top-0 right-0 left-0 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-lg z-30 transition-all duration-300 lg:left-72">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
-          className="lg:hidden p-2 text-gray-600 rounded-xl hover:text-[#083A85] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#083A85]/20 transition-all"
+          className="lg:hidden p-2 text-gray-600 rounded-md hover:text-[#083A85] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
         >
           <i className="bi bi-list text-2xl"></i>
         </button>
-        <h1 className="text-lg font-bold text-gray-900 tracking-tight sm:text-xl">
+        <h1 className="text-xl font-bold text-gray-900 tracking-wide sm:text-2xl">
           {getPageTitle()}
         </h1>
       </div>
 
-      <div className="flex items-center gap-x-3 sm:gap-x-5">
+      <div className="flex items-center gap-x-4 sm:gap-x-6">
         {/* Show loading state */}
         {(isLoading || isRedirecting) && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full animate-pulse"></div>
-            <div className="w-20 h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg animate-pulse"></div>
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-gray-300 rounded-full animate-pulse"></div>
+            <div className="w-20 h-4 bg-gray-300 rounded animate-pulse"></div>
           </div>
         )}
 
@@ -624,103 +617,65 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
           <>
             {/* KYC Notice in TopBar */}
             {user && !user.kycCompleted && (user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
-              <div className="hidden md:flex items-center bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-900 px-3.5 py-1.5 rounded-full text-xs font-medium border border-yellow-300/50 shadow-sm">
-                <i className="bi bi-exclamation-triangle-fill mr-2 text-yellow-600"></i>
-                <span className="font-semibold">Complete KYC</span>
+              <div className="hidden md:flex items-center bg-yellow-50 text-yellow-800 px-3 py-1 rounded-full text-sm">
+                <i className="bi bi-exclamation-triangle mr-1"></i>
+                <span>Complete KYC</span>
                 <button
                   onClick={() => router.push('/all/kyc')}
-                  className="ml-2 text-yellow-700 hover:text-yellow-900 transition-colors"
+                  className="ml-2 text-yellow-700 hover:text-yellow-900 underline"
                 >
-                  <i className="bi bi-arrow-right"></i>
+                  →
                 </button>
               </div>
             )}
 
-            {/* Check-in/Check-out Button for Host and Tour Guide */}
-            {(user.userType === 'host' || user.userType === 'tourguide') && (
-              <CheckInOutButton userType={user.userType} />
-            )}
-
-            {/* Wallet Display in TopBar */}
-            {(user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
-              <div className="hidden lg:flex items-center bg-gradient-to-r from-[#083A85]/5 to-[#062d6b]/5 border border-[#083A85]/10 px-3 py-1.5 rounded-lg group hover:shadow-sm transition-all cursor-pointer"
-                onClick={() => {
-                  const walletPath = user.userType === 'agent' ? '/all/agent/earnings' :
-                                   user.userType === 'tourguide' ? '/all/tourguide/earnings' : '/all/host/earnings';
-                  router.push(walletPath);
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gradient-to-br from-[#083A85] to-[#062d6b] rounded-lg flex items-center justify-center shadow-sm">
-                    <i className="bi bi-wallet2 text-white text-xs"></i>
-                  </div>
-                  {walletLoading ? (
-                    <div className="flex items-center gap-1.5">
-                      <div className="animate-spin rounded-full h-3 w-3 border border-[#083A85] border-t-transparent"></div>
-                      <span className="text-xs text-gray-500 font-medium">Loading...</span>
-                    </div>
-                  ) : walletData ? (
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-[#083A85] leading-tight">
-                        {walletData.availableBalance?.toLocaleString() || '0'} {walletData.currency || 'RWF'}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-500 font-medium">No wallet data</span>
-                  )}
-                  <i className="bi bi-chevron-right text-[10px] text-gray-400 ml-1 group-hover:text-[#083A85] transition-colors"></i>
-                </div>
-              </div>
-            )}
-
-            <div className="relative cursor-pointer hidden sm:block group">
-              <div className="p-2 rounded-xl hover:bg-gray-50 transition-all">
-                <i className="bi bi-chat-left-text text-xl text-gray-600 group-hover:text-[#083A85] transition-colors"></i>
-                {messagesCount > 0 && (
-                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-md ring-2 ring-white">
-                    {messagesCount > 99 ? '99+' : messagesCount}
-                  </span>
-                )}
-              </div>
+            <div className="relative cursor-pointer hidden sm:block">
+              <i className="bi bi-chat-left-text text-2xl text-gray-600 hover:text-[#083A85]"></i>
+              {messagesCount > 0 && (
+                <span className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full bg-red-500">
+                  {messagesCount > 99 ? '99+' : messagesCount}
+                </span>
+              )}
             </div>
 
             <div className="relative" ref={notificationsRef}>
-              <div
-                className="relative cursor-pointer group"
+              <div 
+                className="relative cursor-pointer" 
                 onClick={() => {
                   setIsNotificationsOpen(!isNotificationsOpen);
                   setIsProfileOpen(false);
                 }}
               >
-                <div className="p-2 rounded-xl hover:bg-gray-50 transition-all">
-                  <i className="bi bi-bell text-xl text-gray-600 group-hover:text-[#083A85] transition-colors"></i>
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full bg-gradient-to-br from-[#F20C8F] to-[#d10a78] shadow-md ring-2 ring-white">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
-                </div>
+                <i className="bi bi-bell text-2xl text-gray-600 hover:text-[#083A85]"></i>
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -top-2 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white rounded-full"
+                    style={{ backgroundColor: "#F20C8F" }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </div>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden backdrop-blur-sm">
-                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200/50 flex items-center justify-between">
-                    <h6 className="font-bold text-gray-900 text-base tracking-tight">Notifications</h6>
+                <div className="absolute right-0 mt-4 w-72 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
+                  <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
+                    <h6 className="font-semibold text-gray-800">Notifications</h6>
                     {notificationsLoading && (
-                      <div className="w-4 h-4 border-2 border-[#083A85] border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                     )}
                   </div>
-                  <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+                  <div className="divide-y divide-gray-200 max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <div className="p-8 text-center text-gray-500">
-                        <i className="bi bi-bell-slash text-4xl mb-3 text-gray-400"></i>
-                        <p className="text-sm font-medium">No notifications yet</p>
+                      <div className="p-4 text-center text-gray-500">
+                        <i className="bi bi-bell-slash text-2xl mb-2"></i>
+                        <p>No notifications yet</p>
                       </div>
                     ) : (
                       notifications.map(notification => (
-                        <div
-                          key={notification.id}
-                          className={`flex items-start gap-3 p-3.5 transition-all duration-200 hover:bg-gray-50/80 cursor-pointer ${!notification.isRead ? 'bg-gradient-to-r from-blue-50/50 to-indigo-50/30' : ''}`}
+                        <div 
+                          key={notification.id} 
+                          className={`flex items-start gap-3 p-3 transition-colors hover:bg-gray-50 cursor-pointer ${!notification.isRead ? 'bg-blue-50/50' : ''}`}
                           onClick={() => {
                             markNotificationAsRead(notification.id);
                             if (notification.actionUrl) {
@@ -728,45 +683,45 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                             }
                           }}
                         >
-                          <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center shadow-sm ${
-                            !notification.isRead ? 'bg-gradient-to-br from-blue-100 to-indigo-100' : 'bg-gray-100'
+                          <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${
+                            !notification.isRead ? 'bg-blue-500/20' : 'bg-gray-200'
                           }`}>
-                            <i className={`bi ${getNotificationIcon(notification.type)} text-base ${
+                            <i className={`bi ${getNotificationIcon(notification.type)} text-lg ${
                               !notification.isRead ? getNotificationColor(notification.type) : 'text-gray-600'
                             }`}></i>
                           </div>
                           <div className="flex-grow">
-                            <p className={`text-sm ${!notification.isRead ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
+                            <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
                               {notification.title}
                             </p>
-                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
                             <div className="flex items-center justify-between mt-2">
-                              <p className="text-[11px] font-medium text-gray-500">{timeAgo(notification.timestamp)}</p>
+                              <p className="text-xs text-gray-500">{timeAgo(notification.timestamp)}</p>
                               {notification.priority === 'urgent' && (
-                                <span className="text-[10px] bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-2 py-0.5 rounded-full font-bold shadow-sm">
+                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">
                                   Urgent
                                 </span>
                               )}
                             </div>
                           </div>
                           {!notification.isRead && (
-                            <div className="w-2 h-2 mt-1.5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex-shrink-0 shadow-sm"></div>
+                            <div className="w-2 h-2 mt-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>
                           )}
                         </div>
                       ))
                     )}
                   </div>
                   {notifications.length > 0 && (
-                    <a
-                      href="/all/notifications"
-                      className="block text-center px-4 py-3 text-sm font-semibold text-[#083A85] hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 transition-all border-t border-gray-200/50"
+                    <a 
+                      href="/all/notifications" 
+                      className="block text-center p-2 text-sm font-medium text-blue-600 hover:bg-gray-100 transition-colors"
                       onClick={(e) => {
                         e.preventDefault();
                         router.push('/all/notifications');
                         setIsNotificationsOpen(false);
                       }}
                     >
-                      View All Notifications →
+                      View All Notifications
                     </a>
                   )}
                 </div>
@@ -774,112 +729,89 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
             </div>
 
             <div className="relative" ref={profileRef}>
-              <div
-                className="flex items-center gap-2.5 cursor-pointer p-2 rounded-xl hover:bg-gray-50 transition-all group"
+              <div 
+                className="flex items-center gap-3 cursor-pointer" 
                 onClick={() => {
                   setIsProfileOpen(!isProfileOpen);
                   setIsNotificationsOpen(false);
                 }}
               >
-                <div className="relative">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] via-[#0a4fa0] to-[#F20C8F] shadow-md ring-2 ring-white ring-offset-2">
-                    {user.profile ? (
-                      <img
-                        src={user.profile}
-                        alt="Profile"
-                        className="object-cover w-full h-full"
-                      />
-                    ) : (
-                      <span className="text-white font-bold text-sm">{getUserAvatar()}</span>
-                    )}
-                  </div>
-                  {/* Verification Badge for KYC users (agent, host, tourguide) */}
-                  {(user.userType === 'agent' || user.userType === 'host' || user.userType === 'tourguide') && (
-                    <div
-                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-md"
-                      style={{
-                        background: user.kycStatus === 'approved'
-                          ? 'linear-gradient(135deg, #0a66c2 0%, #0052a3 100%)'
-                          : 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
-                      }}
-                    >
-                      <i
-                        className="bi bi-check-lg text-xs font-bold"
-                        style={{ color: '#ffffff' }}
-                      />
-                    </div>
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#083A85] to-[#F20C8F] border-2 border-gray-300">
+                  {user.profile ? (
+                    <img
+                      src={user.profile}
+                      alt="Profile"
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <span className="text-white font-semibold text-sm">{getUserAvatar()}</span>
                   )}
                 </div>
 
                 <div className="hidden sm:flex flex-col leading-tight">
-                  <span className="font-bold text-sm text-gray-900 tracking-tight">
+                  <span className="font-semibold" style={{ color: "#083A85" }}>
                     {getUserDisplayName()}
                   </span>
-                  <span className="text-xs font-medium text-gray-500">
-                    {(userSession.role === 'host' || userSession.role === 'agent' || userSession.role === 'tourguide') && walletData
-                      ? `${walletData.availableBalance?.toLocaleString() || '0'} ${walletData.currency || 'RWF'}`
+                  <span className="text-sm text-gray-500">
+                    {userSession.role === 'host' || userSession.role === 'agent' 
+                      ? `$${balance.toFixed(2)}` 
                       : getRoleDisplayName(userSession.role, user.tourGuideType)
                     }
                   </span>
                 </div>
 
-                <i className={`bi bi-chevron-down text-gray-500 text-xs transition-transform duration-300 group-hover:text-[#083A85] ${
+                <i className={`bi bi-chevron-down text-gray-500 transition-transform duration-200 ${
                   isProfileOpen ? 'rotate-180' : ''
                 }`}></i>
               </div>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-3 w-56 sm:w-64 bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden backdrop-blur-sm">
-                  <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 border-b border-gray-200/50">
-                    <p className="font-bold text-gray-900 text-base tracking-tight">{getUserDisplayName()}</p>
-                    <p className="text-xs font-semibold text-[#083A85] mt-0.5">
+                <div className="absolute right-0 mt-4 w-52 sm:w-56 bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-3 border-b">
+                    <p className="font-bold text-gray-800">{getUserDisplayName()}</p>
+                    <p className="text-sm text-gray-700">
                       {getRoleDisplayName(userSession.role, user.tourGuideType)} Account
                     </p>
-                    <p className="text-[11px] text-gray-500 mt-1 font-medium">{user.email}</p>
+                    <p className="text-xs text-gray-500 mt-1">{user.email}</p>
                   </div>
                   <div className="py-2">
-                    <a
-                      href="/all/profile"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 transition-all"
+                    <a 
+                      href="/all/profile" 
+                      className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
                       onClick={(e) => { e.preventDefault(); router.push('/all/profile'); setIsProfileOpen(false); }}
                     >
-                      <i className="bi bi-person-circle text-lg text-gray-600"></i>
+                      <i className="bi bi-person-circle w-5 text-black"></i>
                       <span>Profile</span>
                     </a>
                     {(userSession.role === 'host' || userSession.role === 'agent') && (
-                      <a
+                      <a 
                         href={`/all/${userSession.role}/earnings`}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 transition-all"
-                        onClick={(e) => { e.preventDefault(); router.push(`/all/${userSession.role}/earnings`); setIsProfileOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
+                        onClick={(e) => { e.preventDefault(); router.push('/all/earnings'); setIsProfileOpen(false); }}
                       >
-                        <i className="bi bi-wallet2 text-lg text-gray-600"></i>
+                        <i className="bi bi-wallet2 w-5 text-black"></i>
                         <span>Balance & Payments</span>
                       </a>
                     )}
-                    <a
-                      href="/all/settings"
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900 transition-all"
+                    <a 
+                      href="/all/settings" 
+                      className="flex items-center gap-3 px-4 py-2 text-base text-black hover:bg-gray-100 transition-colors"
                       onClick={(e) => { e.preventDefault(); router.push('/all/settings'); setIsProfileOpen(false); }}
                     >
-                      <i className="bi bi-gear text-lg text-gray-600"></i>
+                      <i className="bi bi-gear w-5 text-black"></i>
                       <span>Settings</span>
                     </a>
                   </div>
-                  <div className="border-t border-gray-200/50 p-2">
+                  <div className="border-t p-2">
                     <button
                       onClick={() => {
                         setIsProfileOpen(false);
                         handleLogout();
                       }}
-                      disabled={isLoggingOut}
-                      className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all w-full text-left ${
-                        isLoggingOut
-                          ? 'text-gray-400 cursor-not-allowed bg-gray-50'
-                          : 'text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 cursor-pointer'
-                      }`}
+                      className="flex items-center gap-3 px-4 py-2 text-base text-red-600 hover:bg-red-50 rounded-md transition-colors w-full text-left"
                     >
-                      <i className={`bi ${isLoggingOut ? 'bi-arrow-clockwise animate-spin' : 'bi-box-arrow-right'} text-lg`}></i>
-                      <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+                      <i className="bi bi-box-arrow-right w-5"></i>
+                      <span>Logout</span>
                     </button>
                   </div>
                 </div>
@@ -892,13 +824,13 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push(frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href))}
-                className="px-4 py-2 text-sm font-semibold text-[#083A85] hover:text-[#062a63] hover:bg-gray-50 rounded-xl transition-all"
+                className="px-4 py-2 text-sm font-medium text-[#083A85] hover:text-[#062a63] transition-colors"
               >
                 Login
               </button>
               <button
                 onClick={() => router.push(frontend_url + `/all/signup`)}
-                className="px-4 py-2 text-sm font-semibold bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white rounded-xl hover:shadow-lg transition-all duration-200"
+                className="px-4 py-2 text-sm font-medium bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
               >
                 Sign Up
               </button>
