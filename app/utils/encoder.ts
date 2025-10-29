@@ -219,7 +219,7 @@ export const decodeId = (
 // Test function to verify encoding/decoding works
 export const testEncoder = () => {
   const testIds = ['123', '456789', 'abc123', '999999'];
-  
+
   console.log('Testing encoder...');
   for (const testId of testIds) {
     try {
@@ -231,3 +231,53 @@ export const testEncoder = () => {
     }
   }
 };
+
+// ============================================================================
+// VIEW DETAILS HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Creates a view details URL with encoded ID and type
+ * @param id - The entity ID to encode
+ * @param type - The entity type (transaction, booking, property-booking, tour-booking, property, tour, user)
+ * @returns The complete view details URL
+ */
+export function createViewDetailsUrl(
+  id: string | number,
+  type: 'transaction' | 'booking' | 'property-booking' | 'tour-booking' | 'property' | 'tour' | 'user'
+): string {
+  const encodedId = encodeId(String(id));
+  return `/view-details?ref=${encodedId}&type=${type}`;
+}
+
+/**
+ * Parses view details URL parameters and decodes the ID
+ * @param searchParams - URLSearchParams from the page
+ * @returns Object with decoded id and type, or null if invalid
+ */
+export function parseViewDetailsParams(searchParams: URLSearchParams): {
+  id: string;
+  type: 'transaction' | 'booking' | 'property-booking' | 'tour-booking' | 'property' | 'tour' | 'user';
+} | null {
+  const encodedId = searchParams.get('ref');
+  const type = searchParams.get('type');
+
+  if (!encodedId || !type) {
+    return null;
+  }
+
+  const validTypes = ['transaction', 'booking', 'property-booking', 'tour-booking', 'property', 'tour', 'user'];
+  if (!validTypes.includes(type)) {
+    return null;
+  }
+
+  const decodedId = decodeId(encodedId);
+  if (!decodedId) {
+    return null;
+  }
+
+  return {
+    id: decodedId,
+    type: type as 'transaction' | 'booking' | 'property-booking' | 'tour-booking' | 'property' | 'tour' | 'user'
+  };
+}

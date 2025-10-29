@@ -77,30 +77,6 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         }
     }, []);
 
-    // Complete session cleanup function
-    const clearAllSessionData = () => {
-        // Clear localStorage
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userSession');
-        
-        // Clear sessionStorage if any
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('userSession');
-        
-        // Reset all state
-        setUser(null);
-        setIsAuthenticated(false);
-        setAuthInitialized(false);
-        setIsLoading(false);
-        setIsRedirecting(false);
-        setIsLoggingOut(false);
-        
-        // Clear API auth
-        api.clearAuth();
-    };
-
     // Function to fetch user session from API
     const fetchUserSession = async () => {
         if (authInitialized || isLoggingOut) return;
@@ -189,30 +165,10 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     // Enhanced logout function
     const handleLogout = async () => {
         if (isLoggingOut) return; // Prevent multiple logout calls
-        
-        setIsLoggingOut(true);
-        setIsRedirecting(true);
-        
-        try {
-            // Call logout API if authenticated
-            if (isAuthenticated) {
-                await api.logout();
-            }
-        } catch (error) {
-            // Continue with cleanup even if API fails
-        } finally {
-            // Always perform complete cleanup
-            clearAllSessionData();
-            
-            // Broadcast logout event for other components
-            window.dispatchEvent(new CustomEvent('userLogout', { 
-                detail: { timestamp: Date.now() } 
-            }));
-            
-            // Force redirect
-            const redirectUrl = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
-            window.location.href = redirectUrl;
-        }
+
+        setTimeout(() => {
+            window.location.href = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
+        }, 100);
     };
 
     // Initialize authentication on component mount
@@ -231,7 +187,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         };
 
         const handleUserLogout = () => {
-            clearAllSessionData();
+            handleLogout();
         };
 
         if (typeof window !== 'undefined') {
@@ -557,7 +513,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
                                     </p>
                                     <Link
                                         href={frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href)}
-                                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
+                                        className="inline-flex items-center px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a63] transition-colors"
                                     >
                                         <i className="bi bi-box-arrow-in-right mr-2"></i>
                                         Login Now

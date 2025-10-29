@@ -1,6 +1,9 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService';
+import { createViewDetailsUrl } from '@/app/utils/encoder';
+import { set } from 'date-fns';
 
 // Types
 interface AgentBookingInfo {
@@ -54,6 +57,8 @@ const useDebounce = (value: string, delay: number) => {
 };
 
 const AgentBookingsPage: React.FC = () => {
+    const router = useRouter();
+
     // Date formatting helper
     const format = useCallback((date: Date | string, formatStr: string) => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -117,20 +122,20 @@ const AgentBookingsPage: React.FC = () => {
         return true;
     };
 
-    const fetchUserData = async () => {
-        try {
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                api.setAuth(token);
-                const response = await api.get('/auth/me');
-                if (response.data) {
-                    setUser(response.data);
-                }
-            }
-        } catch (error) {
-            setError('Failed to fetch user data');
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+        const response = await api.get('/auth/me');
+        if (response.data) {
+          setUser(response.data);
         }
-    };
+      }
+    } catch (error) {
+        setError('Failed to fetch user data');
+    }
+  };
 
     const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
         if (!isOpen) return null;
@@ -185,12 +190,23 @@ const AgentBookingsPage: React.FC = () => {
 
             if (response.data && response.data.success) {
 
-                const { properties } = response.data.data;
+                const { ownProperties, managedProperties } = response.data.data;
                 const allProperties = [
-                    ...(properties || []).map((p: any) => ({ ...p, relationshipType: 'managed' as const })),
+                    ...(ownProperties || []).map((p: any) => ({ ...p, relationshipType: 'owned' as const })),
+                    ...(managedProperties || []).map((p: any) => ({ ...p, relationshipType: 'managed' as const }))
                 ];
 
-                setProperties(allProperties);
+                const propertyList = allProperties.map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    location: p.location,
+                    hostEmail: p.hostEmail || 'N/A',
+                    hostName: p.hostName || 'Unknown',
+                    relationshipType: p.relationshipType,
+                    commissionRate: p.commissionRate || 0
+                }));
+                
+                setProperties(propertyList);
             }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to fetch properties');
@@ -227,6 +243,7 @@ const AgentBookingsPage: React.FC = () => {
                     }
                     return { success: false, propertyId: property.id, error: 'No data' };
                 } catch (error) {
+                    setError(`Failed to fetch bookings for property`);
                     return { success: false, propertyId: property.id, error };
                 }
             });
@@ -261,8 +278,8 @@ const AgentBookingsPage: React.FC = () => {
 
             setBookings(allBookings);
             
-            if (failedProperties > 0 && failedProperties < properties.length) {
-                console.log(`${failedProperties} properties failed to load bookings.`);
+            if (failedProperties > 0) {
+                setError(`${failedProperties} properties failed to load bookings.`);
             }
             
         } catch (err: any) {
@@ -399,9 +416,9 @@ const AgentBookingsPage: React.FC = () => {
     }, [sortField, sortOrder]);
 
     const handleViewDetails = useCallback((booking: AgentBookingInfo) => {
-        setSelectedBooking(booking);
-        setShowModal(true);
-    }, []);
+        const url = createViewDetailsUrl(booking.id, 'booking');
+        router.push(url);
+    }, [router]);
 
     const handleEditBooking = useCallback((booking: AgentBookingInfo) => {
         if (!checkKYCStatus()) return;

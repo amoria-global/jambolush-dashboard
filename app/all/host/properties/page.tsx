@@ -4,7 +4,7 @@ import Link from 'next/link';
 import api from '@/app/api/apiService';
 import { useRouter } from 'next/navigation';
 import PhotoViewerModal from '@/app/components/photo-viewers';
-import { encodeId } from '@/app/utils/encoder';
+import { encodeId, createViewDetailsUrl } from '@/app/utils/encoder';
 
 // Types
 interface Property {
@@ -446,8 +446,8 @@ const HostPropertiesPage: React.FC = () => {
 
     const handleViewDetails = (property: Property) => {
         if (!checkKYCStatus()) return;
-        setSelectedProperty(property);
-        setShowDetailModal(true);
+        const url = createViewDetailsUrl(property.id, 'property');
+        router.push(url);
     };
 
     const handleOpenPhotoViewer = (property: Property, photoIndex: number = 0) => {

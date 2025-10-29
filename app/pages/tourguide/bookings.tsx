@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService'; // Your API service
+import { createViewDetailsUrl } from '@/app/utils/encoder';
 // Updated types to match server response for tour bookings
 interface User {
   firstName: string;
@@ -127,6 +129,8 @@ interface BookingSearchFilters {
   endDate?: string;
 }
 const TourBookingsPage: React.FC = () => {
+  const router = useRouter();
+
   // Date formatting helper
   const format = (date: Date | string, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -340,17 +344,8 @@ const TourBookingsPage: React.FC = () => {
     }
   };
   const handleViewDetails = async (booking: Booking) => {
-    setSelectedBooking(booking);
-    setSelectedBookingDetails(null);
-    setShowDetailModal(true);
-    try {
-      const details = await fetchBookingDetails(booking.id);
-      if (details) {
-        setSelectedBookingDetails(details);
-      }
-    } catch (error) {
-      console.error('Failed to load booking details:', error);
-    }
+    const url = createViewDetailsUrl(booking.id, 'tour-booking');
+    router.push(url);
   };
   const handleEditBooking = async (booking: Booking) => {
     if (!checkKYCStatus()) return;

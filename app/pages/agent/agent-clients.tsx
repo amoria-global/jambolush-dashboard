@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import api from "@/app/api/apiService";
+import api from "@/app/api/apiService"; // Import your API service
+import { set } from 'date-fns';
 
 // Interfaces remain the same
 interface GuestProfile {
@@ -108,16 +109,63 @@ const AgentClientsPage: React.FC = () => {
   const [apiTotal, setApiTotal] = useState(0);
   const [apiTotalPages, setApiTotalPages] = useState(0);
   const [uniqueProperties, setUniqueProperties] = useState<string[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
-    totalClients: 0,
-    activeClients: 0,
-    vipClients: 0,
-    totalRevenue: 0,
-    averageBookingValue: 0,
-    clientRetention: 0
-  });
+  const [user, setUser] = useState<any>(null);
+  const [showKYCModal, setShowKYCModal] = useState(false);
 
-  const pageSize = 12;
+  const checkKYCStatus = (): boolean => {
+    if (!user || !user.kycCompleted || user.kycStatus !== 'approved') {
+      setShowKYCModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        api.setAuth(token);
+        const response = await api.get('/auth/me');
+        if (response.data) {
+          setUser(response.data);
+        }
+      }
+    } catch (error) {
+      setUser(null);
+    }
+  };
+
+  const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+          <div className="p-6">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full">
+              <i className="bi bi-hourglass-split text-2xl text-yellow-600"></i>
+            </div>
+            <h3 className="text-xl font-semibold text-center text-gray-900 mb-3">
+              KYC Verification Pending
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              Your account verification is currently being processed. Please wait for verification to complete before performing this action. This process typically takes 2-4 hours.
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85]/80 transition-colors font-medium cursor-pointer"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const pageSize = 8;
 
   useEffect(() => setCurrentPage(1), [activeTab, searchTerm, startDate, endDate, propertyFilter, verificationFilter]);
 
@@ -214,7 +262,7 @@ const AgentClientsPage: React.FC = () => {
             const latestBooking = bookings.length > 0 ? bookings[0] : undefined;
             return transformGuestToClient(guest, latestBooking);
           } catch (error) {
-            console.error(`Failed to fetch bookings for guest ${guest.id}:`, error);
+            setError('Failed to load booking data for some guests');
             return transformGuestToClient(guest);
           }
         });
@@ -224,19 +272,6 @@ const AgentClientsPage: React.FC = () => {
 
         const properties = [...new Set(transformedClients.map(c => c.propertyName).filter(p => p !== 'N/A'))];
         setUniqueProperties(properties);
-
-        // Calculate dashboard stats
-        const stats = {
-          totalClients: response.data.total || transformedClients.length,
-          activeClients: transformedClients.filter(c => c.status === 'Checked In').length,
-          vipClients: transformedClients.filter(c => c.totalBookings >= 5).length,
-          totalRevenue: transformedClients.reduce((sum, c) => sum + c.housePayment, 0),
-          averageBookingValue: transformedClients.length > 0 
-            ? transformedClients.reduce((sum, c) => sum + c.housePayment, 0) / transformedClients.length 
-            : 0,
-          clientRetention: 85 // Mock value
-        };
-        setDashboardStats(stats);
 
         if (response.data.total !== undefined) {
           setApiTotal(response.data.total);
@@ -253,7 +288,6 @@ const AgentClientsPage: React.FC = () => {
       }
 
     } catch (error: any) {
-      console.error('Failed to fetch agent guests:', error);
       setError(error.response?.data?.message || 'Failed to load clients data');
       setClients([]);
     } finally {
@@ -463,27 +497,27 @@ const AgentClientsPage: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
           <div className="p-6 rounded-2xl border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">Total guests</p>
-            <p className="text-3xl font-bold">{dashboardStats.totalClients}</p>
+            <p className="text-3xl font-bold">{apiTotal}</p>
           </div>
           <div className="p-6 rounded-2xl border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">Checked in</p>
-            <p className="text-3xl font-bold">{dashboardStats.activeClients}</p>
+            <p className="text-3xl font-bold">{clients.filter(c => c.status === 'Checked In').length}</p>
           </div>
           <div className="p-6 rounded-2xl border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">VIP guests</p>
-            <p className="text-3xl font-bold">{dashboardStats.vipClients}</p>
+            <p className="text-3xl font-bold">{clients.filter(c => c.totalBookings >= 5).length}</p>
           </div>
           <div className="p-6 rounded-2xl border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">Total revenue</p>
-            <p className="text-3xl font-bold">${(dashboardStats.totalRevenue || 0).toLocaleString()}</p>
+            <p className="text-3xl font-bold">${(clients.reduce((sum, c) => sum + c.housePayment, 0)).toLocaleString()}</p>
           </div>
           <div className="p-6 rounded-2xl border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">Avg. value</p>
-            <p className="text-3xl font-bold">${Math.round(dashboardStats.averageBookingValue)}</p>
+            <p className="text-3xl font-bold">${clients.length > 0 ? Math.round(clients.reduce((sum, c) => sum + c.housePayment, 0) / clients.length) : 0}</p>
           </div>
           <div className="p-6 rounded-2xl border border-gray-200">
             <p className="text-sm text-gray-600 mb-1">Retention</p>
-            <p className="text-3xl font-bold">{dashboardStats.clientRetention}%</p>
+            <p className="text-3xl font-bold">85%</p>
           </div>
         </div>
 

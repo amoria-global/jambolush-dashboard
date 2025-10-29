@@ -1,5 +1,7 @@
 "use client";
 import api from '@/app/api/apiService';
+import { useRouter } from 'next/navigation';
+import { createViewDetailsUrl } from '@/app/utils/encoder';
 import React, { useState, useEffect, useMemo } from 'react';
 
 interface Tour {
@@ -48,6 +50,7 @@ type MainTab = 'available' | 'bookings';
 type ViewMode = 'grid' | 'list';
 
 const GuestToursPage: React.FC = () => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<MainTab>('available');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -216,7 +219,10 @@ const GuestToursPage: React.FC = () => {
 
   const handleBookTour = (tour: Tour) => { setSelectedTour(tour); setShowBookingForm(true); };
   const handleViewTourDetails = (tour: Tour) => { setSelectedTour(tour); setShowTourModal(true); };
-  const handleViewBookingDetails = (booking: UserBooking) => { setSelectedBooking(booking); setShowBookingModal(true); };
+  const handleViewBookingDetails = (booking: UserBooking) => {
+    const url = createViewDetailsUrl(booking.id, 'tour-booking');
+    router.push(url);
+  };
   const handleCancelBooking = async (booking: UserBooking) => {
     if (window.confirm(`Cancel "${booking.tourTitle}"?`)) {
       try { await api.patch(`/tours/${booking.id}/cancel`); window.location.reload(); } catch (error) { alert('Failed to cancel booking.'); }
