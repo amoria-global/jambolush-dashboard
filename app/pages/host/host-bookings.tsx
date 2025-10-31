@@ -422,6 +422,10 @@ const BookingsPage: React.FC = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
+      case 'checked_in': return 'bg-purple-100 text-purple-800';
+      case 'checked-in': return 'bg-purple-100 text-purple-800';
+      case 'checked_out': return 'bg-indigo-100 text-indigo-800';
+      case 'checked-out': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }, []);
@@ -432,6 +436,10 @@ const BookingsPage: React.FC = () => {
       case 'pending': return 'bi-clock';
       case 'cancelled': return 'bi-x-circle';
       case 'completed': return 'bi-check-square';
+      case 'checked_in': return 'bi-door-open';
+      case 'checked-in': return 'bi-door-open';
+      case 'checked_out': return 'bi-door-closed';
+      case 'checked-out': return 'bi-door-closed';
       default: return 'bi-calendar';
     }
   }, []);
@@ -679,8 +687,10 @@ const BookingsPage: React.FC = () => {
                 className="px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:border-black appearance-none"
               >
                 <option value="all">All status</option>
-                <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="checked_in">Checked In</option>
+                <option value="checked_out">Checked Out</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>

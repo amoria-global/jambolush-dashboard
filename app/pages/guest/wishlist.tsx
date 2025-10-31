@@ -1,11 +1,11 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
-import api from '@/app/api/apiService'; // Import your API service
+import api from '@/app/api/apiService';
 
 // Types
 interface WishlistItem {
-  id: string; // This will now be the actual wishlist item ID from the DB
-  propertyId: number; // Keep track of the actual property ID
+  id: string;
+  propertyId: number;
   title: string;
   category: 'apartment' | 'house' | 'villa' | 'condo' | 'studio';
   price: number;
@@ -52,7 +52,7 @@ const WishlistPage: React.FC = () => {
   const [filteredItems, setFilteredItems] = useState<WishlistItem[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(9);
+  const [itemsPerPage] = useState(12);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<WishlistItem | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -73,50 +73,42 @@ const WishlistPage: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('addedDate');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // --- DATA FETCHING ---
+  // Data fetching
   useEffect(() => {
     const fetchWishlist = async () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("authToken");
         if (!token) {
-          // Redirect or handle unauthenticated state
-          //error("Please log in to see your wishlist.");
           setLoading(false);
           return;
         }
         api.setAuth(token);
         
-        // Fetch data from GET /bookings/wishlist
         const response: any = await api.get('/bookings/wishlist');
 
         if (response.success) {
-          // Map API response to the frontend's WishlistItem interface
           const mappedData = response.data.data.items.map((item: any): WishlistItem => ({
-            id: item.id, // The unique ID of the wishlist entry
+            id: item.id,
             propertyId: item.itemId,
             title: item.itemDetails.name || 'N/A',
-            category: item.itemDetails.category || 'house', // Default to 'house' if not provided
+            category: item.itemDetails.category || 'house',
             price: item.itemDetails.price || 0,
-            status: item.isAvailable ? 'available' : 'unavailable', // Map isAvailable to status
+            status: item.isAvailable ? 'available' : 'unavailable',
             image: item.itemDetails.image || 'https://via.placeholder.com/400x300',
             location: item.itemDetails.location || 'N/A',
             rating: item.itemDetails.rating || 0,
             addedDate: new Date(item.createdAt),
-            notes: item.notes || '', // Handle undefined notes
-            // Set defaults for fields not available in the basic wishlist response
+            notes: item.notes || '',
             bedrooms: item.itemDetails.bedrooms || 0,
             bathrooms: item.itemDetails.bathrooms || 0,
             sqft: item.itemDetails.sqft || 0,
             reviews: item.itemDetails.reviews || 0,
           }));
           setWishlistItems(mappedData);
-        } else {
-          //toast.error(response.data.message || 'Could not fetch wishlist.');
         }
       } catch (error: any) {
         console.error("Failed to fetch wishlist:", error);
-        //toast.error(error.response?.data?.message || "An error occurred while fetching your wishlist.");
       } finally {
         setLoading(false);
       }
@@ -145,7 +137,6 @@ const WishlistPage: React.FC = () => {
   useEffect(() => {
     let filtered = [...wishlistItems];
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(item =>
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -153,17 +144,14 @@ const WishlistPage: React.FC = () => {
       );
     }
 
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(item => item.status === statusFilter);
     }
 
-    // Category filter
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(item => item.category === categoryFilter);
     }
 
-    // Price range filter
     if (priceRange.min || priceRange.max) {
       const min = priceRange.min ? parseFloat(priceRange.min) : 0;
       const max = priceRange.max ? parseFloat(priceRange.max) : Infinity;
@@ -218,29 +206,23 @@ const WishlistPage: React.FC = () => {
   };
 
   const handleRemove = async (itemId: string) => {
-    if (confirm('Are you sure you want to remove this item from your wishlist?')) {
+    if (confirm('Remove this property from your wishlist?')) {
       try {
         const token = localStorage.getItem("authToken");
-        if (!token) return //toast.error("Please log in again.");
+        if (!token) return;
         api.setAuth(token);
         
-        // Call the DELETE endpoint
         await api.delete(`/bookings/wishlist/${itemId}`);
-        
-        // Update state on success
         setWishlistItems(prev => prev.filter(item => item.id !== itemId));
-        //toast.success("Item removed from wishlist.");
         
       } catch (error: any) {
         console.error("Failed to remove item:", error);
-        //toast.error(error.response?.data?.message || "Could not remove item.");
       }
     }
   };
 
   const handleMoveToBookings = (item: WishlistItem) => {
-    alert(`Moving "${item.title}" to bookings...`);
-    // In real app, this would make an API call
+    alert(`Booking "${item.title}"...`);
   };
 
   const handleOpenReviewModal = (item: WishlistItem) => {
@@ -252,7 +234,6 @@ const WishlistPage: React.FC = () => {
   };
 
   const handleSaveReview = () => {
-    // TODO: Connect this to a PUT /bookings/wishlist/:itemId endpoint
     if (selectedItem) {
       setWishlistItems(prev => 
         prev.map(item => 
@@ -270,7 +251,6 @@ const WishlistPage: React.FC = () => {
       setEditingNotes('');
       setEditingReview('');
       setEditingRating(0);
-      //toast.success("Notes and review updated locally.");
     }
   };
 
@@ -286,725 +266,579 @@ const WishlistPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'bg-green-100 text-green-800';
-      case 'unavailable': return 'bg-gray-100 text-gray-800';
-      case 'price-dropped': return 'bg-blue-100 text-blue-800';
-      case 'booked': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'available': return 'bi-house-check';
-      case 'unavailable': return 'bi-x-circle';
-      case 'price-dropped': return 'bi-tag';
-      case 'booked': return 'bi-calendar-check';
-      default: return 'bi-house';
+      case 'available': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'unavailable': return 'bg-gray-50 text-gray-700 border-gray-200';
+      case 'price-dropped': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'booked': return 'bg-red-50 text-red-700 border-red-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
   return (
-    <div className="pt-14 px-2 sm:px-4">
-      <div className="mx-auto py-8">
-        {/* Header */}
-        <div className="mb-8 text-center sm:text-left">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#083A85]">My Wishlist</h1>
-          <p className="text-gray-600 mt-2 text-base sm:text-lg">Track and manage your favorite properties</p>
+    <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Wishlists</h1>
+        <p className="text-gray-600">Save your favorite places to stay</p>
+      </div>
+
+      {/* Summary Cards - Airbnb Style */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <i className="bi bi-heart-fill text-gray-400 text-xl"></i>
+            <span className="text-2xl font-semibold text-gray-900">{summaryStats.total}</span>
+          </div>
+          <p className="text-sm text-gray-600">Total saved</p>
         </div>
-
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-gray-100 rounded-lg shadow-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm sm:text-base text-gray-600">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{summaryStats.total}</p>
-              </div>
-              <i className="bi bi-heart-fill text-2xl text-gray-400"></i>
-            </div>
+        
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <i className="bi bi-check-circle text-emerald-500 text-xl"></i>
+            <span className="text-2xl font-semibold text-gray-900">{summaryStats.available}</span>
           </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm sm:text-base text-gray-600">Available</p>
-                <p className="text-2xl font-bold text-green-600">{summaryStats.available}</p>
-              </div>
-              <i className="bi bi-house-check text-2xl text-green-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm sm:text-base text-gray-600">Unavailable</p>
-                <p className="text-2xl font-bold text-gray-600">{summaryStats.unavailable}</p>
-              </div>
-              <i className="bi bi-x-circle text-2xl text-gray-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm sm:text-base text-gray-600">Price Drop</p>
-                <p className="text-2xl font-bold text-blue-600">{summaryStats.priceDropped}</p>
-              </div>
-              <i className="bi bi-tag text-2xl text-blue-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-4 md:col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm sm:text-base text-gray-600">Booked</p>
-                <p className="text-2xl font-bold text-red-600">{summaryStats.booked}</p>
-              </div>
-              <i className="bi bi-calendar-check text-2xl text-red-500"></i>
-            </div>
-          </div>
+          <p className="text-sm text-gray-600">Available</p>
         </div>
-
-        {/* Filters Section */}
-        <div className="bg-gray-50 rounded-lg shadow-xl p-4 sm:p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Search</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Property name or location..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                />
-                <i className="bi bi-search absolute left-3 top-3 text-gray-700"></i>
-              </div>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
-              >
-                <option value="all">All Status</option>
-                <option value="available">Available</option>
-                <option value="unavailable">Unavailable</option>
-                <option value="price-dropped">Price Dropped</option>
-                <option value="booked">Booked</option>
-              </select>
-            </div>
-
-            {/* Category Filter */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Category</label>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-base"
-              >
-                <option value="all">All Categories</option>
-                <option value="apartment">Apartment</option>
-                <option value="house">House</option>
-                <option value="villa">Villa</option>
-                <option value="condo">Condo</option>
-                <option value="studio">Studio</option>
-              </select>
-            </div>
-
-            {/* Price Range */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Price Range</label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={priceRange.min}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                />
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={priceRange.max}
-                  onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-                />
-              </div>
-            </div>
+        
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <i className="bi bi-x-circle text-gray-400 text-xl"></i>
+            <span className="text-2xl font-semibold text-gray-900">{summaryStats.unavailable}</span>
           </div>
+          <p className="text-sm text-gray-600">Unavailable</p>
+        </div>
+        
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <i className="bi bi-tag text-blue-500 text-xl"></i>
+            <span className="text-2xl font-semibold text-gray-900">{summaryStats.priceDropped}</span>
+          </div>
+          <p className="text-sm text-gray-600">Price drops</p>
+        </div>
+        
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <i className="bi bi-calendar-check text-red-500 text-xl"></i>
+            <span className="text-2xl font-semibold text-gray-900">{summaryStats.booked}</span>
+          </div>
+          <p className="text-sm text-gray-600">Booked</p>
+        </div>
+      </div>
 
-          {/* View Mode Toggle & Results Count */}
-          <div className="flex flex-col sm:flex-row justify-between items-center mt-6">
-            <p className="text-base text-gray-600 mb-4 sm:mb-0">
-              Showing {paginatedItems.length} of {filteredItems.length} properties
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base font-medium ${
-                  viewMode === 'grid' 
-                    ? 'bg-blue-900 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                style={{ backgroundColor: viewMode === 'grid' ? '#083A85' : undefined }}
-              >
-                <i className="bi bi-grid-3x3-gap mr-1 sm:mr-2"></i><span className="hidden sm:inline">Grid View</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base font-medium ${
-                  viewMode === 'list' 
-                    ? 'bg-blue-900 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
-              >
-                <i className="bi bi-list-ul mr-1 sm:mr-2"></i><span className="hidden sm:inline">List View</span>
-              </button>
-            </div>
+      {/* Filters Section - Airbnb Style */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <input
+              type="text"
+              placeholder="Search saved properties..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] transition-all"
+            />
+            <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
           </div>
         </div>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
-          </div>
-        )}
+        {/* Filter Pills */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-full bg-white hover:border-gray-400 focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] cursor-pointer transition-all">
+            <option value="all">Any status</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+            <option value="price-dropped">Price dropped</option>
+            <option value="booked">Booked</option>
+          </select>
 
-        {/* Empty State */}
-        {!loading && filteredItems.length === 0 && (
-          <div className="bg-gray-100 rounded-lg shadow-xl p-8 sm:p-12 text-center">
-            <i className="bi bi-heart text-5xl sm:text-6xl text-gray-300"></i>
-            <h3 className="text-xl sm:text-2xl font-medium text-gray-900 mt-4">
-              {wishlistItems.length === 0 
-                ? "Your wishlist is empty"
-                : "No properties found"}
-            </h3>
-            <p className="text-base text-gray-600 mt-2">
-              {wishlistItems.length === 0 
-                ? "Start adding your favorite listings!"
-                : "Try adjusting your filters or search criteria"}
-            </p>
-          </div>
-        )}
+          {/* Category Filter */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-full bg-white hover:border-gray-400 focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] cursor-pointer transition-all">
+            <option value="all">Any type</option>
+            <option value="apartment">Apartment</option>
+            <option value="house">House</option>
+            <option value="villa">Villa</option>
+            <option value="condo">Condo</option>
+            <option value="studio">Studio</option>
+          </select>
 
-        {/* Grid View */}
-        {!loading && filteredItems.length > 0 && viewMode === 'grid' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedItems.map((item) => (
-              <div key={item.id} className="bg-gray-100 rounded-lg shadow-xl hover:shadow-lg transition-shadow overflow-hidden">
-                <div className="relative">
+          {/* Price Range */}
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              placeholder="Min price"
+              value={priceRange.min}
+              onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+              className="w-28 px-4 py-2 border border-gray-300 rounded-full hover:border-gray-400 focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] transition-all"
+            />
+            <span className="text-gray-400">–</span>
+            <input
+              type="number"
+              placeholder="Max price"
+              value={priceRange.max}
+              onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+              className="w-28 px-4 py-2 border border-gray-300 rounded-full hover:border-gray-400 focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Results Count & View Toggle */}
+        <div className="flex justify-between items-center">
+          <p className="text-gray-700">
+            <span className="font-medium">{filteredItems.length}</span> properties saved
+          </p>
+          
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 rounded-md transition-all ${
+                viewMode === 'grid' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}>
+              <i className="bi bi-grid-3x3-gap-fill mr-2"></i>
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1.5 rounded-md transition-all ${
+                viewMode === 'list' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}>
+              <i className="bi bi-list mr-2"></i>
+              List
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85]"></div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && filteredItems.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+            <i className="bi bi-heart text-3xl text-gray-400"></i>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {wishlistItems.length === 0 ? "No saved places yet" : "No matching properties"}
+          </h3>
+          <p className="text-gray-600">
+            {wishlistItems.length === 0 
+              ? "Start exploring and save your favorite places"
+              : "Try adjusting your filters"}
+          </p>
+        </div>
+      )}
+
+      {/* Grid View - Airbnb Style */}
+      {!loading && filteredItems.length > 0 && viewMode === 'grid' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {paginatedItems.map((item) => (
+            <div key={item.id} className="group cursor-pointer" onClick={() => handleViewDetails(item)}>
+              <div className="relative aspect-square mb-3 overflow-hidden rounded-xl">
+                <img 
+                  src={item.image} 
+                  alt={item.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                {/* Heart Icon */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemove(item.id);
+                  }}
+                  className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-all shadow-md">
+                  <i className="bi bi-heart-fill text-red-500"></i>
+                </button>
+                
+                {/* Status Badge */}
+                {item.status !== 'available' && (
+                  <div className="absolute top-3 left-3">
+                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full border backdrop-blur-sm bg-white/90 ${getStatusColor(item.status)}`}>
+                      {item.status === 'price-dropped' ? 'Price drop' : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="font-medium text-gray-900 line-clamp-1">{item.title}</h3>
+                  <div className="flex items-center gap-1 text-sm">
+                    <i className="bi bi-star-fill text-xs"></i>
+                    <span>{item.rating}</span>
+                  </div>
+                </div>
+                
+                <p className="text-gray-500 text-sm mb-1">{item.location}</p>
+                <p className="text-gray-500 text-sm mb-2">
+                  {item.bedrooms} bed · {item.bathrooms} bath · {item.sqft} sqft
+                </p>
+                
+                <div className="flex items-baseline gap-2">
+                  {item.originalPrice && (
+                    <span className="text-gray-400 line-through text-sm">
+                      ${item.originalPrice}
+                    </span>
+                  )}
+                  <p className="font-semibold text-gray-900">
+                    ${item.price} <span className="font-normal text-gray-500">night</span>
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMoveToBookings(item);
+                    }}
+                    className="flex-1 px-3 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium">
+                    Reserve
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenReviewModal(item);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+                    <i className="bi bi-pencil text-gray-600"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* List View - Airbnb Style */}
+      {!loading && filteredItems.length > 0 && viewMode === 'list' && (
+        <div className="space-y-4">
+          {paginatedItems.map((item) => (
+            <div 
+              key={item.id} 
+              className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => handleViewDetails(item)}>
+              <div className="flex gap-4">
+                {/* Image */}
+                <div className="relative w-48 h-32 rounded-lg overflow-hidden flex-shrink-0">
                   <img 
                     src={item.image} 
                     alt={item.title}
-                    className="w-full h-48 object-cover"
+                    className="w-full h-full object-cover"
                   />
-                  <span className={`absolute top-3 right-3 px-2 py-1 text-xs sm:text-sm font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                    <i className={`bi ${getStatusIcon(item.status)} mr-1`}></i>
-                    {item.status === 'price-dropped' ? 'Price Drop' : item.status}
-                  </span>
-                  {item.userRating && (
-                    <div className="absolute top-3 left-3 bg-white px-2 py-1 rounded-full shadow-md flex items-center gap-1">
-                      <i className="bi bi-star-fill text-yellow-400"></i>
-                      <span className="text-sm font-semibold">{item.userRating}</span>
-                    </div>
-                  )}
                 </div>
                 
-                <div className="p-4">
+                {/* Content */}
+                <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">{item.title}</h3>
-                    <div className="flex items-center text-sm sm:text-base text-gray-600">
-                      <i className="bi bi-star-fill text-yellow-400 mr-2"></i>
-                      {item.rating}
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm sm:text-base text-gray-500 mb-3">
-                    <i className="bi bi-geo-alt mr-1"></i>
-                    {item.location}
-                  </p>
-                  
-                  <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm sm:text-base text-gray-600 mb-3">
-                    <span><i className="bi bi-door-open mr-1"></i>{item.bedrooms} bed</span>
-                    <span><i className="bi bi-droplet mr-1"></i>{item.bathrooms} bath</span>
-                    <span><i className="bi bi-arrows-angle-expand mr-1"></i>{item.sqft} sqft</span>
-                  </div>
-                  
-                  <div className="flex items-baseline justify-between mb-3">
                     <div>
+                      <h3 className="font-medium text-gray-900 text-lg">{item.title}</h3>
+                      <p className="text-gray-500 text-sm">{item.location}</p>
+                    </div>
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusColor(item.status)}`}>
+                      {item.status === 'price-dropped' ? 'Price drop' : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                    <span>{item.bedrooms} bedrooms</span>
+                    <span>{item.bathrooms} bathrooms</span>
+                    <span>{item.sqft} sqft</span>
+                    <span className="flex items-center gap-1">
+                      <i className="bi bi-star-fill text-xs"></i>
+                      {item.rating} ({item.reviews} reviews)
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-end">
+                    <div className="flex items-baseline gap-2">
                       {item.originalPrice && (
-                        <span className="text-sm sm:text-base text-gray-400 line-through mr-2">
-                          ${item.originalPrice}/night
+                        <span className="text-gray-400 line-through">
+                          ${item.originalPrice}
                         </span>
                       )}
-                      <span className="text-xl font-bold text-green-600">
-                        ${item.price}
-                        <span className="text-sm sm:text-base font-normal text-gray-600">/night</span>
+                      <span className="text-xl font-semibold text-gray-900">
+                        ${item.price} <span className="text-sm font-normal text-gray-500">/ night</span>
                       </span>
                     </div>
-                  </div>
-                  
-                  {item.notes && (
-                    <p className="text-sm sm:text-base text-gray-500 italic mb-3 line-clamp-2">
-                      <i className="bi bi-sticky mr-1"></i>{item.notes}
-                    </p>
-                  )}
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleViewDetails(item)}
-                      className="flex-1 px-3 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400 transition-colors text-sm sm:text-base font-medium cursor-pointer"
-                    >
-                      <i className="bi bi-eye mr-1"></i><span className="hidden sm:inline">View</span>
-                    </button>
-                    <button
-                      onClick={() => handleMoveToBookings(item)}
-                      className="flex-1 px-3 py-2 text-white rounded-lg transition-colors text-sm sm:text-base font-medium cursor-pointer"
-                      style={{ backgroundColor: '#083A85' }}
-                    >
-                      <i className="bi bi-cart-plus mr-1"></i><span className="hidden sm:inline">Book</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenReviewModal(item)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                      title="Add review & notes"
-                    >
-                      <i className="bi bi-pencil text-lg"></i>
-                    </button>
-                    <button
-                      onClick={() => handleRemove(item.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                      title="Remove from wishlist"
-                    >
-                      <i className="bi bi-trash text-lg"></i>
-                    </button>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveToBookings(item);
+                        }}
+                        className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium">
+                        Reserve
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenReviewModal(item);
+                        }}
+                        className="p-2 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+                        <i className="bi bi-pencil text-gray-600"></i>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemove(item.id);
+                        }}
+                        className="p-2 border border-gray-300 rounded-lg hover:border-red-500 hover:text-red-500 transition-colors">
+                        <i className="bi bi-trash"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* List View */}
-        {!loading && filteredItems.length > 0 && viewMode === 'list' && (
-          <div className="bg-white rounded-lg shadow-xl overflow-x-auto">
-            <table className="w-full text-base">
-              <thead className="bg-gray-50 border-b border-gray-200 hidden sm:table-header-group">
-                <tr>
-                  <th className="px-6 py-3 text-left font-medium text-gray-700 uppercase tracking-wider">
-                    Property
-                  </th>
-                  <th className="px-6 py-3 text-left font-medium text-gray-700 uppercase tracking-wider">
-                    Location
-                  </th>
-                  <th className="px-6 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('price')}
-                      className="font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                    >
-                      Price
-                      <i className={`bi bi-chevron-${sortField === 'price' && sortOrder === 'asc' ? 'up' : 'down'}`}></i>
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('status')}
-                      className="font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                    >
-                      Status
-                      <i className={`bi bi-chevron-${sortField === 'status' && sortOrder === 'asc' ? 'up' : 'down'}`}></i>
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('addedDate')}
-                      className="font-medium text-gray-700 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900 cursor-pointer"
-                    >
-                      Added
-                      <i className={`bi bi-chevron-${sortField === 'addedDate' && sortOrder === 'asc' ? 'up' : 'down'}`}></i>
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-right font-medium text-gray-700 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors block sm:table-row p-4 sm:p-0">
-                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
-                      <div className="flex items-center">
-                        <img 
-                          src={item.image} 
-                          alt={item.title}
-                          className="w-12 h-12 rounded-lg object-cover mr-3 flex-shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-900 flex items-center gap-2 truncate">
-                            {item.title}
-                            {item.userRating && (
-                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex-shrink-0">
-                                <i className="bi bi-star-fill text-xs"></i> {item.userRating}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-gray-500">{item.category}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
-                      <div className="text-gray-600">
-                        <i className="bi bi-geo-alt text-gray-400 mr-1"></i>
-                        {item.location}
-                      </div>
-                    </td>
-                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
-                      <div>
-                        {item.originalPrice && (
-                          <span className="text-gray-400 line-through block">
-                            ${item.originalPrice}
-                          </span>
-                        )}
-                        <span className="font-medium text-gray-900">
-                          ${item.price}/night
-                        </span>
-                      </div>
-                    </td>
-                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
-                      <span className={`px-2 py-1 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                        {item.status === 'price-dropped' ? 'Price Drop' : item.status}
-                      </span>
-                    </td>
-                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0">
-                      <div className="text-gray-500">
-                        {format(item.addedDate, 'MMM dd, yyyy')}
-                      </div>
-                    </td>
-                    <td className="sm:px-6 sm:py-4 whitespace-nowrap block sm:table-cell mb-2 sm:mb-0 text-right">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => handleViewDetails(item)}
-                          className="text-blue-600 hover:text-blue-900 cursor-pointer"
-                          title="View details"
-                        >
-                          <i className="bi bi-eye text-lg"></i>
-                        </button>
-                        <button
-                          onClick={() => handleMoveToBookings(item)}
-                          className="text-green-600 hover:text-green-900 cursor-pointer"
-                          title="Move to bookings"
-                        >
-                          <i className="bi bi-cart-plus text-lg"></i>
-                        </button>
-                        <button
-                          onClick={() => handleOpenReviewModal(item)}
-                          className="text-gray-600 hover:text-gray-900 cursor-pointer"
-                          title="Add review & notes"
-                        >
-                          <i className="bi bi-pencil text-lg"></i>
-                        </button>
-                        <button
-                          onClick={() => handleRemove(item.id)}
-                          className="text-red-600 hover:text-red-900 cursor-pointer"
-                          title="Remove from wishlist"
-                        >
-                          <i className="bi bi-trash text-lg"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className={`px-3 py-2 rounded-lg transition-colors ${
-                  currentPage === 1
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'
-                }`}
-              >
-                <i className="bi bi-chevron-left"></i>
-              </button>
-
-              {/* Page Numbers */}
-              <div className="hidden sm:flex items-center gap-1">
-                {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = index + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = index + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + index;
-                  } else {
-                    pageNum = currentPage - 2 + index;
-                  }
-
+      {/* Pagination - Airbnb Style */}
+      {!loading && totalPages > 1 && (
+        <div className="mt-8 flex justify-center">
+          <nav className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors">
+              <i className="bi bi-chevron-left"></i>
+            </button>
+            
+            <div className="flex items-center gap-1 mx-2">
+              {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 7) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 4) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i;
+                } else {
+                  pageNum = currentPage - 3 + i;
+                }
+                
+                if (pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)) {
                   return (
                     <button
-                      key={index}
+                      key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-2 rounded-lg transition-colors cursor-pointer ${
+                      className={`w-10 h-10 rounded-lg font-medium transition-all ${
                         currentPage === pageNum
-                          ? 'text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
-                      }`}
-                      style={{ 
-                        backgroundColor: currentPage === pageNum ? '#083A85' : undefined 
-                      }}
-                    >
+                          ? 'bg-[#083A85] text-white'
+                          : 'hover:bg-gray-100 text-gray-700'
+                      }`}>
                       {pageNum}
                     </button>
                   );
-                })}
-              </div>
-
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-2 rounded-lg transition-colors ${
-                  currentPage === totalPages
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'
-                }`}
-              >
-                <i className="bi bi-chevron-right"></i>
-              </button>
+                } else if (pageNum === currentPage - 3 || pageNum === currentPage + 3) {
+                  return <span key={pageNum} className="text-gray-400">...</span>;
+                }
+                return null;
+              })}
             </div>
 
-            {/* Go to page */}
-            <div className="flex items-center gap-2">
-              <span className="text-base text-gray-600">Go to page:</span>
-              <input
-                type="number"
-                min="1"
-                max={totalPages}
-                value={goToPageInput}
-                onChange={(e) => setGoToPageInput(e.target.value)}
-                onBlur={(e) => handleGoToPage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleGoToPage((e.target as HTMLInputElement).value);
-                  }
-                }}
-                className="w-16 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
-              />
-              <span className="text-base text-gray-600">of {totalPages}</span>
-            </div>
-          </div>
-        )}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent transition-colors">
+              <i className="bi bi-chevron-right"></i>
+            </button>
+          </nav>
+        </div>
+      )}
 
-        {/* Detail Modal */}
-        {showModal && selectedItem && (
-          <div className="fixed inset-0 backdrop-blur-xs bg-black/20 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg w-full max-w-md sm:max-w-xl md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="relative">
+      {/* Detail Modal - Airbnb Style */}
+      {showModal && selectedItem && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowModal(false)}></div>
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              {/* Image Header */}
+              <div className="relative h-64">
                 <img 
                   src={selectedItem.image} 
                   alt={selectedItem.title}
-                  className="w-full h-48 sm:h-64 object-cover rounded-t-lg"
+                  className="w-full h-full object-cover rounded-t-2xl"
                 />
                 <button
                   onClick={() => setShowModal(false)}
-                  className="absolute top-4 right-4 bg-gray-400 rounded-full p-2 shadow-xl hover:bg-red-500 cursor-pointer"
-                >
-                  <i className="bi bi-x-lg text-white"></i>
+                  className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors">
+                  <i className="bi bi-x-lg"></i>
                 </button>
               </div>
 
-              <div className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start mb-4">
+              {/* Content */}
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedItem.title}</h2>
-                    <p className="text-gray-600 mt-1 text-sm sm:text-base">
-                      <i className="bi bi-geo-alt mr-1"></i>
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-1">{selectedItem.title}</h2>
+                    <p className="text-gray-600 flex items-center gap-1">
+                      <i className="bi bi-geo-alt"></i>
                       {selectedItem.location}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 text-sm sm:text-base font-semibold rounded-full mt-2 sm:mt-0 ${getStatusColor(selectedItem.status)}`}>
-                    {selectedItem.status === 'price-dropped' ? 'Price Drop' : selectedItem.status}
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(selectedItem.status)}`}>
+                    {selectedItem.status === 'price-dropped' ? 'Price drop' : selectedItem.status.charAt(0).toUpperCase() + selectedItem.status.slice(1)}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-door-open text-gray-600 text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Bedrooms</p>
-                    <p className="font-semibold text-base">{selectedItem.bedrooms}</p>
+                {/* Property Details */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                  <div className="text-center">
+                    <i className="bi bi-door-open text-2xl text-gray-600 mb-1"></i>
+                    <p className="text-sm text-gray-600">Bedrooms</p>
+                    <p className="font-semibold">{selectedItem.bedrooms}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-droplet text-gray-600 text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Bathrooms</p>
-                    <p className="font-semibold text-base">{selectedItem.bathrooms}</p>
+                  <div className="text-center">
+                    <i className="bi bi-droplet text-2xl text-gray-600 mb-1"></i>
+                    <p className="text-sm text-gray-600">Bathrooms</p>
+                    <p className="font-semibold">{selectedItem.bathrooms}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-arrows-angle-expand text-gray-600 text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Square Feet</p>
-                    <p className="font-semibold text-base">{selectedItem.sqft}</p>
+                  <div className="text-center">
+                    <i className="bi bi-arrows-angle-expand text-2xl text-gray-600 mb-1"></i>
+                    <p className="text-sm text-gray-600">Square feet</p>
+                    <p className="font-semibold">{selectedItem.sqft}</p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-tag text-gray-600 text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Category</p>
-                    <p className="font-semibold text-base capitalize">{selectedItem.category}</p>
+                  <div className="text-center">
+                    <i className="bi bi-house text-2xl text-gray-600 mb-1"></i>
+                    <p className="text-sm text-gray-600">Type</p>
+                    <p className="font-semibold capitalize">{selectedItem.category}</p>
                   </div>
                 </div>
 
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold mb-2">Pricing</h3>
-                  <div className="flex flex-wrap items-baseline gap-3">
+                {/* Pricing */}
+                <div className="border-t border-b py-4 mb-6">
+                  <div className="flex items-baseline gap-3">
                     {selectedItem.originalPrice && (
                       <span className="text-xl text-gray-400 line-through">
-                        ${selectedItem.originalPrice}/night
+                        ${selectedItem.originalPrice}
                       </span>
                     )}
-                    <span className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    <span className="text-3xl font-semibold text-gray-900">
                       ${selectedItem.price}
-                      <span className="text-base sm:text-lg font-normal text-gray-900">/night</span>
                     </span>
+                    <span className="text-gray-600">per night</span>
                     {selectedItem.originalPrice && (
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-lg text-sm sm:text-base font-semibold">
+                      <span className="ml-auto bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                         Save ${selectedItem.originalPrice - selectedItem.price}
                       </span>
                     )}
                   </div>
                 </div>
 
+                {/* Reviews */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Rating & Reviews</h3>
-                  <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
-                    <div className="flex items-center">
-                      <i className="bi bi-star-fill text-yellow-400 text-xl"></i>
-                      <span className="text-xl font-semibold ml-1">{selectedItem.rating}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      <i className="bi bi-star-fill text-lg"></i>
+                      <span className="text-lg font-semibold">{selectedItem.rating}</span>
                     </div>
-                    <span className="text-gray-600 text-sm sm:text-base">({selectedItem.reviews} reviews)</span>
+                    <span className="text-gray-600">·</span>
+                    <span className="text-gray-600">{selectedItem.reviews} reviews</span>
                     {selectedItem.userRating && (
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
-                        Your rating: {selectedItem.userRating}/5
-                      </span>
+                      <>
+                        <span className="text-gray-600">·</span>
+                        <span className="text-gray-600">You rated: {selectedItem.userRating}/5</span>
+                      </>
                     )}
                   </div>
                 </div>
 
-                {selectedItem.userReview && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-2">Your Review</h3>
-                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3 text-base">
-                      <i className="bi bi-chat-quote mr-2"></i>
-                      {selectedItem.userReview}
-                    </p>
+                {/* User Notes/Review */}
+                {(selectedItem.notes || selectedItem.userReview) && (
+                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                    {selectedItem.notes && (
+                      <div className="mb-3">
+                        <h4 className="font-medium text-gray-900 mb-1">Your notes</h4>
+                        <p className="text-gray-600">{selectedItem.notes}</p>
+                      </div>
+                    )}
+                    {selectedItem.userReview && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-1">Your review</h4>
+                        <p className="text-gray-600">{selectedItem.userReview}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {selectedItem.notes && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-2">Your Notes</h3>
-                    <p className="text-gray-600 bg-gray-50 rounded-lg p-3 text-base">
-                      <i className="bi bi-sticky mr-2"></i>
-                      {selectedItem.notes}
-                    </p>
-                  </div>
-                )}
-
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Added to Wishlist</h3>
-                  <p className="text-gray-600 text-base">
-                    <i className="bi bi-calendar mr-2"></i>
-                    {format(selectedItem.addedDate, 'MMM dd, yyyy')}
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
+                {/* Actions */}
+                <div className="flex gap-3">
                   <button
                     onClick={() => {
                       handleMoveToBookings(selectedItem);
                       setShowModal(false);
                     }}
-                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                    style={{ backgroundColor: '#083A85' }}
-                  >
-                    <i className="bi bi-cart-plus mr-2"></i>
-                    Move to Bookings
+                    className="flex-1 px-6 py-3 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium">
+                    Reserve this place
                   </button>
                   <button
                     onClick={() => {
                       setShowModal(false);
                       handleOpenReviewModal(selectedItem);
                     }}
-                    className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
-                    <i className="bi bi-pencil mr-2"></i>
-                    Add Review & Notes
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleRemove(selectedItem.id);
-                      setShowModal(false);
-                    }}
-                    className="flex-1 sm:flex-none px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
-                    <i className="bi bi-trash mr-2"></i>
-                    Remove
+                    className="px-6 py-3 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors font-medium">
+                    Add notes
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Review, Rating & Notes Modal */}
-        {showReviewModal && selectedItem && (
-          <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg w-full max-w-md sm:max-w-xl md:max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-4 sm:p-6">
+      {/* Review Modal - Airbnb Style */}
+      {showReviewModal && selectedItem && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowReviewModal(false)}></div>
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl">
+              <div className="p-6">
+                {/* Header */}
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Review & Notes</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">Add notes and rating</h3>
                   <button
                     onClick={() => setShowReviewModal(false)}
-                    className="text-gray-400 hover:text-red-600 cursor-pointer"
-                  >
-                    <i className="bi bi-x-lg text-2xl"></i>
+                    className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                    <i className="bi bi-x-lg text-xl"></i>
                   </button>
                 </div>
 
-                <div className="mb-6">
-                  <div className="flex items-center gap-3 mb-2">
-                    <img 
-                      src={selectedItem.image} 
-                      alt={selectedItem.title}
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
-                    <div>
-                      <p className="text-lg font-semibold text-gray-900">{selectedItem.title}</p>
-                      <p className="text-sm sm:text-base text-gray-600">
-                        <i className="bi bi-geo-alt mr-1"></i>
-                        {selectedItem.location}
-                      </p>
-                    </div>
+                {/* Property Info */}
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-6">
+                  <img 
+                    src={selectedItem.image} 
+                    alt={selectedItem.title}
+                    className="w-16 h-16 rounded-lg object-cover"
+                  />
+                  <div>
+                    <p className="font-medium text-gray-900">{selectedItem.title}</p>
+                    <p className="text-sm text-gray-600">{selectedItem.location}</p>
                   </div>
                 </div>
 
-                {/* Rating Section */}
+                {/* Rating */}
                 <div className="mb-6">
-                  <label className="block text-base sm:text-lg font-medium text-gray-700 mb-3">
-                    <i className="bi bi-star-fill text-yellow-400 mr-2"></i>
-                    Your Rating
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Your rating
                   </label>
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
@@ -1013,88 +847,68 @@ const WishlistPage: React.FC = () => {
                         onClick={() => setEditingRating(star)}
                         onMouseEnter={() => setHoverRating(star)}
                         onMouseLeave={() => setHoverRating(0)}
-                        className="cursor-pointer transition-transform hover:scale-110"
-                      >
+                        className="p-1 transition-transform hover:scale-110">
                         <i 
                           className={`bi ${
                             star <= (hoverRating || editingRating) 
-                              ? 'bi-star-fill text-yellow-400' 
+                              ? 'bi-star-fill text-black' 
                               : 'bi-star text-gray-300'
-                          } text-3xl`}
+                          } text-2xl`}
                         ></i>
                       </button>
                     ))}
-                    <span className="ml-3 text-base sm:text-lg text-gray-600">
-                      {editingRating > 0 && `${editingRating}/5`}
-                    </span>
+                    {editingRating > 0 && (
+                      <span className="ml-2 text-gray-600">{editingRating} star{editingRating !== 1 ? 's' : ''}</span>
+                    )}
                   </div>
                 </div>
 
-                {/* Review Section */}
+                {/* Review */}
                 <div className="mb-6">
-                  <label className="block text-base sm:text-lg font-medium text-gray-700 mb-3">
-                    <i className="bi bi-chat-quote mr-2"></i>
-                    Your Review
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your review (optional)
                   </label>
                   <textarea
                     value={editingReview}
                     onChange={(e) => setEditingReview(e.target.value)}
                     placeholder="Share your thoughts about this property..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm sm:text-base"
-                    rows={4}
-                  />
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    {editingReview.length}/500 characters
-                  </p>
-                </div>
-
-                {/* Notes Section */}
-                <div className="mb-6">
-                  <label className="block text-base sm:text-lg font-medium text-gray-700 mb-3">
-                    <i className="bi bi-sticky mr-2"></i>
-                    Personal Notes
-                  </label>
-                  <textarea
-                    value={editingNotes}
-                    onChange={(e) => setEditingNotes(e.target.value)}
-                    placeholder="Add private notes about this property (only visible to you)..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm sm:text-base"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] resize-none"
                     rows={3}
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={handleSaveReview}
-                    className="flex-1 px-6 py-3 text-white rounded-lg transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                    style={{ backgroundColor: '#083A85' }}
-                  >
-                    <i className="bi bi-check-lg mr-2"></i>
-                    Save All
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditingRating(selectedItem.userRating || 0);
-                      setEditingReview(selectedItem.userReview || '');
-                      setEditingNotes(selectedItem.notes || '');
-                    }}
-                    className="flex-1 sm:flex-none px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
-                    <i className="bi bi-arrow-clockwise mr-2"></i>
-                    Reset
-                  </button>
+                {/* Notes */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Personal notes (private)
+                  </label>
+                  <textarea
+                    value={editingNotes}
+                    onChange={(e) => setEditingNotes(e.target.value)}
+                    placeholder="Add notes for yourself..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
                   <button
                     onClick={() => setShowReviewModal(false)}
-                    className="flex-1 sm:flex-none px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
+                    className="flex-1 px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium">
                     Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveReview}
+                    className="flex-1 px-6 py-3 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors font-medium">
+                    Save
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1129,10 +1129,13 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
   }
 
   /**
-   * Get booking by ID
+   * Get booking by ID with optional type specification
+   * @param bookingId - The booking ID
+   * @param type - Optional booking type ('property' or 'tour')
    */
-  async getBooking(bookingId: string): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    return this.get<BackendResponse<BookingInfo>>(`/bookings/${bookingId}`);
+  async getBooking(bookingId: string, type?: 'property' | 'tour'): Promise<APIResponse<BackendResponse<BookingInfo>>> {
+    const url = type ? `/bookings/${bookingId}?type=${type}` : `/bookings/${bookingId}`;
+    return this.get<BackendResponse<BookingInfo>>(url);
   }
 
   /**
@@ -1601,10 +1604,11 @@ async searchPropertyBookings(filters?: {
 }
 
 /**
- * Get specific property booking by ID
+ * Get specific property booking by ID (deprecated - use getBooking instead)
+ * @deprecated Use getBooking(bookingId, 'property') instead
  */
 async getPropertyBooking(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
-  return this.get<BackendResponse<any>>(`/bookings/properties/${bookingId}`);
+  return this.getBooking(bookingId, 'property');
 }
 
 /**

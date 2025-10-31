@@ -422,6 +422,10 @@ const TourBookingsPage: React.FC = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-gray-100 text-gray-800';
+      case 'checked_in': return 'bg-purple-100 text-purple-800';
+      case 'checked-in': return 'bg-purple-100 text-purple-800';
+      case 'checked_out': return 'bg-indigo-100 text-indigo-800';
+      case 'checked-out': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -586,8 +590,10 @@ const TourBookingsPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer"
               >
                 <option value="all">All Status</option>
-                <option value="confirmed">Confirmed</option>
                 <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="checked_in">Checked In</option>
+                <option value="checked_out">Checked Out</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -1125,8 +1131,10 @@ const TourBookingsPage: React.FC = () => {
                         onChange={(e) => setEditStatus(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083A85] cursor-pointer"
                       >
-                        <option value="confirmed">Confirmed</option>
                         <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="checked_in">Checked In</option>
+                        <option value="checked_out">Checked Out</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
