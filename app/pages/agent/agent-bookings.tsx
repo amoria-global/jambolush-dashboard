@@ -13,13 +13,15 @@ interface AgentBookingInfo {
     propertyImage?: string;
     guestId: number;
     guestName: string;
-    guestEmail: string;
+    guestEmail?: string;
     checkIn: string;
     checkOut: string;
     guests: number;
     totalPrice: number;
     status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
     agentCommission: number;
+    commissionStatus?: string;
+    clientName?: string;
     message?: string;
     createdAt: string;
     updatedAt: string;
@@ -90,7 +92,6 @@ const AgentBookingsPage: React.FC = () => {
     const [itemsPerPage] = useState(12);
     const [loading, setLoading] = useState(true);
     const [propertiesLoading, setPropertiesLoading] = useState(true);
-    const [bookingsLoading, setBookingsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedBooking, setSelectedBooking] = useState<AgentBookingInfo | null>(null);
     const [showModal, setShowModal] = useState(false);
@@ -216,91 +217,56 @@ const AgentBookingsPage: React.FC = () => {
         }
     }, []);
 
-    // Fetch bookings
+    // Fetch bookings using the unified agent bookings endpoint
     const fetchBookings = useCallback(async () => {
-        if (properties.length === 0) {
-            setBookings([]);
-            setLoading(false);
-            return;
-        }
-
         try {
-            setBookingsLoading(true);
             setError(null);
 
-            const bookingPromises = properties.map(async (property) => {
-                try {
-                    const response = await api.get(`/properties//agent/properties/${property.id}/bookings`);
+            const response = await api.get('/properties/agent/bookings');
 
-                    if (response.data && response.data.success) {
-                        const propertyBookings = response.data.data || [];
-                        return {
-                            success: true,
-                            propertyId: property.id,
-                            propertyName: property.name,
-                            bookings: propertyBookings
-                        };
-                    }
-                    return { success: false, propertyId: property.id, error: 'No data' };
-                } catch (error) {
-                    setError(`Failed to fetch bookings for property`);
-                    return { success: false, propertyId: property.id, error };
-                }
-            });
+            if (response.data && response.data.success) {
+                const fetchedBookings = response.data.data.bookings || [];
 
-            const results = await Promise.allSettled(bookingPromises);
-            
-            const allBookings: AgentBookingInfo[] = [];
-            let failedProperties = 0;
-
-            results.forEach((result) => {
-                if (result.status === 'fulfilled' && result.value.success) {
-                    const { propertyName, propertyId, bookings: propertyBookings } = result.value;
-
-                    // Find the property to get its images
-                    const property = properties.find(p => p.id === propertyId);
+                // Enhance bookings with property images from the properties list
+                const enhancedBookings = fetchedBookings.map((booking: any) => {
+                    const property = properties.find(p => p.id === booking.propertyId);
                     const propertyImage = property?.images
                         ? getFirstPropertyImage(property.images)
                         : 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&h=400&fit=crop';
 
-                    const bookingsWithPropertyInfo = propertyBookings.map((booking: any) => ({
+                    return {
                         ...booking,
-                        propertyName,
-                        propertyId,
-                        propertyImage
-                    }));
+                        propertyImage,
+                        guestEmail: booking.guestEmail || 'N/A'
+                    };
+                });
 
-                    allBookings.push(...bookingsWithPropertyInfo);
-                } else {
-                    failedProperties++;
-                }
-            });
-
-            setBookings(allBookings);
-            
-            if (failedProperties > 0) {
-                setError(`${failedProperties} properties failed to load bookings.`);
+                setBookings(enhancedBookings);
+            } else {
+                setBookings([]);
             }
-            
+
         } catch (err: any) {
             setError(err.response?.data?.message || 'Failed to fetch bookings');
             setBookings([]);
         } finally {
-            setBookingsLoading(false);
             setLoading(false);
         }
-    }, [properties]);
+    }, [properties, getFirstPropertyImage]);
 
     useEffect(() => {
-        fetchProperties();
-        fetchUserData();
-    }, [fetchProperties]);
+        const initialize = async () => {
+            await fetchProperties();
+            await fetchUserData();
+        };
+        initialize();
+    }, []);
 
     useEffect(() => {
-        if (properties.length > 0 && !bookingsLoading) {
+        if (!propertiesLoading) {
             fetchBookings();
         }
-    }, [properties, fetchBookings]);
+    }, [propertiesLoading, fetchBookings]);
 
     // Filtered and sorted bookings
     const filteredAndSortedBookings = useMemo(() => {
@@ -310,10 +276,10 @@ const AgentBookingsPage: React.FC = () => {
 
         if (debouncedSearchTerm) {
             const searchLower = debouncedSearchTerm.toLowerCase();
-            filtered = filtered.filter(booking => 
+            filtered = filtered.filter(booking =>
                 booking.guestName.toLowerCase().includes(searchLower) ||
                 booking.propertyName.toLowerCase().includes(searchLower) ||
-                booking.guestEmail.toLowerCase().includes(searchLower)
+                booking.guestEmail?.toLowerCase().includes(searchLower)
             );
         }
 
@@ -485,6 +451,10 @@ const AgentBookingsPage: React.FC = () => {
             case 'pending': return 'bg-yellow-100 text-yellow-800';
             case 'cancelled': return 'bg-red-100 text-red-800';
             case 'completed': return 'bg-blue-100 text-blue-800';
+            case 'checked_in': return 'bg-purple-100 text-purple-800';
+            case 'checked-in': return 'bg-purple-100 text-purple-800';
+            case 'checked_out': return 'bg-indigo-100 text-indigo-800';
+            case 'checked-out': return 'bg-indigo-100 text-indigo-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     }, []);
@@ -495,6 +465,10 @@ const AgentBookingsPage: React.FC = () => {
             case 'pending': return 'bi-clock';
             case 'cancelled': return 'bi-x-circle';
             case 'completed': return 'bi-check-square';
+            case 'checked_in': return 'bi-door-open';
+            case 'checked-in': return 'bi-door-open';
+            case 'checked_out': return 'bi-door-closed';
+            case 'checked-out': return 'bi-door-closed';
             default: return 'bi-calendar';
         }
     }, []);
@@ -719,6 +693,8 @@ const AgentBookingsPage: React.FC = () => {
                                 <option value="all">All statuses</option>
                                 <option value="pending">Pending</option>
                                 <option value="confirmed">Confirmed</option>
+                                <option value="checked_in">Checked In</option>
+                                <option value="checked_out">Checked Out</option>
                                 <option value="completed">Completed</option>
                                 <option value="cancelled">Cancelled</option>
                             </select>

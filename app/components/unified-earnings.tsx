@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService';
 import AlertNotification from '@/app/components/notify';
+import { createViewDetailsUrl } from '@/app/utils/encoder';
 
 interface UnifiedEarningsProps {
   userType: 'agent' | 'host' | 'tourguide';
@@ -434,8 +435,8 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
     }
 
     // Validate minimum and maximum withdrawal amounts (USD)
-    if (amount < 1) {
-      showNotification('Minimum withdrawal amount is $1 USD', 'warning');
+    if (amount < 2) {
+      showNotification('Minimum withdrawal amount is $2 USD', 'warning');
       return;
     }
 
@@ -654,38 +655,6 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
       : `${amount.toLocaleString()} ${currency}`;
   };
 
-  /**
-   * Calculate withdrawal fee based on USD amount
-   * Conversion rate: 1 USD = 1400 RWF
-   * Fee Structure (in RWF):
-   * - Up to 1,000,000 RWF: 600 RWF
-   * - 1,000,001 to 5,000,000 RWF: 1,200 RWF
-   * - Above 5,000,000 RWF: 3,000 RWF
-   */
-  const calculateWithdrawalFee = (amountUSD: number) => {
-    const USD_TO_RWF = 1400;
-    const amountRWF = amountUSD * USD_TO_RWF;
-
-    let feeRWF = 0;
-    if (amountRWF <= 1000000) {
-      feeRWF = 600;
-    } else if (amountRWF <= 5000000) {
-      feeRWF = 1200;
-    } else {
-      feeRWF = 3000;
-    }
-
-    // Convert fee back to USD
-    const feeUSD = feeRWF / USD_TO_RWF;
-
-    return {
-      feeUSD,
-      feeRWF,
-      amountRWF,
-      totalUSD: amountUSD + feeUSD,
-      totalRWF: amountRWF + feeRWF
-    };
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -1014,7 +983,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                   key={transaction.id}
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-1">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                       transaction.type === 'CREDIT'
                         ? 'bg-green-100'
@@ -1022,7 +991,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                     }`}>
                       <i className={`bi ${getTransactionIcon(transaction.type)} text-xl ${getTransactionColor(transaction.type)}`} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-gray-900">{transaction.description || transaction.type}</p>
                       <p className="text-sm text-gray-500">{formatDate(transaction.createdAt)}</p>
                       {transaction.reference && (
@@ -1030,18 +999,29 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-lg font-semibold ${
-                      transaction.type === 'CREDIT'
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    }`}>
-                      {transaction.type === 'CREDIT' ? '+' : '-'}
-                      {formatCurrency(Math.abs(transaction.amount))}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      After: {formatCurrency(transaction.balanceAfter)}
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className={`text-lg font-semibold ${
+                        transaction.type === 'CREDIT'
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}>
+                        {transaction.type === 'CREDIT' ? '+' : '-'}
+                        {formatCurrency(Math.abs(transaction.amount))}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        After: {formatCurrency(transaction.balanceAfter)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const url = createViewDetailsUrl(transaction.id, 'transaction');
+                        router.push(url);
+                      }}
+                      className="px-4 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062d65] transition-colors text-sm font-medium whitespace-nowrap"
+                    >
+                      View Details
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1344,7 +1324,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                       value={withdrawAmount}
                       onChange={(e) => setWithdrawAmount(e.target.value)}
                       placeholder="0.00"
-                      min="1"
+                      min="2"
                       step="0.01"
                       className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
                     />
@@ -1354,7 +1334,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                       Available: {formatCurrency(walletData?.availableBalance || 0)}
                     </p>
                     <p className="text-xs text-gray-400">
-                      Min: $1.00
+                      Min: $2.00
                     </p>
                   </div>
                 </div>
@@ -1425,47 +1405,20 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                   </div>
                 </div>
 
-                {/* Fee Information */}
-                {(() => {
-                  const amount = parseFloat(withdrawAmount) || 0;
-                  if (amount > 0) {
-                    const feeInfo = calculateWithdrawalFee(amount);
-                    return (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <i className="bi bi-info-circle text-amber-600 text-xl mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-amber-900 mb-2">
-                              Fee Structure
-                            </p>
-                            <div className="space-y-1 text-xs text-amber-800">
-                              <div className="flex justify-between">
-                                <span>Withdrawal amount:</span>
-                                <span className="font-medium">{formatCurrency(amount)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Amount in RWF:</span>
-                                <span className="font-medium">{feeInfo.amountRWF.toLocaleString()} RWF</span>
-                              </div>
-                              <div className="flex justify-between border-t border-amber-300 pt-1 mt-1">
-                                <span>Processing fee:</span>
-                                <span className="font-medium">{formatCurrency(feeInfo.feeUSD)} ({feeInfo.feeRWF.toLocaleString()} RWF)</span>
-                              </div>
-                              <div className="flex justify-between border-t border-amber-300 pt-1 mt-1 font-semibold">
-                                <span>Total to be deducted:</span>
-                                <span className="text-amber-900">{formatCurrency(feeInfo.totalUSD)}</span>
-                              </div>
-                            </div>
-                            <p className="text-xs text-amber-700 mt-2 italic">
-                              * Conversion rate: 1 USD = 1,400 RWF
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
+                {/* Fee Notice */}
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <i className="bi bi-info-circle text-amber-600 text-xl mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-900 mb-1">
+                        Transaction Fees Apply
+                      </p>
+                      <p className="text-xs text-amber-800">
+                        Processing fees and currency exchange rates will be applied by our payment processor. The final amount you receive may differ slightly from the withdrawal amount shown above.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
