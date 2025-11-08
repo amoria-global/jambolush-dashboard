@@ -34,7 +34,7 @@ const HostUnlockAnalytics = () => {
       setLoading(true);
 
       // Fetch host unlock requests (privacy-first): GET /api/properties/host/unlock-requests
-      const response = await api.getHostUnlockRequests();
+      const response: any = await api.getHostUnlockRequests();
 
       if (response.data && response.data.success) {
         setAnalytics(response.data.data);
