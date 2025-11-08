@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import api from '@/app/api/apiService';
+import AddressModal from '@/app/components/modals/AddressModal';
 
 interface BookingDetailProps {
   id: string;
   bookingType?: 'property' | 'tour';
 }
+
+type UserRole = 'guest' | 'host' | 'agent' | 'tourguide';
 
 interface BookingInfo {
   id: string;
@@ -17,6 +20,8 @@ interface BookingInfo {
     location: string;
     images: any;
     pricePerNight: number;
+    pricePerMonth?: number;
+    pricingType?: 'night' | 'month';
     hostName: string;
     hostEmail: string;
     hostPhone?: string;
@@ -105,6 +110,9 @@ interface BookingInfo {
   updatedAt: string;
   bookingDate?: string;
   confirmationCode?: string;
+  pricingType?: 'night' | 'month';
+  isMonthlyBooking?: boolean;
+  renewalDate?: string;
   // Legacy fields for backwards compatibility
   propertyName?: string;
   propertyImage?: string;
@@ -121,6 +129,33 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detectedType, setDetectedType] = useState<'property' | 'tour'>('property');
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [notification, setNotification] = useState<{ show: boolean; message: string; type: 'success' | 'error' | 'info' }>({
+    show: false,
+    message: '',
+    type: 'info'
+  });
+  const [showAddressModal, setShowAddressModal] = useState(false);
+
+  // Fetch user role on component mount
+  useEffect(() => {
+    const getUserRole = () => {
+      try {
+        const userSession = localStorage.getItem('userSession');
+        if (userSession) {
+          const session = JSON.parse(userSession);
+          setUserRole(session.role || null);
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    getUserRole();
+  }, []);
 
   useEffect(() => {
     const fetchBooking = async () => {
@@ -151,7 +186,26 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
         }
 
         if (response && response.ok && response.data.success) {
-          setBooking(response.data.data);
+          const bookingData = response.data.data as BookingInfo;
+
+          // Determine if this is a monthly booking and calculate renewal date
+          const isMonthly = (bookingData as any).pricingType === 'month' ||
+                           bookingData.property?.pricingType === 'month' ||
+                           (bookingData as any).isMonthlyBooking;
+
+          let renewalDate = bookingData.renewalDate;
+          if (isMonthly && bookingData.checkIn && !renewalDate) {
+            const checkInDate = new Date(bookingData.checkIn);
+            const renewal = new Date(checkInDate);
+            renewal.setMonth(renewal.getMonth() + 1);
+            renewalDate = renewal.toISOString();
+          }
+
+          setBooking({
+            ...bookingData,
+            isMonthlyBooking: isMonthly,
+            renewalDate,
+          });
         } else {
           setError(response?.data?.message || 'Failed to load booking details');
         }
@@ -325,6 +379,59 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
     return getTotalAmount();
   };
 
+  const canCancelBooking = () => {
+    if (!booking) return false;
+    const status = booking.status?.toLowerCase();
+    return userRole === 'guest' && (status === 'pending' || status === 'confirmed');
+  };
+
+  const shouldShowHostInfo = () => {
+    if (!booking) return false;
+    const status = booking.status?.toLowerCase().replace(/_/g, '-');
+    // Show host info only for confirmed, checked-in, checked-out, and completed bookings
+    return ['confirmed', 'checked-in', 'checked-out', 'completed'].includes(status);
+  };
+
+  const handleCancelBooking = async () => {
+    if (!cancelReason.trim()) {
+      setNotification({
+        show: true,
+        message: 'Please provide a reason for cancellation',
+        type: 'error'
+      });
+      return;
+    }
+
+    try {
+      setCancelling(true);
+      await api.cancelPropertyBooking(id, cancelReason);
+
+      setNotification({
+        show: true,
+        message: 'Booking cancelled successfully',
+        type: 'success'
+      });
+
+      // Refresh booking data
+      const response = await api.getBooking(id, detectedType);
+      if (response && response.ok && response.data.success) {
+        setBooking(response.data.data);
+      }
+
+      setShowCancelModal(false);
+      setCancelReason('');
+    } catch (err: any) {
+      console.error('Error cancelling booking:', err);
+      setNotification({
+        show: true,
+        message: err?.data?.message || 'Failed to cancel booking. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -368,6 +475,37 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Notification */}
+      {notification.show && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <div className={`rounded-xl p-4 shadow-lg ${
+            notification.type === 'success' ? 'bg-green-50 border border-green-200' :
+            notification.type === 'error' ? 'bg-red-50 border border-red-200' :
+            'bg-blue-50 border border-blue-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <i className={`bi ${
+                notification.type === 'success' ? 'bi-check-circle-fill text-green-600' :
+                notification.type === 'error' ? 'bi-exclamation-circle-fill text-red-600' :
+                'bi-info-circle-fill text-blue-600'
+              } text-xl flex-shrink-0 mt-0.5`}></i>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${
+                  notification.type === 'success' ? 'text-green-900' :
+                  notification.type === 'error' ? 'text-red-900' :
+                  'text-blue-900'
+                }`}>{notification.message}</p>
+              </div>
+              <button
+                onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section with Image and Status */}
       <div className="relative mb-8">
         {mainImage ? (
@@ -454,6 +592,18 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
                 {booking.guests || booking.numberOfParticipants || 0}
               </div>
             </div>
+
+            {booking.isMonthlyBooking && booking.renewalDate && (
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-2xl p-4 border border-indigo-200 md:col-span-2">
+                <div className="text-indigo-600 text-sm font-medium mb-1">
+                  <i className="bi bi-arrow-repeat mr-1"></i>Next Renewal
+                </div>
+                <div className="text-gray-900 font-semibold text-lg">
+                  {formatDate(booking.renewalDate)}
+                </div>
+                <div className="text-xs text-indigo-600 mt-1">Monthly booking</div>
+              </div>
+            )}
           </div>
 
           {/* People Involved Section */}
@@ -463,7 +613,7 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
               People Involved
             </h2>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className={`grid ${shouldShowHostInfo() ? 'md:grid-cols-2' : 'md:grid-cols-1 max-w-md'} gap-6`}>
               {/* Guest Card */}
               <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border border-blue-100">
                 <div className="text-sm font-medium text-blue-600 mb-3 uppercase tracking-wide">Guest</div>
@@ -487,29 +637,44 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
                 </div>
               </div>
 
-              {/* Host/Tour Guide Card */}
-              <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl p-5 border border-purple-100">
-                <div className="text-sm font-medium text-purple-600 mb-3 uppercase tracking-wide">{hostInfo.role}</div>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0">
-                    {hostInfo.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 text-lg truncate">{hostInfo.name}</div>
-                    <div className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                      <i className="bi bi-envelope flex-shrink-0"></i>
-                      <span className="truncate">{hostInfo.email}</span>
+              {/* Host/Tour Guide Card - Only show for confirmed/checked-in/checked-out bookings */}
+              {shouldShowHostInfo() && (
+                <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl p-5 border border-purple-100">
+                  <div className="text-sm font-medium text-purple-600 mb-3 uppercase tracking-wide">{hostInfo.role}</div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0">
+                      {hostInfo.name.charAt(0).toUpperCase()}
                     </div>
-                    {hostInfo.phone && (
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-900 text-lg truncate">{hostInfo.name}</div>
                       <div className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                        <i className="bi bi-telephone flex-shrink-0"></i>
-                        <span>{hostInfo.phone}</span>
+                        <i className="bi bi-envelope flex-shrink-0"></i>
+                        <span className="truncate">{hostInfo.email}</span>
                       </div>
-                    )}
+                      {hostInfo.phone && (
+                        <div className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                          <i className="bi bi-telephone flex-shrink-0"></i>
+                          <span>{hostInfo.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Info message when host info is hidden */}
+            {!shouldShowHostInfo() && (
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <i className="bi bi-info-circle-fill text-amber-600 text-lg flex-shrink-0 mt-0.5"></i>
+                  <div className="text-sm text-amber-900">
+                    <p className="font-medium mb-1">Host information not yet available</p>
+                    <p>Host contact details will be shared once your booking is confirmed.</p>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Tour Specific Details */}
@@ -629,19 +794,29 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
           <div className="sticky top-24 space-y-6">
             {/* Price Card */}
             <div className="border-2 border-gray-300 rounded-2xl p-6 shadow-lg bg-white">
-              <div className="mb-6">
-                <div className="text-sm text-gray-600 mb-1">Confirmation code</div>
-                <div className="font-mono text-xl font-bold text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{booking.confirmationCode || booking.id.substring(0, 8).toUpperCase()}</div>
-              </div>
+              {/* Confirmation code - Only visible to guests */}
+              {userRole === 'guest' && (
+                <div className="mb-6">
+                  <div className="text-sm text-gray-600 mb-1">Confirmation code</div>
+                  <div className="font-mono text-xl font-bold text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{booking.confirmationCode || booking.id.substring(0, 8).toUpperCase()}</div>
+                </div>
+              )}
 
               <div className="border-t border-gray-200 pt-6 mb-6">
-                <h3 className="font-semibold text-gray-900 mb-4 text-lg">Price details</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 text-lg">Price details</h3>
+                  {booking.isMonthlyBooking && (
+                    <span className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">
+                      Monthly
+                    </span>
+                  )}
+                </div>
 
                 <div className="space-y-3">
                   {getPricePerNight() > 0 && booking.nights && (
                     <div className="flex justify-between text-gray-700">
                       <span className="underline">
-                        {formatAmount(getPricePerNight())} x {booking.nights} {booking.nights === 1 ? 'night' : 'nights'}
+                        {formatAmount(getPricePerNight())} x {booking.nights} {booking.isMonthlyBooking ? 'month' : (booking.nights === 1 ? 'night' : 'nights')}
                       </span>
                       <span className="font-medium">{formatAmount(getSubtotal())}</span>
                     </div>
@@ -720,9 +895,87 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
                 )}
               </div>
             </div>
+
+            {/* View Directions Button */}
+            {location && (
+              <button
+                onClick={() => setShowAddressModal(true)}
+                className="w-full px-6 py-3 bg-[#083A85] text-white rounded-xl hover:bg-[#062d65] transition-all font-medium flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                <i className="bi bi-signpost-2"></i>
+                View Directions
+              </button>
+            )}
+
+            {/* Cancel Booking Button - Only for guests with cancellable bookings */}
+            {canCancelBooking() && (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="w-full px-6 py-3 border-2 border-red-300 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium flex items-center justify-center gap-2">
+                <i className="bi bi-x-circle"></i>
+                Cancel Booking
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Cancel Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowCancelModal(false)}></div>
+          <div className="flex items-center justify-center min-h-screen p-4">
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Cancel booking</h3>
+                <p className="text-gray-600 mb-4">Please tell us why you're canceling. This helps us improve our service.</p>
+
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Reason for cancellation..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] resize-none h-32"
+                  disabled={cancelling}
+                />
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowCancelModal(false);
+                      setCancelReason('');
+                    }}
+                    disabled={cancelling}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50">
+                    Keep booking
+                  </button>
+                  <button
+                    onClick={handleCancelBooking}
+                    disabled={!cancelReason.trim() || cancelling}
+                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:hover:bg-red-600 flex items-center justify-center gap-2">
+                    {cancelling ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Cancelling...
+                      </>
+                    ) : (
+                      'Cancel booking'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Address Modal */}
+      <AddressModal
+        isOpen={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        propertyName={title}
+        address={location}
+        latitude={undefined}
+        longitude={undefined}
+      />
     </div>
   );
 }

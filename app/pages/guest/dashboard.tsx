@@ -2,8 +2,12 @@
 
 import api from '@/app/api/apiService';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { encodeId } from '@/app/utils/encoder';
 
 const GuestDashboard = () => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<any>({
@@ -35,10 +39,13 @@ const GuestDashboard = () => {
       setLoading(true);
       setError(null);
 
+      const user = JSON.parse(localStorage.getItem('userSession') || '{}');
+      const userId = user.id || user.userId;
+
       const promises = [
         api.get('/bookings/stats').catch(() => null),
-        api.get('/payments/wallet').catch(() => null),
-        api.get('/payments/transactions').catch(() => null),
+        userId ? api.get(`/transactions/wallet/${userId}`).catch(() => null) : Promise.resolve(null),
+        userId ? api.get(`/transactions/user/${userId}`).catch(() => null) : Promise.resolve(null),
         api.get('/bookings/properties').catch(() => null),
         api.get('/bookings/tours').catch(() => null),
         api.get('/bookings/wishlist').catch(() => null)
@@ -190,27 +197,154 @@ const GuestDashboard = () => {
   const pendingTransactions = dashboardData.payments.transactions?.filter((t: any) => t.status === 'pending') || [];
   const getTimeBasedGreeting = () => {
         const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 17) return 'Good afternoon';
-        if (hour < 21) return 'Good evening';
-        return 'Good night';
-    };
-  return (
-    <div className="py-14">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
-                        {getTimeBasedGreeting()}, {userName}!
-                    </h1>
-                    <p className="text-gray-600 text-md">Here's your dashboard summary</p>
-                </div>
-        </div>
-      </div>
 
-      <div className="p-2">
+        // Early Morning (5-7 AM)
+        const earlyMorningMessages = [
+            `🌅 Rise and shine, early bird!`,
+            `☕ First coffee, first victory!`,
+            `🐦 The world is yours this early!`,
+            `🌄 Conquer mountains today!`,
+            `⏰ Early start, early success!`,
+            `🌤 Dawn brings new possibilities!`,
+            `💪 Power up for greatness!`,
+            `🔥 Ignite your potential now!`,
+            `✨ Magic happens in the morning!`,
+            `🎯 Aim high from the start!`
+        ];
+
+        // Morning (7-12 PM)
+        const morningMessages = [
+            `🌅 Good morning!`,
+            `☕ Coffee time!`,
+            `💡 Fresh ideas start now!`,
+            `🏃 Start strong today!`,
+            `📅 New goals, new wins!`,
+            `🌞 Shine bright today!`,
+            `🤝 Connect and grow!`,
+            `📈 Progress starts early!`,
+            `🎨 Paint your day beautiful!`,
+            `🚀 Launch into excellence!`,
+            `🌱 Plant seeds of success!`,
+            `⭐ Half the day, full potential!`,
+            `🎪 Make today spectacular!`,
+            `🏆 Champion mindset activated!`,
+            `🎵 Start with good vibes!`
+        ];
+
+        // Afternoon (12-17 PM)
+        const afternoonMessages = [
+            `☀️ Good afternoon!`,
+            `🚀 Keep the momentum!`,
+            `🔥 Stay on fire!`,
+            `🌱 Keep growing strong!`,
+            `📊 Productivity boost!`,
+            `💪 Power through the day!`,
+            `🎯 Focus on your targets!`,
+            `⚡ Energy check—stay sharp!`,
+            `🌻 Bloom where you're planted!`,
+            `🎪 Make magic happen now!`,
+            `🏃‍♂️ Sprint to your goals!`,
+            `🎨 Create something amazing!`,
+            `🔮 Afternoon gems await you!`,
+            `🌊 Flow with the rhythm!`,
+            `🎭 Performance time!`,
+            `🏅 Excellence is calling!`
+        ];
+
+        // Evening (17-21 PM)
+        const eveningMessages = [
+            `🌇 Good evening!`,
+            `📖 Reflect and recharge!`,
+            `🌟 You did amazing today!`,
+            `🎶 Relax with good vibes!`,
+            `🍵 Slow down, breathe easy!`,
+            `🙌 Celebrate small wins!`,
+            `🛋 Enjoy your comfort zone!`,
+            `🌌 Night is settling in—peace ahead!`,
+            `🍷 Unwind and appreciate!`,
+            `🎨 Evening creativity flows!`,
+            `🧘‍♀️ Find your inner calm!`,
+            `🎬 Enjoy life's moments!`,
+            `🌹 Beauty in the twilight!`,
+            `📚 Knowledge before rest!`,
+            `🕯 Light up the evening!`,
+            `🎭 Evening entertainment!`
+        ];
+
+        // Night (21-24 PM)
+        const nightMessages = [
+            `🌙 Good night!`,
+            `🛌 Rest well, dream big!`,
+            `✨ Tomorrow holds magic!`,
+            `😴 Recharge your soul!`,
+            `🔕 Disconnect and rest!`,
+            `💤 Deep sleep matters!`,
+            `🌠 Drift into dreams!`,
+            `🛡 Safe and sound tonight!`,
+            `🌜 Let the moon guide your dreams!`,
+            `🎶 Lullabies of the night!`,
+            `🏰 Build castles in your sleep!`,
+            `🌌 Cosmic dreams await!`,
+            `🛏 Home sweet dreams!`,
+            `🔮 Crystal clear rest ahead!`
+        ];
+
+        // Late Night/Midnight (0-5 AM)
+        const lateNightMessages = [
+            `🌃 Burning the midnight oil?`,
+            `🦉 Night owl vibes!`,
+            `⭐ Stars are your companions!`,
+            `🌙 Midnight magic hour!`,
+            `💻 Late night productivity!`,
+            `🎧 Night sounds and focus!`,
+            `🔥 Burning bright at night!`,
+            `🌌 Limitless night energy!`,
+            `☕ Midnight fuel running!`,
+            `🎯 Sharp focus in the dark!`,
+            `🚀 Launch into the night!`,
+            `🎪 Night circus performance!`,
+            `🔬 Deep dive discoveries!`,
+            `🎨 Creative night sessions!`
+        ];
+
+        const pickRandom = (messages: string[]) =>
+            messages[Math.floor(Math.random() * messages.length)];
+
+        if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
+        if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
+        if (hour >= 7 && hour < 12) return pickRandom(morningMessages);
+        if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
+        if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
+        return pickRandom(nightMessages);
+    };
+    
+  return (
+    <div className="px-4">
+       {/* Header Section */}
+        <div className="mb-8 md:mb-10 px-4 bg-white shadow-sm rounded-lg py-6 max-w-7xl mx-auto mx-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl  text-gray-900">
+                {getTimeBasedGreeting()}, <span className="font-bold">{userName}</span>
+              </h1>
+              <p className="mt-2 text-base sm:text-lg text-gray-600">
+                Here's your business overview for today
+              </p>
+            </div>
+            <div className="mt-4 sm:mt-0">
+              <span className="text-sm text-gray-500">
+                {new Date().toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      <div className="py-2">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
           <StatCard 
@@ -293,81 +427,6 @@ const GuestDashboard = () => {
                 )}
               </div>
             </div>
-
-            {/* Recent Transactions */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[22px] font-medium text-gray-900">Recent Transactions</h2>
-                  {dashboardData.payments.transactions?.length > 0 && (
-                    <button className="text-sm text-[#083A85] hover:underline font-medium">
-                      View all
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-6">
-                {dashboardData.payments.transactions?.length > 0 ? (
-                  <div className="space-y-4">
-                    {dashboardData.payments.transactions.slice(0, 5).map((transaction: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            transaction.status === 'completed' ? 'bg-green-100' :
-                            transaction.status === 'pending' ? 'bg-yellow-100' :
-                            'bg-red-100'
-                          }`}>
-                            <i className={`bi bi-${
-                              transaction.status === 'completed' ? 'check-circle' :
-                              transaction.status === 'pending' ? 'clock' :
-                              'x-circle'
-                            } ${
-                              transaction.status === 'completed' ? 'text-green-600' :
-                              transaction.status === 'pending' ? 'text-yellow-600' :
-                              'text-red-600'
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {transaction.description || transaction.type || 'Transaction'}
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {new Date(transaction.createdAt || Date.now()).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">
-                            RF{transaction.amount || 0}
-                          </p>
-                          {transaction.status === 'pending' && (
-                            <button
-                              onClick={() => handlePayNow(transaction.id, transaction.amount)}
-                              className="text-sm text-[#083A85] hover:underline font-medium mt-1"
-                            >
-                              Pay now
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <i className="bi bi-receipt text-gray-400 text-2xl" />
-                    </div>
-                    <p className="text-gray-500 mb-1">No transactions yet</p>
-                    <p className="text-sm text-gray-400">Your payment history will appear here</p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Quick Actions & Wallet */}
@@ -415,10 +474,10 @@ const GuestDashboard = () => {
                 Quick Actions
               </h3>
               <div className="space-y-3">
-                <ActionButton text="Book Property" icon="house-add" onClick={() => console.log('Book property')} />
-                <ActionButton text="Book Tour" icon="geo-alt" onClick={() => console.log('Book tour')} />
-                <ActionButton text="View Wishlist" icon="heart" onClick={() => console.log('View wishlist')} />
-                <ActionButton text="My Bookings" icon="calendar-check" onClick={() => console.log('My bookings')} />
+                <ActionButton text="Book Property" icon="house-add" href="https://jambolush.com/spaces" />
+                <ActionButton text="Book Tour" icon="geo-alt" href="https://jambolush.com/tours" />
+                <ActionButton text="View Wishlist" icon="heart" href="/all/guest/wishlist" />
+                <ActionButton text="My Bookings" icon="calendar-check" href="/all/guest/bookings" />
               </div>
             </div>
           </div>
@@ -433,10 +492,10 @@ const GuestDashboard = () => {
                 Recent Transactions
               </h2>
               {dashboardData.payments.transactions?.length > 0 && (
-                <button className="text-[#083A85] hover:text-blue-900 font-medium transition-colors">
+                <Link href="/all/guest/payments" className="text-[#083A85] hover:text-blue-900 font-medium transition-colors cursor-pointer">
                   <i className="bi bi-arrow-right mr-1" />
                   View All
-                </button>
+                </Link>
               )}
             </div>
             <div className="overflow-x-auto">
@@ -522,6 +581,8 @@ interface BookingItemProps {
 }
 
 const BookingItem: React.FC<BookingItemProps> = ({ booking }) => {
+  const router = useRouter();
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { class: 'bg-yellow-100 text-yellow-800', icon: 'clock' },
@@ -546,8 +607,17 @@ const BookingItem: React.FC<BookingItemProps> = ({ booking }) => {
   const bookingPrice = booking.totalPrice || booking.totalAmount || booking.price || 0;
   const currency = booking.currency || 'USD';
 
+  const handleViewDetails = () => {
+    if (booking.id) {
+      router.push(`/view-details?ref=${encodeId(booking.id)}&type=booking`);
+    }
+  };
+
   return (
-    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+    <div
+      onClick={handleViewDetails}
+      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+    >
       <div className="flex items-center">
         <div className="w-10 h-10 bg-[#083A85] bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
           <i className={`bi bi-${booking.property ? 'house' : 'geo-alt'} text-[#083A85]`} />
@@ -577,17 +647,17 @@ const BookingItem: React.FC<BookingItemProps> = ({ booking }) => {
 interface ActionButtonProps {
   text: string;
   icon: string;
-  onClick: () => void;
+  href: string;
 }
 
-const ActionButton: React.FC<ActionButtonProps> = ({ text, icon, onClick }) => (
-  <button 
-    onClick={onClick}
-    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 hover:border-[#083A85] transition-all font-medium"
+const ActionButton: React.FC<ActionButtonProps> = ({ text, icon, href }) => (
+  <Link
+    href={href}
+    className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 hover:border-[#083A85] transition-all font-medium cursor-pointer"
   >
     <i className={`bi bi-${icon} mr-3 text-[#083A85]`} />
     {text}
-  </button>
+  </Link>
 );
 
 interface TransactionRowProps {
@@ -596,14 +666,21 @@ interface TransactionRowProps {
 }
 
 const TransactionRow: React.FC<TransactionRowProps> = ({ transaction, onPayNow }) => {
+  const router = useRouter();
+
   const getStatusBadge = (status: string) => {
+    const normalizedStatus = status?.toUpperCase();
     const statusConfig = {
+      COMPLETED: { class: 'bg-green-100 text-green-800', icon: 'check-circle' },
+      PENDING: { class: 'bg-yellow-100 text-yellow-800', icon: 'clock' },
+      FAILED: { class: 'bg-red-100 text-red-800', icon: 'x-circle' },
+      // Also support lowercase for backward compatibility
       completed: { class: 'bg-green-100 text-green-800', icon: 'check-circle' },
       pending: { class: 'bg-yellow-100 text-yellow-800', icon: 'clock' },
       failed: { class: 'bg-red-100 text-red-800', icon: 'x-circle' }
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || { class: 'bg-gray-100 text-gray-800', icon: 'circle' };
+    const config = statusConfig[normalizedStatus as keyof typeof statusConfig] || statusConfig[status as keyof typeof statusConfig] || { class: 'bg-gray-100 text-gray-800', icon: 'circle' };
 
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${config.class}`}>
@@ -613,8 +690,19 @@ const TransactionRow: React.FC<TransactionRowProps> = ({ transaction, onPayNow }
     );
   };
 
+  const handleRowClick = () => {
+    if (transaction.id) {
+      router.push(`/view-details?ref=${encodeId(transaction.id)}&type=transaction`);
+    }
+  };
+
+  const handlePayNow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onPayNow(transaction.id, transaction.amount);
+  };
+
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+    <tr onClick={handleRowClick} className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer">
       <td className="py-4 px-2">
         <div className="flex items-center">
           <i className="bi bi-arrow-right-circle mr-2 text-gray-400" />
@@ -630,9 +718,9 @@ const TransactionRow: React.FC<TransactionRowProps> = ({ transaction, onPayNow }
       <td className="py-4 px-2">{getStatusBadge(transaction.status)}</td>
       <td className="py-4 px-2 text-gray-600">{new Date(transaction.createdAt || Date.now()).toLocaleDateString()}</td>
       <td className="py-4 px-2">
-        {transaction.status === 'pending' && (
+        {(transaction.status?.toUpperCase() === 'PENDING' || transaction.status === 'pending') && (
           <button
-            onClick={() => onPayNow(transaction.id, transaction.amount)}
+            onClick={handlePayNow}
             className="bg-[#083A85] text-white px-3 py-1 rounded text-xs font-medium hover:bg-blue-900 transition-colors"
           >
             Pay Now

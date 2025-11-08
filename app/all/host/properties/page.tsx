@@ -13,7 +13,9 @@ interface Property {
     title?: string; // For backward compatibility
     price: number;
     pricePerNight: number;
+    pricePerMonth?: number;
     pricePerTwoNights: number;
+    pricingType: 'night' | 'month';
     location: string;
     agentId?: string;
     agentName?: string;
@@ -45,6 +47,15 @@ interface Property {
     bookings?: any[];
     rating?: number;
     reviewsCount?: number;
+}
+
+interface BookingDetail {
+    guestName: string;
+    propertyName: string;
+    guests: number;
+    checkIn: string;
+    checkOut: string;
+    propertyId?: string;
 }
 
 interface DashboardStats {
@@ -124,9 +135,9 @@ const HostPropertiesPage: React.FC = () => {
         avgRating: 0,
         occupancyRate: 0
     });
-    const [viewMode, setViewMode] = useState<ViewMode>('table');
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage] = useState(9);
+    const [itemsPerPage] = useState(12);
     const [loading, setLoading] = useState(true);
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
@@ -136,10 +147,8 @@ const HostPropertiesPage: React.FC = () => {
     const [error, setError] = useState<string>('');
     const [user, setUser] = useState<any>(null);
     const [showKYCModal, setShowKYCModal] = useState(false);
-    const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [unavailableDate, setUnavailableDate] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -147,11 +156,16 @@ const HostPropertiesPage: React.FC = () => {
     const [typeFilter, setTypeFilter] = useState<string>('all');
     const [priceRangeFilter, setPriceRangeFilter] = useState<string>('all');
     const [ratingFilter, setRatingFilter] = useState<string>('all');
+    const [pricingTypeFilter, setPricingTypeFilter] = useState<string>('all');
     const [showFilters, setShowFilters] = useState(false);
 
     // Sort states
     const [sortField, setSortField] = useState<SortField>('createdAt');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+    // Booking details states
+    const [upcomingCheckIns, setUpcomingCheckIns] = useState<BookingDetail[]>([]);
+    const [recentBookings, setRecentBookings] = useState<BookingDetail[]>([]);
 
     const router = useRouter();
 
@@ -175,7 +189,7 @@ const HostPropertiesPage: React.FC = () => {
     const handleAddPropertyClick = (e: React.MouseEvent) => {
         e.preventDefault();
         if (!checkKYCStatus()) return;
-        router.push('/all/host/add-property');
+        router.push('/all/add-property');
     };
 
     const fetchUserData = async () => {
@@ -185,6 +199,12 @@ const HostPropertiesPage: React.FC = () => {
                 api.setAuth(token);
                 const response = await api.get('/auth/me');
                 if (response.data) {
+                    // Check if user is host or agent
+                    if (response.data.userType !== 'host' && response.data.userType !== 'agent') {
+                        setError('Access Denied: This page is only accessible to hosts and agents.');
+                        setLoading(false);
+                        return;
+                    }
                     setUser(response.data);
                     setIsAuthenticated(true);
                 } else {
@@ -278,9 +298,9 @@ const HostPropertiesPage: React.FC = () => {
                     
                     // Count properties by status
                     let activeCount = 0;
-                    let pendingCount = dashboardData.pendingReviews || 0;
-                    let checkedInCount = Array.isArray(dashboardData.upcomingCheckIns) ? dashboardData.upcomingCheckIns.length : dashboardData.upcomingCheckIns || 0;
-                    let checkedOutCount = Array.isArray(dashboardData.recentBookings) ? dashboardData.recentBookings.length : dashboardData.recentBookings || 0;
+                    let pendingCount = 0;
+                    let checkedInCount = 0;
+                    let checkedOutCount = 0;
                     let inactiveCount = 0;
 
                     const processedProperties = allPropertiesArray.map((property: any) => {
@@ -289,13 +309,24 @@ const HostPropertiesPage: React.FC = () => {
                             case 'active':
                                 activeCount++;
                                 break;
+                            case 'pending':
+                                pendingCount++;
+                                break;
+                            case 'checkedin':
+                                checkedInCount++;
+                                break;
+                            case 'checkedout':
+                                checkedOutCount++;
+                                break;
                             case 'inactive':
                                 inactiveCount++;
                                 break;
                         }
 
-                        // Calculate revenue
-                        const propertyRevenue = (property.pricePerNight || 0) * (property.bookings?.length || 0) * 2;
+                        // Calculate revenue based on pricing type
+                        const nightlyPrice = property.pricePerNight || 0;
+                        const monthlyPrice = property.pricePerMonth || 0;
+                        const propertyRevenue = (nightlyPrice * (property.bookings?.length || 0) * 2) + (monthlyPrice * 0.5);
                         totalRevenue += propertyRevenue;
 
                         // Calculate ratings
@@ -316,19 +347,25 @@ const HostPropertiesPage: React.FC = () => {
                         }
                         totalDays += 30; // Assuming 30 days period per property
 
+                        // Determine display price based on pricing type
+                        const displayPrice = property.pricingType === 'month'
+                            ? (property.pricePerMonth || 0)
+                            : (property.pricePerNight || property.pricePerTwoNights || property.price || 0);
+
                         return {
                             ...property,
                             title: property.name, // For backward compatibility
-                            price: property.pricePerNight || property.pricePerTwoNights || property.price || 0,
+                            price: displayPrice,
+                            pricingType: property.pricingType || 'night',
                             propertyType: property.type,
                             bedrooms: property.beds || property.bedrooms,
                             bathrooms: property.baths || property.bathrooms,
                             area: property.area || Math.floor(Math.random() * 2000) + 500,
                             dateListed: new Date(property.createdAt),
                             reviewsCount: property.reviews?.length || Math.floor(Math.random() * 50),
-                            features: Array.isArray(property.features) ? property.features : 
-                                typeof property.features === 'string' ? 
-                                (property.features.startsWith('[') ? JSON.parse(property.features) : [property.features]) : 
+                            features: Array.isArray(property.features) ? property.features :
+                                typeof property.features === 'string' ?
+                                (property.features.startsWith('[') ? JSON.parse(property.features) : [property.features]) :
                                 []
                         };
                     });
@@ -346,6 +383,10 @@ const HostPropertiesPage: React.FC = () => {
                         occupancyRate: totalDays > 0 ? Math.round((occupiedDays / totalDays) * 100) : 0
                     };
                     setSummaryStats(stats);
+
+                    // Extract booking details for tooltips
+                    setUpcomingCheckIns(dashboardData.upcomingCheckIns || []);
+                    setRecentBookings(dashboardData.recentBookings || []);
 
                     setProperties(processedProperties);
                 } else {
@@ -390,6 +431,10 @@ const HostPropertiesPage: React.FC = () => {
             filtered = filtered.filter(p => p.type === typeFilter || p.propertyType === typeFilter);
         }
 
+        if (pricingTypeFilter !== 'all') {
+            filtered = filtered.filter(p => p.pricingType === pricingTypeFilter);
+        }
+
         if (priceRangeFilter !== 'all') {
             const [min, max] = priceRangeFilter.split('-').map(Number);
             filtered = filtered.filter(p => p.price >= min && (max ? p.price <= max : true));
@@ -424,7 +469,7 @@ const HostPropertiesPage: React.FC = () => {
 
         setFilteredProperties(filtered);
         setCurrentPage(1);
-    }, [properties, searchTerm, statusFilter, typeFilter, priceRangeFilter, ratingFilter, sortField, sortOrder]);
+    }, [properties, searchTerm, statusFilter, typeFilter, pricingTypeFilter, priceRangeFilter, ratingFilter, sortField, sortOrder]);
 
     // Pagination
     const paginatedProperties = useMemo(() => {
@@ -458,43 +503,7 @@ const HostPropertiesPage: React.FC = () => {
 
     const handleEdit = (property: Property) => {
         if (!checkKYCStatus()) return;
-        setEditingProperty(property);
-        setUnavailableDate(property.unavailableUntil || '');
-        setShowEditModal(true);
-    };
-
-    const handleCloseEditModal = () => {
-        setShowEditModal(false);
-        setEditingProperty(null);
-        setUnavailableDate('');
-    };
-
-    const handleSaveEdit = async () => {
-        if (!editingProperty) return;
-        
-        try {
-            const updateData: any = {};
-            
-            if (unavailableDate) {
-                updateData.unavailableUntil = unavailableDate;
-            }
-
-            const response = await api.put(`/properties/${editingProperty.id}`, updateData);
-            
-            if (response.data.success) {
-                setProperties(prev => prev.map(p => 
-                    p.id === editingProperty.id 
-                        ? { ...p, unavailableUntil: unavailableDate }
-                        : p
-                ));
-                handleCloseEditModal();
-            } else {
-                throw new Error(response.data.message || 'Failed to update property');
-            }
-        } catch (error: any) {
-            console.error('Error updating property:', error);
-            alert(error.message || 'Failed to update property. Please try again.');
-        }
+         router.push(`/all/edit-property?id=${encodeId(property.id)}`);
     };
 
     const handleGoToPage = (value: string) => {
@@ -508,12 +517,23 @@ const HostPropertiesPage: React.FC = () => {
     // UI Helpers
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-            case 'pending': return 'bg-amber-50 text-amber-700 border-amber-200';
-            case 'checkedin': return 'bg-blue-50 text-blue-700 border-blue-200';
-            case 'checkedout': return 'bg-purple-50 text-purple-700 border-purple-200';
-            case 'inactive': return 'bg-red-50 text-red-700 border-red-200';
-            default: return 'bg-gray-50 text-gray-700 border-gray-200';
+            case 'active': return 'bg-green-100 text-green-800';
+            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'checkedin': return 'bg-blue-100 text-blue-800';
+            case 'checkedout': return 'bg-purple-100 text-purple-800';
+            case 'inactive': return 'bg-gray-100 text-gray-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const getStatusDot = (status: string) => {
+        switch (status) {
+            case 'active': return 'bg-green-500';
+            case 'pending': return 'bg-yellow-500';
+            case 'checkedin': return 'bg-blue-500';
+            case 'checkedout': return 'bg-purple-500';
+            case 'inactive': return 'bg-gray-500';
+            default: return 'bg-gray-500';
         }
     };
 
@@ -527,6 +547,181 @@ const HostPropertiesPage: React.FC = () => {
             default: return 'bi-circle-fill';
         }
     };
+
+    // Clear filters
+    const clearAllFilters = () => {
+        setSearchTerm('');
+        setStatusFilter('all');
+        setTypeFilter('all');
+        setPricingTypeFilter('all');
+        setPriceRangeFilter('all');
+        setRatingFilter('all');
+    };
+
+    const hasActiveFilters = statusFilter !== 'all' || typeFilter !== 'all' || priceRangeFilter !== 'all' || ratingFilter !== 'all' || searchTerm !== '';
+
+    // Tooltip component for stat cards
+    const StatCardWithTooltip: React.FC<{
+        label: string;
+        count: number;
+        dotColor: string;
+        bookings: BookingDetail[];
+    }> = ({ label, count, dotColor, bookings }) => {
+        const [showTooltip, setShowTooltip] = useState(false);
+
+        // Calculate total guests
+        const totalGuests = bookings.reduce((sum, booking) => sum + (booking.guests || 0), 0);
+
+        return (
+            <div
+                className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200 relative"
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
+            >
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-gray-500 font-medium">{label}</span>
+                    <div className={`w-2 h-2 rounded-full ${dotColor}`}></div>
+                </div>
+                <p className="text-2xl font-semibold text-gray-900">{count}</p>
+                {totalGuests > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">{totalGuests} guests</p>
+                )}
+
+                {/* Tooltip */}
+                {showTooltip && bookings.length > 0 && (
+                    <div className="absolute z-50 left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-h-96 overflow-y-auto">
+                        <div className="space-y-3">
+                            {bookings.map((booking, idx) => (
+                                <div key={idx} className="pb-3 border-b border-gray-100 last:border-0 last:pb-0">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <i className="bi bi-person-fill text-[#083A85] text-sm"></i>
+                                                <p className="font-medium text-sm text-gray-900 truncate">{booking.guestName}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <i className="bi bi-house-fill text-gray-400 text-xs"></i>
+                                                <p className="text-xs text-gray-600 truncate">{booking.propertyName}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <i className="bi bi-people-fill text-gray-400 text-xs"></i>
+                                                <p className="text-xs text-gray-500">{booking.guests} guest{booking.guests !== 1 ? 's' : ''}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Mobile Filter Modal
+    const MobileFilterModal = () => (
+        <div className={`fixed inset-0 bg-white z-50 transform transition-transform ${showMobileFilters ? 'translate-x-0' : 'translate-x-full'} md:hidden`}>
+            <div className="h-full flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b">
+                    <h2 className="text-lg font-semibold">Filters</h2>
+                    <button onClick={() => setShowMobileFilters(false)} className="p-2">
+                        <i className="bi bi-x-lg text-xl"></i>
+                    </button>
+                </div>
+
+                {/* Filters */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">Search</label>
+                        <input
+                            type="text"
+                            placeholder="Property name or location..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">Status</label>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                        >
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">Property Type</label>
+                        <select
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                        >
+                            <option value="all">All Types</option>
+                            <option value="House">House</option>
+                            <option value="Apartment">Apartment</option>
+                            <option value="Villa">Villa</option>
+                            <option value="Condo">Condo</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">Price Range</label>
+                        <select
+                            value={priceRangeFilter}
+                            onChange={(e) => setPriceRangeFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                        >
+                            <option value="all">Any Price</option>
+                            <option value="0-50">Under $50</option>
+                            <option value="50-100">$50 - $100</option>
+                            <option value="100-200">$100 - $200</option>
+                            <option value="200-500">$200 - $500</option>
+                            <option value="500-">$500+</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">Minimum Rating</label>
+                        <select
+                            value={ratingFilter}
+                            onChange={(e) => setRatingFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                        >
+                            <option value="all">Any Rating</option>
+                            <option value="4.5">4.5+ Stars</option>
+                            <option value="4">4+ Stars</option>
+                            <option value="3.5">3.5+ Stars</option>
+                            <option value="3">3+ Stars</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 border-t space-y-3">
+                    <button
+                        onClick={clearAllFilters}
+                        className="w-full py-2 text-gray-700 font-medium underline"
+                    >
+                        Clear all
+                    </button>
+                    <button
+                        onClick={() => setShowMobileFilters(false)}
+                        className="w-full py-3 bg-[#083A85] text-white rounded-lg font-medium"
+                    >
+                        Show {filteredProperties.length} properties
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 
     // Property Detail Modal Component
     const PropertyDetailModal = () => {
@@ -698,70 +893,38 @@ const HostPropertiesPage: React.FC = () => {
         );
     };
 
-    // Edit Modal (styled similarly)
-    const EditModal = () => {
-        if (!editingProperty) {
-            return null;
-        }
-
+    // Access Denied for guests and tour guides
+    if (error && error.includes('Access Denied') && !loading) {
         return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div className="bg-white rounded-2xl max-w-md w-full animate-scale-in">
-                    <div className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                            <h2 className="text-2xl font-bold text-gray-900">Edit Property</h2>
-                            <button onClick={handleCloseEditModal} className="p-2 hover:bg-gray-100 rounded-full transition">
-                                <i className="bi bi-x-lg text-xl"></i>
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                                <p className="text-base text-gray-900 break-words">{editingProperty.name || editingProperty.title}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
-                                <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(editingProperty.status)}`}>
-                                    <i className={`bi ${getStatusIcon(editingProperty.status)} mr-1`}></i>
-                                    {editingProperty.status}
-                                </span>
-                            </div>
-                            <div>
-                                <label htmlFor="unavailable-date" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Set Unavailable Until
-                                </label>
-                                <input
-                                    id="unavailable-date"
-                                    type="date"
-                                    value={unavailableDate}
-                                    onChange={(e) => setUnavailableDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    min={new Date().toISOString().split('T')[0]}
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Leave empty to make property available immediately.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button
-                                onClick={handleCloseEditModal}
-                                className="px-4 py-2.5 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300"
+            <div className="pt-14 min-h-screen bg-gradient-to-br from-red-50 to-white">
+                <div className="mx-auto px-4 py-12">
+                    <div className="bg-white rounded-2xl shadow-xl p-12 text-center max-w-md mx-auto">
+                        <i className="bi bi-shield-exclamation text-6xl text-red-500 mb-4"></i>
+                        <h3 className="text-2xl font-semibold text-gray-800">Access Denied</h3>
+                        <p className="text-gray-600 mt-3 mb-2">This page is restricted to hosts and agents only.</p>
+                        <p className="text-gray-500 text-sm">
+                            {user?.userType === 'guest' && 'As a guest, you can browse and book properties but cannot list them.'}
+                            {user?.userType === 'tourguide' && 'As a tour guide, you can manage tours but cannot list properties.'}
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3 mt-8">
+                            <Link
+                                href="/all/guest/dashboard"
+                                className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-medium hover:bg-gray-300 transition-all"
                             >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSaveEdit}
-                                className="px-4 py-2.5 bg-[#F20C8F] text-white rounded-lg font-medium hover:bg-[#F20C8F]/90 transition"
+                                Go to Dashboard
+                            </Link>
+                            <Link
+                                href="/"
+                                className="flex-1 px-6 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all"
                             >
-                                Save Changes
-                            </button>
+                                Go Home
+                            </Link>
                         </div>
                     </div>
                 </div>
             </div>
         );
-    };
+    }
 
     // Login prompt
     if (!isAuthenticated && !loading) {
@@ -772,8 +935,8 @@ const HostPropertiesPage: React.FC = () => {
                         <i className="bi bi-shield-lock text-6xl text-[#083A85] mb-4"></i>
                         <h3 className="text-2xl font-semibold text-gray-800">Authentication Required</h3>
                         <p className="text-gray-500 mt-2">Please log in to view your properties.</p>
-                        <Link 
-                            href="/login" 
+                        <Link
+                            href="/login"
                             className="inline-block mt-6 px-8 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all"
                         >
                             Go to Login
@@ -786,31 +949,16 @@ const HostPropertiesPage: React.FC = () => {
 
     return (
         <>
-            <head>
-                <title>My Properties - Jambolush</title>
-            </head>
-            <div className="pt-1">
-                <style jsx>{`
-                    @keyframes scale-in {
-                        from { transform: scale(0.95); opacity: 0; }
-                        to { transform: scale(1); opacity: 1; }
-                    }
-                    .animate-scale-in { animation: scale-in 0.3s ease-out; }
-                    @keyframes slide-up {
-                        from { transform: translateY(20px); opacity: 0; }
-                        to { transform: translateY(0); opacity: 1; }
-                    }
-                    .animate-slide-up { animation: slide-up 0.5s ease-out; }
-                `}</style>
-
-                <div className="mx-auto px-2 sm:px-3 lg:px-4 py-3">
-                    {/* Enhanced Header */}
-                    <div className="mb-8">
-                        <h1 className="text-2xl font-bold">
-                            My Properties
-                        </h1>
-                        <p className="text-gray-600 mt-2">Manage your active and completed property listings.</p>
-                    </div>
+        <head>
+            <title>Properties Listing - Jambolush</title>
+        </head>
+        <div className="p-2">
+            <div className="max-w-7xl mx-auto px-3 sm:px-3 lg:px-4 py-3">
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="text-2xl font-semibold text-gray-900">Properties</h1>
+                    <p className="text-gray-600 mt-1 text-sm">Manage and track your property listings</p>
+                </div>
 
                     {/* Error Message */}
                     {error && (
@@ -828,534 +976,510 @@ const HostPropertiesPage: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Enhanced Summary Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-                        <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <i className="bi bi-house-door-fill text-2xl text-gray-400"></i>
-                                <span className="text-xs font-semibold text-gray-500">TOTAL</span>
-                            </div>
-                            <p className="text-3xl font-bold text-gray-900">{summaryStats.total}</p>
-                            <p className="text-xs text-gray-500 mt-1">Properties</p>
+                {/* Stats Cards - Horizontal scroll on mobile */}
+                <div className="flex gap-4 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                    <div className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500 font-medium">Total</span>
+                            <div className={`w-2 h-2 rounded-full bg-gray-500`}></div>
                         </div>
-
-                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <i className="bi bi-check-circle-fill text-2xl text-emerald-500"></i>
-                                <span className="text-xs font-semibold text-emerald-700">ACTIVE</span>
-                            </div>
-                            <p className="text-3xl font-bold text-emerald-700">{summaryStats.active}</p>
-                            <p className="text-xs text-emerald-600 mt-1">Live listings</p>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <i className="bi bi-clock-fill text-2xl text-amber-500"></i>
-                                <span className="text-xs font-semibold text-amber-700">PENDING</span>
-                            </div>
-                            <p className="text-3xl font-bold text-amber-700">{summaryStats.pending}</p>
-                            <p className="text-xs text-amber-600 mt-1">Under review</p>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <i className="bi bi-door-open-fill text-2xl text-blue-500"></i>
-                                <span className="text-xs font-semibold text-blue-700">CHECKED IN</span>
-                            </div>
-                            <p className="text-3xl font-bold text-blue-700">{summaryStats.checkedIn}</p>
-                            <p className="text-xs text-blue-600 mt-1">Current stays</p>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <i className="bi bi-door-closed-fill text-2xl text-purple-500"></i>
-                                <span className="text-xs font-semibold text-purple-700">CHECKED OUT</span>
-                            </div>
-                            <p className="text-3xl font-bold text-purple-700">{summaryStats.checkedOut}</p>
-                            <p className="text-xs text-purple-600 mt-1">Recent stays</p>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <i className="bi bi-x-circle-fill text-2xl text-red-500"></i>
-                                <span className="text-xs font-semibold text-red-700">INACTIVE</span>
-                            </div>
-                            <p className="text-3xl font-bold text-red-700">{summaryStats.inactive}</p>
-                            <p className="text-xs text-red-600 mt-1">Paused listings</p>
-                        </div>
+                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.total}</p>
                     </div>
 
-                    {/* Action Bar */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500 font-medium">Active</span>
+                            <div className={`w-2 h-2 rounded-full bg-green-500`}></div>
+                        </div>
+                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.active}</p>
+                    </div>
+
+                    <div className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500 font-medium">Pending</span>
+                            <div className={`w-2 h-2 rounded-full bg-yellow-500`}></div>
+                        </div>
+                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.pending}</p>
+                    </div>
+
+                    <StatCardWithTooltip
+                        label="Checked In"
+                        count={summaryStats.checkedIn}
+                        dotColor="bg-blue-500"
+                        bookings={upcomingCheckIns}
+                    />
+
+                    <StatCardWithTooltip
+                        label="Checked Out"
+                        count={summaryStats.checkedOut}
+                        dotColor="bg-purple-500"
+                        bookings={recentBookings}
+                    />
+
+                    <div className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500 font-medium">Rating</span>
+                            <i className="bi bi-star-fill text-yellow-500 text-xs"></i>
+                        </div>
+                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.avgRating || '0'}</p>
+                    </div>
+
+                    <div className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500 font-medium">Occupancy</span>
+                            <i className="bi bi-graph-up text-[#083A85] text-xs"></i>
+                        </div>
+                        <p className="text-2xl font-semibold text-gray-900">{summaryStats.occupancyRate}%</p>
+                    </div>
+                </div>
+
+                {/* Tabs for pricing types */}
+                <div className="mb-6 border-b border-gray-200">
+                    <nav className="flex space-x-6">
+                        {[
+                            { key: 'all', label: 'All' },
+                            { key: 'night', label: 'Nightly' },
+                            { key: 'month', label: 'Monthly' }
+                        ].map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => {
+                                    setPricingTypeFilter(tab.key);
+                                    setCurrentPage(1);
+                                }}
+                                className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                                    pricingTypeFilter === tab.key
+                                        ? 'border-[#083A85] text-[#083A85]'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+
+                {/* Search and Filter Bar */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        {/* Search */}
+                        <div className="flex-1 relative">
+                            <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input
+                                type="text"
+                                placeholder="Search properties..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                            />
+                        </div>
+
+                        {/* Desktop Filters */}
+                        <div className="hidden md:flex gap-2">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-sm"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-sm"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="House">House</option>
+                                <option value="Apartment">Apartment</option>
+                                <option value="Villa">Villa</option>
+                                <option value="Condo">Condo</option>
+                            </select>
+
+                            <select
+                                value={priceRangeFilter}
+                                onChange={(e) => setPriceRangeFilter(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent text-sm"
+                            >
+                                <option value="all">Any Price</option>
+                                <option value="0-100">Under $100</option>
+                                <option value="100-300">$100-$300</option>
+                                <option value="300-">$300+</option>
+                            </select>
+
+                            {hasActiveFilters && (
+                                <button
+                                    onClick={clearAllFilters}
+                                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 underline"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Mobile Filter Button */}
                         <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className="px-6 py-3 bg-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
+                            onClick={() => setShowMobileFilters(true)}
+                            className="md:hidden px-4 py-2 border border-gray-300 rounded-lg flex items-center justify-center gap-2 text-sm font-medium"
                         >
                             <i className="bi bi-funnel"></i>
-                            {showFilters ? 'Hide Filters' : 'Show Filters'}
-                            {(statusFilter !== 'all' || typeFilter !== 'all' || priceRangeFilter !== 'all' || ratingFilter !== 'all') && (
-                                <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full">
-                                    Active
+                            Filters
+                            {hasActiveFilters && (
+                                <span className="bg-[#083A85] text-white text-xs px-2 py-0.5 rounded-full">
+                                    {[statusFilter !== 'all', typeFilter !== 'all', priceRangeFilter !== 'all', ratingFilter !== 'all', searchTerm !== ''].filter(Boolean).length}
                                 </span>
                             )}
                         </button>
 
-                        <Link 
-                            href="/all/host/add-property" 
+                        {/* View Toggle */}
+                        <div className="flex gap-1 border border-gray-300 rounded-lg p-1">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`px-3 py-1.5 rounded-md transition text-sm ${
+                                    viewMode === 'grid'
+                                        ? 'bg-[#083A85] text-white'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                            >
+                                <i className="bi bi-grid-3x3-gap"></i>
+                            </button>
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`px-3 py-1.5 rounded-md transition text-sm ${
+                                    viewMode === 'table'
+                                        ? 'bg-[#083A85] text-white'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                            >
+                                <i className="bi bi-list"></i>
+                            </button>
+                        </div>
+
+                        {/* Add Property Button */}
+                        <Link
+                            href="/all/add-property"
                             onClick={handleAddPropertyClick}
-                            className="px-6 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+                            className="px-4 py-2 bg-[#083A85] text-white rounded-lg font-medium hover:bg-[#062a60] transition flex items-center justify-center gap-2 text-sm"
                         >
-                            <i className="bi bi-plus-lg mr-2"></i>Add Property
+                            <i className="bi bi-plus-lg"></i>
+                            <span className="hidden sm:inline">Add Property</span>
+                            <span className="sm:hidden">Add</span>
                         </Link>
                     </div>
-                    
-                    {/* Enhanced Filters Section */}
-                    {showFilters && (
-                        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 animate-slide-up">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Search</label>
-                                    <div className="relative">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Name or location..." 
-                                            value={searchTerm} 
-                                            onChange={(e) => setSearchTerm(e.target.value)} 
-                                            className="w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                </div>
+
+                {/* Results info */}
+                {!loading && (
+                    <div className="flex justify-between items-center mb-4 text-sm">
+                        <p className="text-gray-600">
+                            {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'} found
+                        </p>
+                        <select
+                            value={`${sortField}-${sortOrder}`}
+                            onChange={(e) => {
+                                const [field, order] = e.target.value.split('-');
+                                setSortField(field as SortField);
+                                setSortOrder(order as SortOrder);
+                            }}
+                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                        >
+                            <option value="createdAt-desc">Newest first</option>
+                            <option value="createdAt-asc">Oldest first</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="rating-desc">Rating: High to Low</option>
+                            <option value="name-asc">Name: A-Z</option>
+                        </select>
+                    </div>
+                )}
+
+                {/* Loading State */}
+                {loading && (
+                    <div className="flex justify-center items-center h-64">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#083A85]"></div>
+                    </div>
+                )}
+
+                {/* Empty State */}
+                {!loading && filteredProperties.length === 0 && (
+                    <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                        <i className="bi bi-house text-5xl text-gray-300 mb-4"></i>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {properties.length === 0 ? "No properties yet" : "No properties found"}
+                        </h3>
+                        <p className="text-gray-500 text-sm mb-6">
+                            {properties.length === 0
+                                ? "Get started by adding your first property"
+                                : "Try adjusting your filters or search"}
+                        </p>
+                        {properties.length === 0 ? (
+                            <Link
+                                href="/all/add-property"
+                                onClick={handleAddPropertyClick}
+                                className="inline-block px-5 py-2.5 bg-[#083A85] text-white rounded-lg font-medium hover:bg-[#062a60] transition"
+                            >
+                                Add your first property
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={clearAllFilters}
+                                className="text-[#083A85] font-medium underline"
+                            >
+                                Clear all filters
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Grid View */}
+                {!loading && viewMode === 'grid' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {paginatedProperties.map((property) => {
+                            const mainImage = getMainImage(property);
+                            const allImages = getAllImages(property);
+                            const encodedId = encodeId(property.id);
+
+                            return (
+                                <div key={property.id} className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
+                                    {/* Image */}
+                                    <div className="relative aspect-[4/3] overflow-hidden cursor-pointer" onClick={() => handleOpenPhotoViewer(property)}>
+                                        <img
+                                            src={mainImage}
+                                            alt={property.name}
+                                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                                         />
-                                        <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                                    <select 
-                                        value={statusFilter} 
-                                        onChange={(e) => setStatusFilter(e.target.value)} 
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
-                                    >
-                                        <option value="all">All Status</option>
-                                        <option value="active">Active</option>
-                                        <option value="pending">Pending</option>
-                                        <option value="checkedin">Checked In</option>
-                                        <option value="checkedout">Checked Out</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Type</label>
-                                    <select 
-                                        value={typeFilter} 
-                                        onChange={(e) => setTypeFilter(e.target.value)} 
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
-                                    >
-                                        <option value="all">All Types</option>
-                                        <option value="House">House</option>
-                                        <option value="Apartment">Apartment</option>
-                                        <option value="Villa">Villa</option>
-                                        <option value="Condo">Condo</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range</label>
-                                    <select 
-                                        value={priceRangeFilter} 
-                                        onChange={(e) => setPriceRangeFilter(e.target.value)} 
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
-                                    >
-                                        <option value="all">Any Price</option>
-                                        <option value="0-50">Under $50</option>
-                                        <option value="50-100">$50 - $100</option>
-                                        <option value="100-200">$100 - $200</option>
-                                        <option value="200-500">$200 - $500</option>
-                                        <option value="500-">$500+</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Min Rating</label>
-                                    <select 
-                                        value={ratingFilter} 
-                                        onChange={(e) => setRatingFilter(e.target.value)} 
-                                        className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition cursor-pointer"
-                                    >
-                                        <option value="all">Any Rating</option>
-                                        <option value="4.5">4.5+ Stars</option>
-                                        <option value="4">4+ Stars</option>
-                                        <option value="3.5">3.5+ Stars</option>
-                                        <option value="3">3+ Stars</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Sort Options */}
-                            <div className="flex flex-wrap items-center gap-2 mt-6 pt-6 border-t">
-                                <span className="text-sm font-semibold text-gray-700">Sort by:</span>
-                                {[
-                                    { field: 'createdAt', label: 'Date Listed' },
-                                    { field: 'price', label: 'Price' },
-                                    { field: 'name', label: 'Name' },
-                                    { field: 'rating', label: 'Rating' },
-                                    { field: 'area', label: 'Size' }
-                                ].map(({ field, label }) => (
-                                    <button
-                                        key={field}
-                                        onClick={() => handleSort(field as SortField)}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                                            sortField === field 
-                                                ? 'bg-[#083A85] text-white' 
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        {label}
-                                        {sortField === field && (
-                                            <i className={`bi bi-arrow-${sortOrder === 'asc' ? 'up' : 'down'} ml-1`}></i>
+                                        {/* Compact Status Badge */}
+                                        <div className="absolute top-3 left-3">
+                                            <span className={`px-2 py-1 rounded-md text-[10px] font-semibold ${getStatusColor(property.status)} flex items-center gap-1`}>
+                                                <div className={`w-1.5 h-1.5 rounded-full ${getStatusDot(property.status)}`}></div>
+                                                {property.status.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        {/* Photo Count */}
+                                        {allImages.length > 1 && (
+                                            <div className="absolute bottom-3 right-3 bg-black/60 text-white px-2 py-1 rounded-md text-xs">
+                                                <i className="bi bi-images mr-1"></i>{allImages.length}
+                                            </div>
                                         )}
-                                    </button>
-                                ))}
-                            </div>
+                                    </div>
 
-                            {/* Results Summary */}
-                            <div className="flex justify-between items-center mt-4">
-                                <p className="text-sm text-gray-600">
-                                    Showing <span className="font-semibold">{paginatedProperties.length}</span> of <span className="font-semibold">{filteredProperties.length}</span> properties
-                                </p>
-                                <div className="flex gap-2">
-                                    <button 
-                                        onClick={() => setViewMode('grid')} 
-                                        className={`px-4 py-2 rounded-lg transition font-medium ${
-                                            viewMode === 'grid' 
-                                                ? 'bg-[#083A85] text-white' 
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <i className="bi bi-grid-3x3-gap mr-2"></i>Grid
-                                    </button>
-                                    <button 
-                                        onClick={() => setViewMode('table')} 
-                                        className={`px-4 py-2 rounded-lg transition font-medium ${
-                                            viewMode === 'table' 
-                                                ? 'bg-[#083A85] text-white' 
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                    >
-                                        <i className="bi bi-list mr-2"></i>List
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Loading State */}
-                    {loading && (
-                        <div className="flex justify-center items-center h-64">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85]"></div>
-                        </div>
-                    )}
-
-                    {/* Empty State */}
-                    {!loading && filteredProperties.length === 0 && (
-                        <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
-                            <i className="bi bi-house-slash text-6xl text-gray-300 mb-4"></i>
-                            <h3 className="text-2xl font-semibold text-gray-800">
-                                {properties.length === 0 ? "No Properties Yet" : "No Matches Found"}
-                            </h3>
-                            <p className="text-gray-500 mt-2">
-                                {properties.length === 0 
-                                    ? "Start building your portfolio by adding your first property" 
-                                    : "Try adjusting your filters or search terms"}
-                            </p>
-                            {properties.length === 0 && (
-                                <Link 
-                                    href="/all/host/add-property"
-                                    onClick={handleAddPropertyClick}
-                                    className="inline-block mt-6 px-8 py-3 bg-gradient-to-r from-[#083A85] to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all"
-                                >
-                                    <i className="bi bi-plus-lg mr-2"></i>Add Your First Property
-                                </Link>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Enhanced Grid View */}
-                    {!loading && viewMode === 'grid' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {paginatedProperties.map((property) => {
-                                const mainImage = getMainImage(property);
-                                const allImages = getAllImages(property);
-                                const encodedId = encodeId(property.id);
-
-                                return (
-                                    <div key={property.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-                                        {/* Image Container */}
-                                        <div className="relative h-64 overflow-hidden">
-                                            <img
-                                                src={mainImage}
-                                                alt={property.name}
-                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                onClick={() => handleOpenPhotoViewer(property)}
-                                            />
-                                            {/* Status Badge */}
-                                            <div className="absolute top-3 left-3">
-                                                <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusColor(property.status)} backdrop-blur-sm`}>
-                                                    <i className={`bi ${getStatusIcon(property.status)} mr-1`}></i>
-                                                    {property.status.toUpperCase()}
-                                                </span>
+                                    {/* Content */}
+                                    <div className="p-4">
+                                        {/* Title and Rating */}
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-medium text-gray-900 truncate">{property.name}</h3>
+                                                <p className="text-sm text-gray-500 truncate">{property.location}</p>
                                             </div>
-                                            {/* Photo Count */}
-                                            {allImages.length > 1 && (
-                                                <button 
-                                                    onClick={() => handleOpenPhotoViewer(property)}
-                                                    className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded-md text-xs backdrop-blur-sm hover:bg-black/80 transition"
-                                                >
-                                                    <i className="bi bi-images mr-1"></i>{allImages.length} photos
-                                                </button>
-                                            )}
-                                            {/* Quick Actions */}
-                                            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Link
-                                                    href={`/spaces/${encodedId}`}
-                                                    target="_blank"
-                                                    className="bg-white/90 backdrop-blur-sm p-2 rounded-lg hover:bg-white transition"
-                                                >
-                                                    <i className="bi bi-box-arrow-up-right text-gray-700"></i>
-                                                </Link>
+                                            <div className="flex items-center gap-1 ml-2">
+                                                <i className="bi bi-star-fill text-yellow-500 text-xs"></i>
+                                                <span className="text-sm font-medium">{property.rating || '0'}</span>
                                             </div>
                                         </div>
 
-                                        {/* Content */}
-                                        <div className="p-5">
-                                            {/* Title and Location */}
-                                            <div className="mb-3">
-                                                <h3 className="text-lg font-semibold text-gray-900 truncate">{property.name}</h3>
-                                                <p className="text-sm text-gray-500 flex items-center mt-1">
-                                                    <i className="bi bi-geo-alt mr-1"></i>
-                                                    {property.location}
-                                                </p>
-                                            </div>
+                                        {/* Details */}
+                                        <div className="flex items-center gap-3 text-xs text-gray-600 mb-3">
+                                            <span>{property.beds} bed</span>
+                                            <span>·</span>
+                                            <span>{property.baths} bath</span>
+                                            <span>·</span>
+                                            <span>{property.maxGuests} guests</span>
+                                        </div>
 
-                                            {/* Rating and Reviews */}
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-1">
-                                                    <i className="bi bi-star-fill text-yellow-500"></i>
-                                                    <span className="font-medium">{property.rating || '0'}</span>
-                                                    <span className="text-gray-500 text-sm">({property.reviewsCount || 0})</span>
-                                                </div>
-                                                <p className="text-xl font-bold text-[#083A85]">${property.price}</p>
-                                            </div>
+                                        {/* Price */}
+                                        <div className="mb-3">
+                                            <span className="text-lg font-semibold text-gray-900">${property.price}</span>
+                                            <span className="text-sm text-gray-500"> / {property.pricingType || 'night'}</span>
+                                        </div>
 
-                                            {/* Property Details */}
-                                            <div className="flex justify-between text-sm text-gray-600 pb-4 mb-4 border-b">
-                                                <span><i className="bi bi-door-open mr-1"></i>{property.beds} beds</span>
-                                                <span><i className="bi bi-droplet mr-1"></i>{property.baths} baths</span>
-                                                <span><i className="bi bi-rulers mr-1"></i>{property.area} sqft</span>
-                                            </div>
-
-                                            {/* Action Buttons */}
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    onClick={() => handleViewDetails(property)}
-                                                    className="flex-1 px-4 py-2.5 bg-[#083A85] text-white rounded-lg font-medium hover:bg-blue-700 transition"
-                                                >
-                                                    <i className="bi bi-eye mr-1"></i>View Details
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleEdit(property)}
-                                                    className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-                                                    title="Edit"
-                                                >
-                                                    <i className="bi bi-pencil-square"></i>
-                                                </button>
-                                            </div>
+                                        {/* Actions */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleViewDetails(property)}
+                                                className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+                                            >
+                                                View
+                                            </button>
+                                            <button
+                                                onClick={() => handleEdit(property)}
+                                                className="flex-1 px-3 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#062a60] transition text-sm font-medium"
+                                            >
+                                                Edit
+                                            </button>
+                                            <Link
+                                                href={`/spaces/${encodedId}`}
+                                                target="_blank"
+                                                className="px-3 py-2 text-gray-500 hover:text-gray-900 transition flex items-center"
+                                                title="View public page"
+                                            >
+                                                <i className="bi bi-box-arrow-up-right text-sm"></i>
+                                            </Link>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
-                    {/* Enhanced List View */}
-                    {!loading && viewMode === 'table' && (
-                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                                        <tr>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Property</th>
-                                            <th className="px-6 py-4 text-left">
-                                                <button 
-                                                    onClick={() => handleSort('price')} 
-                                                    className="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900"
-                                                >
-                                                    Price <i className={`bi bi-arrow-${sortField === 'price' && sortOrder === 'desc' ? 'down' : 'up'}`}></i>
-                                                </button>
-                                            </th>
-                                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-4 text-left">
-                                                <button 
-                                                    onClick={() => handleSort('rating')} 
-                                                    className="text-xs font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1 hover:text-gray-900"
-                                                >
-                                                    Rating <i className={`bi bi-arrow-${sortField === 'rating' && sortOrder === 'desc' ? 'down' : 'up'}`}></i>
-                                                </button>
-                                            </th>
-                                            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {paginatedProperties.map((property) => {
-                                            const mainImage = getMainImage(property);
-                                            const encodedId = encodeId(property.id);
+                {/* Table View */}
+                {!loading && viewMode === 'table' && (
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {paginatedProperties.map((property) => {
+                                        const mainImage = getMainImage(property);
+                                        const encodedId = encodeId(property.id);
 
-                                            return (
-                                                <tr key={property.id} className="hover:bg-gray-50 transition">
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center">
-                                                            <img
-                                                                src={mainImage}
-                                                                alt={property.name}
-                                                                className="w-24 h-16 rounded-lg object-cover mr-4 cursor-pointer hover:opacity-90 transition"
-                                                                onClick={() => handleOpenPhotoViewer(property)}
-                                                            />
-                                                            <div>
-                                                                <div className="text-sm font-semibold text-gray-900">{property.name}</div>
-                                                                <div className="text-sm text-gray-500">{property.location}</div>
-                                                                <div className="text-xs text-gray-400 mt-1">
-                                                                    {property.beds} bed • {property.baths} bath • {property.area} sqft
-                                                                </div>
+                                        return (
+                                            <tr key={property.id} className="hover:bg-gray-50 transition">
+                                                <td className="px-4 py-4">
+                                                    <div className="flex items-center">
+                                                        <img
+                                                            src={mainImage}
+                                                            alt={property.name}
+                                                            className="w-16 h-12 rounded-lg object-cover mr-3 cursor-pointer"
+                                                            onClick={() => handleOpenPhotoViewer(property)}
+                                                        />
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-medium text-gray-900 truncate">{property.name}</div>
+                                                            <div className="text-xs text-gray-500 truncate">{property.location}</div>
+                                                            <div className="text-xs text-gray-400 mt-0.5">
+                                                                {property.beds}bd · {property.baths}ba · {property.maxGuests} guests
                                                             </div>
                                                         </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="text-lg font-bold text-gray-900">${property.price}</div>
-                                                        <div className="text-xs text-gray-500">per night</div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border inline-flex items-center ${getStatusColor(property.status)}`}>
-                                                            <i className={`bi ${getStatusIcon(property.status)} mr-1`}></i>
-                                                            {property.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-1">
-                                                            <i className="bi bi-star-fill text-yellow-500"></i>
-                                                            <span className="font-medium">{property.rating || '0'}</span>
-                                                            <span className="text-gray-500 text-sm">({property.reviewsCount || 0})</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleViewDetails(property)}
-                                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                                                                title="View Details"
-                                                            >
-                                                                <i className="bi bi-eye text-lg"></i>
-                                                            </button>
-                                                            <Link
-                                                                href={`/spaces/${encodedId}`}
-                                                                target="_blank"
-                                                                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                                                                title="View Public Page"
-                                                            >
-                                                                <i className="bi bi-box-arrow-up-right text-lg"></i>
-                                                            </Link>
-                                                            <button
-                                                                onClick={() => handleEdit(property)}
-                                                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
-                                                                title="Edit"
-                                                            >
-                                                                <i className="bi bi-pencil-square text-lg"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${getStatusColor(property.status)}`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${getStatusDot(property.status)}`}></div>
+                                                        {property.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <div className="text-sm font-medium text-gray-900">${property.price}</div>
+                                                    <div className="text-xs text-gray-500">per {property.pricingType || 'night'}</div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <i className="bi bi-star-fill text-yellow-500 text-xs"></i>
+                                                        <span className="text-sm">{property.rating || '0'}</span>
+                                                        <span className="text-xs text-gray-500">({property.reviewsCount})</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    <div className="flex justify-end gap-1">
+                                                        <button
+                                                            onClick={() => handleViewDetails(property)}
+                                                            className="p-1.5 text-gray-600 hover:text-gray-900 transition"
+                                                            title="View details"
+                                                        >
+                                                            <i className="bi bi-eye text-sm"></i>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleEdit(property)}
+                                                            className="p-1.5 text-gray-600 hover:text-[#083A85] transition"
+                                                            title="Edit property"
+                                                        >
+                                                            <i className="bi bi-pencil text-sm"></i>
+                                                        </button>
+                                                        <Link
+                                                            href={`/spaces/${encodedId}`}
+                                                            target="_blank"
+                                                            className="p-1.5 text-gray-600 hover:text-gray-900 transition"
+                                                            title="View public page"
+                                                        >
+                                                            <i className="bi bi-box-arrow-up-right text-sm"></i>
+                                                        </Link>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     )}
 
-                    {/* Enhanced Pagination */}
-                    {!loading && totalPages > 1 && (
-                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    className={`p-2 rounded-lg transition ${
-                                        currentPage === 1 
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
-                                    }`}
-                                >
-                                    <i className="bi bi-chevron-left"></i>
-                                </button>
+                {/* Pagination */}
+                {!loading && totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2 mt-8">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                            disabled={currentPage === 1}
+                            className={`p-2 rounded-lg transition ${
+                                currentPage === 1
+                                    ? 'text-gray-400 cursor-not-allowed'
+                                    : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            <i className="bi bi-chevron-left"></i>
+                        </button>
 
-                                {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                                    let pageNum = index + 1;
-                                    if (totalPages > 5) {
-                                        if (currentPage <= 3) {
-                                            pageNum = index + 1;
-                                        } else if (currentPage >= totalPages - 2) {
-                                            pageNum = totalPages - 4 + index;
-                                        } else {
-                                            pageNum = currentPage - 2 + index;
-                                        }
+                        {/* Page numbers */}
+                        <div className="flex gap-1">
+                            {[...Array(Math.min(7, totalPages))].map((_, index) => {
+                                let pageNum = index + 1;
+                                if (totalPages > 7) {
+                                    if (currentPage <= 4) {
+                                        if (index === 5) return <span key={index} className="px-2 py-1">...</span>;
+                                        if (index === 6) pageNum = totalPages;
+                                    } else if (currentPage >= totalPages - 3) {
+                                        if (index === 0) pageNum = 1;
+                                        if (index === 1) return <span key={index} className="px-2 py-1">...</span>;
+                                        if (index > 1) pageNum = totalPages - 6 + index;
+                                    } else {
+                                        if (index === 0) pageNum = 1;
+                                        if (index === 1) return <span key={index} className="px-2 py-1">...</span>;
+                                        if (index >= 2 && index <= 4) pageNum = currentPage - 2 + index;
+                                        if (index === 5) return <span key={index} className="px-2 py-1">...</span>;
+                                        if (index === 6) pageNum = totalPages;
                                     }
+                                }
 
-                                    return (
-                                        <button
-                                            key={pageNum}
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className={`px-4 py-2 rounded-lg font-medium transition ${
-                                                currentPage === pageNum 
-                                                    ? 'bg-[#083A85] text-white shadow-lg' 
-                                                    : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
-                                            }`}
-                                        >
-                                            {pageNum}
-                                        </button>
-                                    );
-                                })}
-
-                                <button
-                                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                    className={`p-2 rounded-lg transition ${
-                                        currentPage === totalPages 
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                            : 'bg-white text-gray-700 hover:bg-gray-100 shadow-md'
-                                    }`}
-                                >
-                                    <i className="bi bi-chevron-right"></i>
-                                </button>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-600">Go to page:</span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max={totalPages}
-                                    value={goToPageInput}
-                                    onChange={(e) => setGoToPageInput(e.target.value)}
-                                    onBlur={(e) => handleGoToPage(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleGoToPage((e.target as HTMLInputElement).value);
-                                        }
-                                    }}
-                                    className="w-16 px-2 py-1 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-center"
-                                />
-                                <span className="text-sm text-gray-600">of {totalPages}</span>
-                            </div>
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`px-3 py-1 rounded-lg transition text-sm ${
+                                            currentPage === pageNum
+                                                ? 'bg-[#083A85] text-white'
+                                                : 'text-gray-700 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
                         </div>
-                    )}
+
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className={`p-2 rounded-lg transition ${
+                                currentPage === totalPages
+                                    ? 'text-gray-400 cursor-not-allowed'
+                                    : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                        >
+                            <i className="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                )}
                     
                     {/* Modals */}
                     {showDetailModal && <PropertyDetailModal />}
@@ -1371,12 +1495,24 @@ const HostPropertiesPage: React.FC = () => {
                         />
                     )}
 
-                    {showEditModal && <EditModal />}
-
                     <KYCPendingModal isOpen={showKYCModal} onClose={() => setShowKYCModal(false)} />
+
+                    {/* Mobile Filter Modal */}
+                    <MobileFilterModal />
                 </div>
+
+                {/* Custom styles for scrollbar */}
+                <style jsx>{`
+                    .scrollbar-hide {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                    }
+                    .scrollbar-hide::-webkit-scrollbar {
+                        display: none;
+                    }
+                `}</style>
             </div>
-        </>
+    </>
     );
 };
 

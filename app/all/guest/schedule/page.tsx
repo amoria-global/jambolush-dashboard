@@ -1,16 +1,22 @@
+'use client';
 
-import React from "react";
-import SchedulePage from "../../../pages/guest/user-schedule";
-import { Metadata } from "next";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-export const metadata: Metadata = {
-    title: 'Schedules and calendar',
-    description: 'Overview of bookings ',
-    keywords: ['guest', 'tour', 'booking', 'schedule', 'calendar'],
-};
+export default function ScheduleRedirect() {
+  const router = useRouter();
 
-export default function AgentClients() {
+  useEffect(() => {
+    // Redirect to unified bookings with schedules tab
+    router.replace('/all/guest/bookings?tab=schedules');
+  }, [router]);
+
   return (
-    <SchedulePage />
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85] mx-auto mb-4"></div>
+        <p className="text-gray-600">Redirecting to My Bookings...</p>
+      </div>
+    </div>
   );
 }

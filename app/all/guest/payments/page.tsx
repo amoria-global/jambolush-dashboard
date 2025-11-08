@@ -10,7 +10,6 @@ export const metadata: Metadata = {
 const PaymentsPage = () => {
     return (
         <div>
-            <h1>Payments Overview</h1>
             <Payments userType="guest" />
         </div>
     );

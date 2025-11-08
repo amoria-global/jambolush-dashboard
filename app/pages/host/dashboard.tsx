@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/app/api/apiService';
 
@@ -382,13 +383,13 @@ const HostDashboard = () => {
                                 <i className="bi bi-calendar-week mr-2 text-green-600" />
                                 Upcoming Check-ins
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/host/calendar')}}>
+                            <Link href="/all/host/bookings" className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
                                 View Calendar
-                            </button>
+                            </Link>
                         </div>
                         <div className="space-y-3">
                             {upcomingCheckIns.length > 0 ? upcomingCheckIns.map((checkin: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push('/all/host/bookings')}>
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
                                             <h4 className="font-medium text-gray-800 text-md">{checkin.title}</h4>
@@ -421,20 +422,20 @@ const HostDashboard = () => {
                                 <i className="bi bi-chat-dots mr-2 text-blue-600" />
                                 Recent Activity
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/host/bookings')}}>
+                            <Link href="/all/host/bookings" className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
                                 View All
-                            </button>
+                            </Link>
                         </div>
                         <div className="space-y-3">
                             {recentActivity.length > 0 ? recentActivity.map((activity: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push('/all/host/bookings')}>
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
                                             <h4 className="font-medium text-gray-800 text-md">{activity.guest}</h4>
                                             <p className="text-md text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
                                         </div>
                                         <span className={`px-2 py-1 rounded-full text-md font-medium ${
-                                            activity.type === 'booking' ? 'bg-green-100 text-green-800' : 
+                                            activity.type === 'booking' ? 'bg-green-100 text-green-800' :
                                             activity.type === 'inquiry' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
                                         }`}>
                                             {activity.type}
@@ -502,13 +503,13 @@ const HostDashboard = () => {
                                 <i className="bi bi-star mr-2 text-amber-500" />
                                 Recent Reviews
                             </h3>
-                            <button className="text-md text-blue-600 hover:text-blue-800 font-medium" onClick={() => {router.push('/host/reviews')}}>
+                            <Link href="/all/host/properties" className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
                                 View All
-                            </button>
+                            </Link>
                         </div>
                         <div className="space-y-4">
                             {recentReviews.length > 0 ? recentReviews.map((review: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
+                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push('/all/host/properties')}>
                                     <div className="flex items-start justify-between mb-2">
                                         <div className="flex-1">
                                             <div className="flex items-center mb-1">

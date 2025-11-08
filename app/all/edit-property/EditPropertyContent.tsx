@@ -3,10 +3,10 @@
 import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import api from '@/app/api/apiService';
 import uploadDocumentToSupabase from '@/app/api/storage';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AlertNotification from '@/app/components/notify';
 import PropertyMapSelector from '@/app/components/PropertyMapSelector';
-import { createViewDetailsUrl } from '@/app/utils/encoder';
+import { decodeId, createViewDetailsUrl } from '@/app/utils/encoder';
 
 interface OwnerDetails {
   name: string;
@@ -74,6 +74,8 @@ interface Coordinates {
 
 interface LocationDetails {
   address: string;
+  latitude?: number;
+  longitude?: number;
   coordinates?: Coordinates;
   addressComponents?: AddressComponent;
 }
@@ -81,7 +83,7 @@ interface LocationDetails {
 interface PricingDetails {
   type: 'night' | 'month';
   amount: string;
-  minimumStay: string; // in days for night, in months for monthly
+  minimumStay: string;
 }
 
 interface FormData {
@@ -103,7 +105,8 @@ interface ImageCategory {
   maxImages: number;
 }
 
-const AddPropertyPage: React.FC = () => {
+const EditPropertyContent: React.FC = () => {
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
   const [imageUploadProgress, setImageUploadProgress] = useState<{ [key: string]: number }>({});
@@ -112,11 +115,10 @@ const AddPropertyPage: React.FC = () => {
   const [submitSuccess, setSubmitSuccess] = useState<string>('');
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
   const [isMapModalOpen, setIsMapModalOpen] = useState<boolean>(false);
-  const [isLoadingUser, setIsLoadingUser] = useState<boolean>(true);
-  const [isLookingUpHost, setIsLookingUpHost] = useState<boolean>(false);
-  const [hostFound, setHostFound] = useState<boolean>(false);
-  const [foundHostData, setFoundHostData] = useState<any>(null);
+  const [isLoadingProperty, setIsLoadingProperty] = useState<boolean>(true);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+  const [isEditMode, setIsEditMode] = useState<boolean>(true);
+  const [propertyId, setPropertyId] = useState<string>('');
 
   const isMountedRef = useRef<boolean>(true);
   const router = useRouter();
@@ -243,13 +245,13 @@ const AddPropertyPage: React.FC = () => {
       try {
         Object.values(formData.images).forEach(categoryImages => {
           categoryImages.forEach((image: any) => {
-            if (image.url && image.url.startsWith('blob:')) {
+            if (image.url && image.url.startsWith('blob:') && !image.uploaded) {
               URL.revokeObjectURL(image.url);
             }
           });
         });
 
-        if (formData.video3D?.url && formData.video3D.url.startsWith('blob:')) {
+        if (formData.video3D?.url && formData.video3D.url.startsWith('blob:') && !formData.video3D.uploaded) {
           URL.revokeObjectURL(formData.video3D.url);
         }
       } catch (error) {
@@ -303,266 +305,154 @@ const AddPropertyPage: React.FC = () => {
   };
 
   useEffect(() => {
-    checkUserSession();
+    loadPropertyData();
   }, []);
 
-  const checkUserSession = async () => {
+  const loadPropertyData = async () => {
     try {
-      setIsLoadingUser(true);
-      const response = await api.get('/auth/me');
+      setIsLoadingProperty(true);
 
-      if (response.ok && response.data) {
-        const currentUser = response.data;
-        console.log('User session active', currentUser);
-
-        // If logged-in user is a host, auto-fill their data and skip step 1
-        if (currentUser.userType === 'host' && currentUser.status === 'active' && currentUser.kycStatus === 'approved') {
-          // Build full address from user data (Country, City, District, Cell, Village, Street)
-          const fullAddress = [
-            currentUser.country,
-            currentUser.city,
-            currentUser.district,
-            currentUser.sector, // Cell
-            currentUser.village,
-            currentUser.street
-          ].filter(Boolean).join(', ');
-
-          // Auto-fill the host details
-          setFormData(prev => ({
-            ...prev,
-            ownerDetails: {
-              email: currentUser.email || '',
-              name: currentUser.name || `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim(),
-              phone: formatPhoneWithCountryCode(currentUser.phone || ''),
-              address: fullAddress || '',
-              country: currentUser.country || '',
-              city: currentUser.city || '',
-              district: currentUser.district || '',
-              sector: currentUser.sector || '',
-              village: currentUser.village || '',
-              street: currentUser.street || ''
-            }
-          }));
-
-          setHostFound(true);
-          setFoundHostData(currentUser);
-
-          // Skip to step 2 (Property Details)
-          setCurrentStep(2);
-
-          setNotification({
-            message: 'Welcome! Your host information has been auto-filled.',
-            type: 'success'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error checking user session:', error);
-    } finally {
-      setIsLoadingUser(false);
-    }
-  };
-
-  // Email lookup handler
-  const handleEmailLookup = async () => {
-    if (!formData.ownerDetails.email || !isValidEmail(formData.ownerDetails.email)) {
-      setValidationErrors({ email: 'Please enter a valid email address' });
-      return;
-    }
-
-    setIsLookingUpHost(true);
-    setValidationErrors({});
-
-    try {
-      const response = await api.get(`/auth/users/email/${formData.ownerDetails.email}`);
-
-      if (response.ok && response.data) {
-        const existingUser = response.data;
-
-        // Check if user is a host
-        if (existingUser.userType !== 'host') {
-          setNotification({
-            message: `This email belongs to a ${existingUser.userType} account. Only hosts can list properties. Please use a host account or create a new host profile.`,
-            type: 'error'
-          });
-          setHostFound(false);
-          setFormData(prev => ({
-            ...prev,
-            ownerDetails: {
-              name: '',
-              email: '',
-              phone: '',
-              address: ''
-            }
-          }));
-          return;
-        }
-
-        // Validate host status
-        if (existingUser.status !== 'active') {
-          setNotification({
-            message: `Host account is ${existingUser.status}. Only active hosts can list properties.`,
-            type: 'error'
-          });
-          setHostFound(false);
-          return;
-        }
-
-        if (existingUser.kycStatus !== 'approved') {
-          setNotification({
-            message: `Host KYC status is ${existingUser.kycStatus}. Only approved hosts can list properties.`,
-            type: 'error'
-          });
-          setHostFound(false);
-          return;
-        }
-
-        setHostFound(true);
-        setFoundHostData(existingUser);
-
-        // Build full address from user data (Country, City, District, Cell, Village, Street)
-        const fullAddress = [
-          existingUser.country,
-          existingUser.city,
-          existingUser.district,
-          existingUser.sector, // Cell
-          existingUser.village,
-          existingUser.street
-        ].filter(Boolean).join(', ');
-
-        // Auto-fill the host details
-        setFormData(prev => ({
-          ...prev,
-          ownerDetails: {
-            email: existingUser.email || prev.ownerDetails.email,
-            name: existingUser.name || `${existingUser.firstName || ''} ${existingUser.lastName || ''}`.trim(),
-            phone: formatPhoneWithCountryCode(existingUser.phone || ''),
-            address: fullAddress || '',
-            country: existingUser.country || '',
-            city: existingUser.city || '',
-            district: existingUser.district || '',
-            sector: existingUser.sector || '',
-            village: existingUser.village || '',
-            street: existingUser.street || ''
-          }
-        }));
-
+      // Get encoded property ID from URL
+      const encodedId = searchParams.get('id');
+      if (!encodedId) {
         setNotification({
-          message: 'Host verified successfully!',
-          type: 'success'
-        });
-      }
-    } catch (error: any) {
-      if (error.status === 404 || error.status === 400) {
-        setHostFound(false);
-        setNotification({
-          message: 'Host not found. Please fill in the details to create a new host account.',
-          type: 'info'
-        });
-      } else {
-        setNotification({
-          message: 'Error looking up host. Please try again.',
+          message: 'Property ID is missing',
           type: 'error'
         });
+        setTimeout(() => router.push('/all/agent/properties'), 2000);
+        return;
       }
+
+      // Decode the property ID
+      const decodedId = decodeId(encodedId);
+      if (!decodedId) {
+        setNotification({
+          message: 'Invalid property ID',
+          type: 'error'
+        });
+        setTimeout(() => router.push('/all/agent/properties'), 2000);
+        return;
+      }
+
+      setPropertyId(decodedId);
+
+      // Fetch property data
+      const response = await api.getProperty(decodedId);
+
+      if (!response.ok || !response.data) {
+        throw new Error(response.data?.message || 'Failed to load property');
+      }
+
+      const property = response.data.data;
+
+      // Transform API response to populate formData
+      const transformedData: FormData = {
+        ownerDetails: {
+          name: property.client?.name || property.client?.firstName || '',
+          email: property.client?.email || '',
+          phone: formatPhoneWithCountryCode(property.client?.phone || ''),
+          address: [
+            property.client?.country,
+            property.client?.city,
+            property.client?.district,
+            property.client?.sector,
+            property.client?.village,
+            property.client?.street
+          ].filter(Boolean).join(', '),
+          country: property.client?.country || '',
+          city: property.client?.city || '',
+          district: property.client?.district || '',
+          sector: property.client?.sector || '',
+          village: property.client?.village || '',
+          street: property.client?.street || ''
+        },
+        name: property.name || '',
+        location: {
+          address: property.location || '',
+          latitude: property.coordinates?.latitude || property.latitude,
+          longitude: property.coordinates?.longitude || property.longitude
+        },
+        availabilityDates: {
+          start: property.availableFrom ? property.availableFrom.split('T')[0] : '',
+          end: property.availableTo ? property.availableTo.split('T')[0] : ''
+        },
+        pricing: {
+          type: (property.pricingType === 'month' ? 'month' : 'night') as 'night' | 'month',
+          amount: String(property.pricePerNight || property.pricePerMonth || ''),
+          minimumStay: String(property.minimumStay || '1')
+        },
+        type: property.type || '',
+        category: property.category || 'entire_place',
+        features: property.features || [],
+        images: transformImages(property.images),
+        video3D: transformVideo(property.video3D || null)
+      };
+
+      setFormData(transformedData);
+
+      setNotification({
+        message: 'Property data loaded successfully',
+        type: 'success'
+      });
+
+    } catch (error: any) {
+      console.error('Error loading property:', error);
+      const errorMessage = handleApiError(error);
+      setNotification({
+        message: errorMessage,
+        type: 'error'
+      });
+      setTimeout(() => router.push('/all/agent/properties'), 2000);
     } finally {
-      setIsLookingUpHost(false);
+      setIsLoadingProperty(false);
     }
   };
 
-  const registerUserAsHost = async (ownerDetails: OwnerDetails): Promise<string> => {
-    try {
-      let existingUser = null;
+  const transformImages = (imagesData: any): PropertyImages => {
+    const transformedImages: PropertyImages = {
+      livingRoom: [],
+      kitchen: [],
+      diningArea: [],
+      bedroom: [],
+      bathroom: [],
+      workspace: [],
+      balcony: [],
+      laundryArea: [],
+      gym: [],
+      exterior: [],
+      childrenPlayroom: []
+    };
 
-      try {
-        const existingUserResponse = await api.get(`/auth/users/email/${ownerDetails.email}`);
-        if (existingUserResponse.ok && existingUserResponse.data) {
-          existingUser = existingUserResponse.data;
-          console.log('User found via lookup endpoint:', existingUser.id);
-        }
-      } catch (checkError: any) {
-        console.log('User lookup endpoint not available or user not found:', checkError.status);
+    if (!imagesData) return transformedImages;
+
+    // Transform each category
+    for (const category of imageCategories) {
+      const categoryData = imagesData[category.name];
+      if (Array.isArray(categoryData) && categoryData.length > 0) {
+        transformedImages[category.name] = categoryData.map((url: string) => ({
+          file: new File([], ''), // Empty file for existing images
+          url: url,
+          name: url.split('/').pop() || 'image',
+          uploaded: true,
+          uploadedUrl: url
+        }));
       }
-
-      if (existingUser?.id) {
-        console.log('Using existing user ID:', existingUser.id, 'UserType:', existingUser.userType);
-        return existingUser.id;
-      }
-
-      console.log('User not found, attempting registration for:', ownerDetails.email);
-
-      try {
-        // Build address from structured fields if available
-        const fullAddress = ownerDetails.country || ownerDetails.city || ownerDetails.district
-          ? [
-              ownerDetails.country,
-              ownerDetails.city,
-              ownerDetails.district,
-              ownerDetails.sector,
-              ownerDetails.village,
-              ownerDetails.street
-            ].filter(Boolean).join(', ')
-          : ownerDetails.address || 'Not provided';
-
-        const registerResponse = await api.post('/auth/register', {
-          names: ownerDetails.name,
-          email: ownerDetails.email,
-          phone: ownerDetails.phone,
-          address: fullAddress,
-          country: ownerDetails.country,
-          city: ownerDetails.city,
-          district: ownerDetails.district,
-          sector: ownerDetails.sector,
-          village: ownerDetails.village,
-          street: ownerDetails.street,
-          userType: 'host'
-        });
-
-        if (registerResponse.ok && registerResponse.data) {
-          const newHostId = registerResponse.data.user?.id;
-          if (!newHostId) {
-            throw new Error('Registration successful but host ID not returned');
-          }
-
-          console.log('New host account created successfully with ID:', newHostId);
-          return newHostId;
-        }
-
-        throw new Error(registerResponse.data?.message || 'Failed to register user as host');
-      } catch (registerError: any) {
-        if (registerError.status === 409) {
-          console.log('User already exists (409 Conflict), attempting to fetch user ID...');
-
-          try {
-            const retryLookup = await api.get(`/auth/users/email/${ownerDetails.email}`);
-            if (retryLookup.ok && retryLookup.data?.id) {
-              console.log('User ID retrieved after conflict:', retryLookup.data.id);
-              return retryLookup.data.id;
-            }
-          } catch (lookupError) {
-            console.log('Lookup after conflict failed, trying alternative methods');
-          }
-
-          if (registerError.data?.user?.id) {
-            console.log('User ID found in conflict response:', registerError.data.user.id);
-            return registerError.data.user.id;
-          }
-
-          if (registerError.data?.id) {
-            console.log('User ID found in conflict response data:', registerError.data.id);
-            return registerError.data.id;
-          }
-
-          throw new Error('User already exists but unable to retrieve user ID. Please check the email and try again.');
-        }
-
-        throw registerError;
-      }
-    } catch (error: any) {
-      console.error('Error in registerUserAsHost:', error);
-      const errorMessage = error?.data?.message || error?.message || 'Failed to register host account';
-      throw new Error(errorMessage);
     }
+
+    return transformedImages;
+  };
+
+  const transformVideo = (videoUrl: string | null): VideoFile | null => {
+    if (!videoUrl) return null;
+
+    return {
+      file: new File([], ''), // Empty file for existing video
+      url: videoUrl,
+      name: videoUrl.split('/').pop() || 'video',
+      size: 0,
+      uploaded: true,
+      uploadedUrl: videoUrl
+    };
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -576,25 +466,20 @@ const AddPropertyPage: React.FC = () => {
   const formatPhoneWithCountryCode = (phone: string): string => {
     if (!phone) return '';
 
-    // Remove any spaces, dashes, or parentheses
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
 
-    // If phone already starts with +, return as is
     if (cleanPhone.startsWith('+')) {
       return cleanPhone;
     }
 
-    // If phone starts with 250 (Rwanda code), add +
     if (cleanPhone.startsWith('250')) {
       return `+${cleanPhone}`;
     }
 
-    // If phone starts with 0, replace with +250 (Rwanda default)
     if (cleanPhone.startsWith('0')) {
       return `+250${cleanPhone.substring(1)}`;
     }
 
-    // Otherwise, assume it's a local number and add +250
     return `+250${cleanPhone}`;
   };
 
@@ -643,6 +528,11 @@ const AddPropertyPage: React.FC = () => {
   const processVideo = async (): Promise<string> => {
     if (!formData.video3D) return '';
 
+    // If video is already uploaded, return the uploaded URL
+    if (formData.video3D.uploaded && formData.video3D.uploadedUrl) {
+      return formData.video3D.uploadedUrl;
+    }
+
     try {
       setVideoUploadProgress(0);
       const uploadedUrl = await uploadSingleFileToSupabase(
@@ -671,8 +561,16 @@ const AddPropertyPage: React.FC = () => {
 
         for (let i = 0; i < categoryImages.length; i++) {
           const image = categoryImages[i];
-          const progress = ((i + 1) / categoryImages.length) * 100;
 
+          // Skip already uploaded images
+          if (image.uploaded && image.uploadedUrl) {
+            uploadedUrls.push(image.uploadedUrl);
+            const progress = ((i + 1) / categoryImages.length) * 100;
+            setImageUploadProgress(prev => ({ ...prev, [category.name]: progress }));
+            continue;
+          }
+
+          const progress = ((i + 1) / categoryImages.length) * 100;
           setImageUploadProgress(prev => ({ ...prev, [category.name]: progress }));
 
           const uploadedUrl = await uploadSingleFileToSupabase(
@@ -778,10 +676,8 @@ const AddPropertyPage: React.FC = () => {
       ...prev,
       location: {
         address: locationData.address,
-        coordinates: {
-          latitude: locationData.latitude,
-          longitude: locationData.longitude
-        },
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
         addressComponents: locationData.addressComponents
       }
     }));
@@ -843,7 +739,8 @@ const AddPropertyPage: React.FC = () => {
       newImages.push({
         file,
         url: imageUrl,
-        name: file.name
+        name: file.name,
+        uploaded: false
       });
     }
 
@@ -860,7 +757,7 @@ const AddPropertyPage: React.FC = () => {
 
   const removeImage = (category: keyof PropertyImages, index: number) => {
     const imageToRemove = formData.images[category][index];
-    if (imageToRemove?.url) {
+    if (imageToRemove?.url && !imageToRemove.uploaded) {
       URL.revokeObjectURL(imageToRemove.url);
     }
 
@@ -893,7 +790,8 @@ const AddPropertyPage: React.FC = () => {
         file,
         url: videoUrl,
         name: file.name,
-        size: file.size
+        size: file.size,
+        uploaded: false
       }
     }));
 
@@ -907,7 +805,7 @@ const AddPropertyPage: React.FC = () => {
   };
 
   const removeVideo = () => {
-    if (formData.video3D?.url) {
+    if (formData.video3D?.url && !formData.video3D.uploaded) {
       URL.revokeObjectURL(formData.video3D.url);
     }
     setFormData(prev => ({
@@ -919,55 +817,16 @@ const AddPropertyPage: React.FC = () => {
   const validateStep = (step: number): boolean => {
     const errors: { [key: string]: string } = {};
 
+    // Step 1: Property Details (was Step 2)
     if (step === 1) {
-      // Email is required
-      if (!formData.ownerDetails.email || !isValidEmail(formData.ownerDetails.email)) {
-        errors.email = 'Valid email is required';
-      }
-
-      // If host not found or not looked up, require name and phone
-      if (!formData.ownerDetails.name || formData.ownerDetails.name.trim().length < 3) {
-        errors.names = 'Host name is required (min 3 characters)';
-      }
-
-      if (!formData.ownerDetails.phone || formData.ownerDetails.phone.length < 10) {
-        errors.phone = 'Valid phone number is required (min 10 characters)';
-      }
-
-      // Address fields validation
-      if (!formData.ownerDetails.country || formData.ownerDetails.country.trim().length < 2) {
-        errors.country = 'Country is required';
-      }
-
-      if (!formData.ownerDetails.city || formData.ownerDetails.city.trim().length < 2) {
-        errors.city = 'City is required';
-      }
-
-      if (!formData.ownerDetails.district || formData.ownerDetails.district.trim().length < 2) {
-        errors.district = 'District is required';
-      }
-
-      if (!formData.ownerDetails.sector || formData.ownerDetails.sector.trim().length < 2) {
-        errors.sector = 'Cell/Sector is required';
-      }
-
-      if (!formData.ownerDetails.village || formData.ownerDetails.village.trim().length < 2) {
-        errors.village = 'Village is required';
-      }
-    }
-
-    if (step === 2) {
       if (!formData.name || formData.name.trim().length < 3) {
         errors.name = 'Property name is required (min 3 characters)';
       }
 
-      // Address selection is MANDATORY
-      if (!formData.location.address || formData.location.address.trim().length < 5) {
-        errors.location = 'Property address is required. Please select on map.';
-      }
-
-      if (!formData.location.coordinates) {
-        errors.location = 'Please select property location on the map';
+      // Location is read-only in edit mode, no validation needed
+      // Just verify it exists
+      if (!formData.location.address) {
+        errors.location = 'Property location is missing';
       }
 
       if (!isValidStartDate(formData.availabilityDates.start)) {
@@ -1005,7 +864,8 @@ const AddPropertyPage: React.FC = () => {
       }
     }
 
-    if (step === 3) {
+    // Step 2: Features (was Step 3)
+    if (step === 2) {
       if (formData.features.length === 0) {
         errors.features = 'Please select at least 1 feature';
       }
@@ -1015,12 +875,12 @@ const AddPropertyPage: React.FC = () => {
       }
     }
 
-    if (step === 4) {
+    // Step 3: Media (was Step 4)
+    if (step === 3) {
       if (!formData.video3D) {
         errors.video3D = '3D property video is required';
       }
 
-      // Validate incomplete image categories
       for (const category of imageCategories) {
         const currentCount = formData.images[category.name].length;
         if (currentCount > 0 && currentCount < category.maxImages) {
@@ -1029,13 +889,15 @@ const AddPropertyPage: React.FC = () => {
       }
     }
 
+    // Step 4: Review (was Step 5) - no validation needed
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 5)); // Step 5 is preview
+      setCurrentStep(prev => Math.min(prev + 1, 4));
     } else {
       setNotification({
         message: 'Please fix all validation errors before proceeding',
@@ -1065,9 +927,6 @@ const AddPropertyPage: React.FC = () => {
         return;
       }
 
-      let clientId: string;
-      clientId = await registerUserAsHost(formData.ownerDetails);
-
       const beds = Math.max(1, formData.features.filter(f => f.includes('Bed')).length || 2);
       const baths = Math.max(1, formData.features.filter(f => f.includes('Shower') || f.includes('Bathtub')).length || 1);
       const maxGuests = beds * 2;
@@ -1079,12 +938,16 @@ const AddPropertyPage: React.FC = () => {
 
       const processedImages = await processImages();
 
-      // Build request body based on pricing type
+      // Build coordinates object properly
+      const coordinates = {
+        latitude: formData.location.latitude,
+        longitude: formData.location.longitude
+      };
+
       const baseRequestBody = {
-        clientId: clientId,
         name: formData.name.trim(),
         location: formData.location.address,
-        coordinates: formData.location.coordinates,
+        coordinates: coordinates,
         type: formData.type,
         category: formData.category,
         pricingType: formData.pricing.type,
@@ -1100,7 +963,6 @@ const AddPropertyPage: React.FC = () => {
         availableTo: formData.availabilityDates.end
       };
 
-      // Add pricing fields based on pricing type
       const requestBody = formData.pricing.type === 'night'
         ? {
             ...baseRequestBody,
@@ -1111,27 +973,26 @@ const AddPropertyPage: React.FC = () => {
             pricePerMonth: parseFloat(formData.pricing.amount)
           };
 
-      console.log('Submitting property with data:', requestBody);
+      console.log('Updating property with data:', requestBody);
 
-      const response = await api.post(`/properties`, requestBody);
+      const response = await api.updateProperty(parseInt(propertyId), requestBody);
 
       if (response.ok) {
-        setSubmitSuccess('Property uploaded successfully!');
+        setSubmitSuccess('Property updated successfully!');
         setNotification({
-          message: 'Property has been successfully created!',
+          message: 'Property has been successfully updated!',
           type: 'success'
         });
 
         setTimeout(() => {
-          const propertyId = response.data?.id;
           const viewDetailsUrl = createViewDetailsUrl(propertyId, 'property');
           router.push(viewDetailsUrl);
         }, 2000);
       } else {
-        throw new Error(response.data?.message || 'Failed to create property');
+        throw new Error(response.data?.message || 'Failed to update property');
       }
     } catch (error: any) {
-      console.error('Error submitting property:', error);
+      console.error('Error updating property:', error);
       const errorMessage = handleApiError(error);
       setSubmitError(errorMessage);
       setNotification({
@@ -1147,11 +1008,10 @@ const AddPropertyPage: React.FC = () => {
 
   const getStepTitle = (step: number): string => {
     switch (step) {
-      case 1: return 'Host Information';
-      case 2: return 'Property Details';
-      case 3: return 'Amenities & Features';
-      case 4: return 'Photos & Video';
-      case 5: return 'Review & Confirm';
+      case 1: return 'Property Details';
+      case 2: return 'Amenities & Features';
+      case 3: return 'Photos & Video';
+      case 4: return 'Review & Confirm';
       default: return '';
     }
   };
@@ -1159,8 +1019,8 @@ const AddPropertyPage: React.FC = () => {
   const renderProgressBar = () => (
     <div className="mb-8">
       <div className="flex justify-between mb-2">
-        {[1, 2, 3, 4, 5].map((step) => (
-          <div key={step} className="flex flex-col items-center" style={{ width: '18%' }}>
+        {[1, 2, 3, 4].map((step) => (
+          <div key={step} className="flex flex-col items-center" style={{ width: '23%' }}>
             <div
               className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
                 step === currentStep
@@ -1181,18 +1041,18 @@ const AddPropertyPage: React.FC = () => {
       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-[#083A85] to-[#0a4499] transition-all duration-500"
-          style={{ width: `${(currentStep / 5) * 100}%` }}
+          style={{ width: `${(currentStep / 4) * 100}%` }}
         />
       </div>
     </div>
   );
 
-  if (isLoadingUser) {
+  if (isLoadingProperty) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#083A85] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">Loading property data...</p>
         </div>
       </div>
     );
@@ -1200,9 +1060,6 @@ const AddPropertyPage: React.FC = () => {
 
   return (
     <>
-    <head>
-      <title>List Property - Jambolush</title>
-    </head>
       {notification && (
         <AlertNotification
           message={notification.message}
@@ -1211,349 +1068,26 @@ const AddPropertyPage: React.FC = () => {
         />
       )}
 
-      {/* Map Modal */}
-      <PropertyMapSelector
-        isOpen={isMapModalOpen}
-        onClose={() => setIsMapModalOpen(false)}
-        onLocationSelect={handleLocationSelect}
-      />
+      {/* Map selector removed - location cannot be edited */}
 
       <div className="py-3 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">List Your Property</h1>
-            <p className="text-gray-600">Share your space with guests from around the world</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Edit Property</h1>
+            <p className="text-gray-600">Update your property information</p>
           </div>
 
           {renderProgressBar()}
 
           {/* Main Form Card */}
           <div className="bg-white rounded-2xl shadow-sm p-8 mb-6">
-            {/* Step 1: Host Information */}
+            {/* Step 1: Property Details (Host Info Removed) */}
             {currentStep === 1 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-6">Host Information</h2>
-                  <p className="text-gray-600 mb-6">Enter the host's email to get started. We'll check if they already have an account.</p>
-                </div>
-
-                {/* Email First */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Host Email Address <span className="text-[#083A85]">*</span>
-                  </label>
-                  <div className="flex gap-3">
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.ownerDetails.email}
-                      onChange={handleOwnerInputChange}
-                      placeholder="host@example.com"
-                      className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                        validationErrors.email ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      disabled={hostFound}
-                    />
-                    {!hostFound && (
-                      <button
-                        type="button"
-                        onClick={handleEmailLookup}
-                        disabled={isLookingUpHost || !formData.ownerDetails.email}
-                        className="px-6 py-3 bg-[#083A85] text-white rounded-lg font-medium hover:bg-[#0a4499] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                      >
-                        {isLookingUpHost ? 'Checking...' : 'Verify'}
-                      </button>
-                    )}
-                  </div>
-                  {validationErrors.email && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
-                  )}
-                </div>
-
-                {/* Host Details Card - Show when host is found */}
-                {hostFound && foundHostData && (
-                  <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6">
-                    <div className="flex items-start gap-4">
-                      {/* Profile Picture */}
-                      <div className="flex-shrink-0">
-                        {foundHostData.profile ? (
-                          <img
-                            src={foundHostData.profile}
-                            alt={foundHostData.name}
-                            className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 rounded-full bg-[#083A85] flex items-center justify-center text-white text-2xl font-bold border-4 border-white shadow-lg">
-                            {foundHostData.name?.charAt(0) || foundHostData.email?.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Host Information */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900">{foundHostData.name || `${foundHostData.firstName || ''} ${foundHostData.lastName || ''}`.trim()}</h3>
-                            <p className="text-sm text-gray-600">{foundHostData.email}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setHostFound(false);
-                              setFoundHostData(null);
-                              setFormData(prev => ({
-                                ...prev,
-                                ownerDetails: {
-                                  name: '',
-                                  email: prev.ownerDetails.email,
-                                  phone: '',
-                                  address: ''
-                                }
-                              }));
-                            }}
-                            className="text-sm text-red-600 hover:text-red-700 font-medium"
-                          >
-                            Change
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          {/* Account Status */}
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Account Status</p>
-                            <div className="flex items-center gap-2">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                foundHostData.status === 'active'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {foundHostData.status === 'active' && (
-                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                  </svg>
-                                )}
-                                {foundHostData.status?.toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* KYC Status */}
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">KYC Status</p>
-                            <div className="flex items-center gap-2">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                foundHostData.kycStatus === 'approved'
-                                  ? 'bg-green-100 text-green-800'
-                                  : foundHostData.kycStatus === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {foundHostData.kycStatus === 'approved' && (
-                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                  </svg>
-                                )}
-                                {foundHostData.kycStatus?.toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Phone */}
-                          <div className="bg-white rounded-lg p-3 border border-gray-200">
-                            <p className="text-xs text-gray-500 mb-1">Phone Number</p>
-                            <p className="text-sm font-medium text-gray-900">{formatPhoneWithCountryCode(foundHostData.phone) || 'N/A'}</p>
-                          </div>
-
-                          {/* Address */}
-                          <div className="bg-white rounded-lg p-3 border border-gray-200 col-span-2">
-                            <p className="text-xs text-gray-500 mb-1">Address</p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {[foundHostData.country, foundHostData.city, foundHostData.district, foundHostData.sector, foundHostData.village, foundHostData.street]
-                                .filter(Boolean)
-                                .join(', ') || 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex items-center gap-2 text-sm text-green-700 bg-green-100 rounded-lg px-3 py-2">
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          <span className="font-medium">Verified Host - Ready to list properties</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Show input fields only if host NOT found */}
-                {!hostFound && formData.ownerDetails.email && (
-                  <div className="space-y-6 pt-4 border-t border-gray-200">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name <span className="text-[#083A85]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="names"
-                        value={formData.ownerDetails.name}
-                        onChange={handleOwnerInputChange}
-                        placeholder="John Doe"
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                          validationErrors.names ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {validationErrors.names && (
-                        <p className="mt-1 text-sm text-red-600">{validationErrors.names}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone Number <span className="text-[#083A85]">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.ownerDetails.phone}
-                        onChange={handleOwnerInputChange}
-                        placeholder="+250 781 234 567"
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                          validationErrors.phone ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                      />
-                      {validationErrors.phone && (
-                        <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
-                      )}
-                    </div>
-
-                    {/* Address Section */}
-                    <div className="border-t border-gray-200 pt-4">
-                      <h3 className="text-base font-semibold text-gray-900 mb-4">Address Information</h3>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Country <span className="text-[#083A85]">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="country"
-                            value={formData.ownerDetails.country || ''}
-                            onChange={handleOwnerInputChange}
-                            placeholder="Rwanda"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                              validationErrors.country ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                          />
-                          {validationErrors.country && (
-                            <p className="mt-1 text-sm text-red-600">{validationErrors.country}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            City <span className="text-[#083A85]">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="city"
-                            value={formData.ownerDetails.city || ''}
-                            onChange={handleOwnerInputChange}
-                            placeholder="Kigali"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                              validationErrors.city ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                          />
-                          {validationErrors.city && (
-                            <p className="mt-1 text-sm text-red-600">{validationErrors.city}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            District <span className="text-[#083A85]">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="district"
-                            value={formData.ownerDetails.district || ''}
-                            onChange={handleOwnerInputChange}
-                            placeholder="Gasabo"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                              validationErrors.district ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                          />
-                          {validationErrors.district && (
-                            <p className="mt-1 text-sm text-red-600">{validationErrors.district}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Cell (Sector) <span className="text-[#083A85]">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="sector"
-                            value={formData.ownerDetails.sector || ''}
-                            onChange={handleOwnerInputChange}
-                            placeholder="Remera"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                              validationErrors.sector ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                          />
-                          {validationErrors.sector && (
-                            <p className="mt-1 text-sm text-red-600">{validationErrors.sector}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Village <span className="text-[#083A85]">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="village"
-                            value={formData.ownerDetails.village || ''}
-                            onChange={handleOwnerInputChange}
-                            placeholder="Gisimenti"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all ${
-                              validationErrors.village ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                          />
-                          {validationErrors.village && (
-                            <p className="mt-1 text-sm text-red-600">{validationErrors.village}</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Street <span className="text-gray-400">(Optional)</span>
-                          </label>
-                          <input
-                            type="text"
-                            name="street"
-                            value={formData.ownerDetails.street || ''}
-                            onChange={handleOwnerInputChange}
-                            placeholder="KN 5 St"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent outline-none transition-all"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 2: Property Details */}
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <div>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-2">Property Details</h2>
-                  <p className="text-gray-600 mb-6">Tell us about your property</p>
+                  <p className="text-gray-600 mb-6">Update your property information</p>
                 </div>
 
                 <div>
@@ -1575,41 +1109,32 @@ const AddPropertyPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Property Location - MANDATORY MAP SELECTION */}
+                {/* Property Location - READ ONLY */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Property Location <span className="text-[#083A85]">*</span>
+                    Property Location <span className="text-gray-400">(Cannot be changed)</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsMapModalOpen(true)}
-                    className="w-full mb-3 px-4 py-3 bg-[#083A85] text-white rounded-lg font-medium hover:bg-[#0a4499] transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                    </svg>
-                    {formData.location.coordinates ? 'Update Location on Map' : 'Select Location on Map'}
-                  </button>
-
-                  {formData.location.coordinates && (
-                    <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-green-800 mb-1">Location Selected</p>
-                          <p className="text-sm text-green-700">{formData.location.address}</p>
-                          <p className="text-xs text-green-600 mt-1">
-                            {formData.location.coordinates.latitude.toFixed(6)}, {formData.location.coordinates.longitude.toFixed(6)}
+                  <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 mb-1">{formData.location.address}</p>
+                        {formData.location.latitude && formData.location.longitude && (
+                          <p className="text-xs text-gray-500">
+                            Coordinates: {formData.location.latitude.toFixed(6)}, {formData.location.longitude.toFixed(6)}
                           </p>
-                        </div>
+                        )}
                       </div>
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
                     </div>
-                  )}
-                  {validationErrors.location && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.location}</p>
-                  )}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Property location cannot be modified after creation. Contact support if you need to change it.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1781,8 +1306,8 @@ const AddPropertyPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 3: Features */}
-            {currentStep === 3 && (
+            {/* Step 2: Features */}
+            {currentStep === 2 && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-2">Amenities & Features</h2>
@@ -1832,15 +1357,15 @@ const AddPropertyPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 4: Media Upload */}
-            {currentStep === 4 && (
+            {/* Step 3: Media Upload */}
+            {currentStep === 3 && (
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-900 mb-2">Photos & Video</h2>
-                  <p className="text-gray-600 mb-6">Showcase your property with high-quality images and a video tour</p>
+                  <p className="text-gray-600 mb-6">Update your property images and video tour</p>
                 </div>
 
-                {/* Video Upload - REQUIRED */}
+                {/* Video Upload */}
                 <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-6">
                   <div className="flex items-start gap-3 mb-4">
                     <svg className="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -1916,7 +1441,7 @@ const AddPropertyPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Image Upload - Optional */}
+                {/* Image Upload */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Property Images (Optional)</h3>
                   <p className="text-sm text-gray-600 mb-4">Upload high-quality photos of different areas</p>
@@ -2023,12 +1548,12 @@ const AddPropertyPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 5: Preview */}
-            {currentStep === 5 && (
+            {/* Step 4: Preview */}
+            {currentStep === 4 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Review Your Listing</h2>
-                  <p className="text-gray-600 mb-6">Please review all details before submitting</p>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Review Your Changes</h2>
+                  <p className="text-gray-600 mb-6">Please review all details before updating</p>
                 </div>
 
                 {/* Host Info Preview */}
@@ -2164,7 +1689,7 @@ const AddPropertyPage: React.FC = () => {
               </button>
             )}
 
-            {currentStep < 5 ? (
+            {currentStep < 4 ? (
               <button
                 type="button"
                 onClick={handleNext}
@@ -2185,10 +1710,10 @@ const AddPropertyPage: React.FC = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Submitting...
+                    Updating...
                   </>
                 ) : (
-                  'Submit Property'
+                  'Update Property'
                 )}
               </button>
             )}
@@ -2199,4 +1724,4 @@ const AddPropertyPage: React.FC = () => {
   );
 };
 
-export default AddPropertyPage;
+export default EditPropertyContent;
