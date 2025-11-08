@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { parseViewDetailsParams } from '@/app/utils/encoder';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import TransactionDetail from '@/app/components/details/transaction-detail';
 import BookingDetail from '@/app/components/details/booking-detail';
 import PropertyDetail from '@/app/components/details/property-detail';
@@ -13,6 +13,25 @@ function ViewDetailsContent() {
   const router = useRouter();
 
   const params = parseViewDetailsParams(searchParams);
+
+  // Set page title based on detail type
+  useEffect(() => {
+    if (params) {
+      const { type } = params;
+      const titles: Record<string, string> = {
+        'transaction': 'Transaction Details',
+        'booking': 'Booking Details',
+        'property-booking': 'Property Booking Details',
+        'tour-booking': 'Tour Booking Details',
+        'property': 'Property Details',
+        'tour': 'Tour Details',
+        'user': 'User Details'
+      };
+      document.title = titles[type] || 'View Details';
+    } else {
+      document.title = 'Invalid Link';
+    }
+  }, [params]);
 
   if (!params) {
     return (
@@ -42,21 +61,7 @@ function ViewDetailsContent() {
   const { id, type } = params;
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => router.back()}
-              className="inline-flex items-center gap-2 text-gray-700 hover:text-gray-900 font-medium transition-colors"
-            >
-              <i className="bi bi-chevron-left text-lg"></i>
-              <span className="hidden sm:inline">Back</span>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-white pt-5">
 
       {/* Detail Component Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

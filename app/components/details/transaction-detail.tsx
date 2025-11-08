@@ -37,6 +37,7 @@ export default function TransactionDetail({ id }: TransactionDetailProps) {
 
         // Try to fetch transaction using the actual backend endpoint
         // Based on your backend structure: GET /transactions/:id
+        // Note: id is already decoded by parseViewDetailsParams
         const response = await api.get<any>(`/transactions/${id}`);
 
         if (response.ok && response.data.success) {

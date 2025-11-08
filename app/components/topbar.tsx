@@ -622,6 +622,19 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
         {/* Show authenticated user features only if logged in */}
         {!isLoading && !isRedirecting && isAuthenticated && user && userSession ? (
           <>
+            {/* Book New Button for Guests */}
+            {user.userType === 'guest' && (
+              <a
+                href="https://jambolush.com/spaces"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:flex items-center gap-2 bg-gradient-to-r from-[#083A85] to-[#0a4fa0] text-white px-4 py-2 rounded-xl font-semibold text-sm hover:shadow-lg transition-all duration-200 hover:scale-105"
+              >
+                <i className="bi bi-plus-circle text-base"></i>
+                <span>Book New</span>
+              </a>
+            )}
+
             {/* KYC Notice in TopBar */}
             {user && !user.kycCompleted && (user.userType === 'host' || user.userType === 'agent' || user.userType === 'tourguide') && (
               <div className="hidden md:flex items-center bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-900 px-3.5 py-1.5 rounded-full text-xs font-medium border border-yellow-300/50 shadow-sm">
@@ -672,17 +685,6 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                 </div>
               </div>
             )}
-
-            <div className="relative cursor-pointer hidden sm:block group">
-              <div className="p-2 rounded-xl hover:bg-gray-50 transition-all">
-                <i className="bi bi-chat-left-text text-xl text-gray-600 group-hover:text-[#083A85] transition-colors"></i>
-                {messagesCount > 0 && (
-                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-md ring-2 ring-white">
-                    {messagesCount > 99 ? '99+' : messagesCount}
-                  </span>
-                )}
-              </div>
-            </div>
 
             <div className="relative" ref={notificationsRef}>
               <div

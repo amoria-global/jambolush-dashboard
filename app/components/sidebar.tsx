@@ -260,9 +260,8 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
         guest: [
             { label: 'Home', icon: 'bi-house', path: '/all/guest' },
             { label: 'My Bookings', icon: 'bi-calendar-check', path: '/all/guest/bookings' },
-            { label: 'Schedule', icon: 'bi-calendar-plus', path: '/all/guest/schedule' },
-            { label: 'Tours & Experiences', icon: 'bi-map', path: '/all/guest/tour' },
             { label: 'Payments', icon: 'bi-credit-card', path: '/all/guest/payments' },
+            { label: 'Unlocks', icon: 'bi-unlock', path: '/all/guest/unlocks' },
             { label: 'Wishlist', icon: 'bi-heart', path: '/all/guest/wishlist' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],
@@ -273,6 +272,7 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
             { label: 'Bookings', icon: 'bi-calendar3', path: '/all/host/bookings' },
             { label: 'Guests', icon: 'bi-people', path: '/all/host/guests' },
             { label: 'Earnings', icon: 'bi-cash-coin', path: '/all/host/earnings' },
+            { label: 'Unlocks', icon: 'bi-unlock', path: '/all/host/unlock-analytics' },
             { label: 'Analytics', icon: 'bi-graph-up', path: '/all/host/analytics' },
             { label: 'Settings', icon: 'bi-gear', path: '/all/settings' }
         ],

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/app/api/apiService';
 
@@ -328,13 +329,13 @@ const TourGuideDashboard = () => {
                             )}
                         </div>
                         <div className="flex flex-col gap-2">
-                            <button
-                                onClick={() => router.push('/tourguide/eanrings')}
-                                className="px-4 py-2 bg-white text-[#083A85] rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium flex items-center gap-2"
+                            <Link
+                                href="/all/tourguide/earnings"
+                                className="px-4 py-2 bg-white text-[#083A85] rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium flex items-center gap-2 cursor-pointer"
                             >
                                 <i className="bi bi-arrow-right-circle" />
                                 View Details
-                            </button>
+                            </Link>
                             <button
                                 onClick={fetchWalletData}
                                 disabled={walletLoading}
@@ -417,16 +418,16 @@ const TourGuideDashboard = () => {
                             <div className="p-6 border-b">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-[22px] font-medium text-gray-900">Recent Activity</h2>
-                                    <button className="text-sm text-[#083A85] hover:underline font-medium">
+                                    <Link href="/all/tourguide/reservations" className="text-sm text-[#083A85] hover:underline font-medium cursor-pointer">
                                         View all
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                             <div className="p-6">
                                 {recentMessages.length > 0 ? (
                                     <div className="space-y-4">
                                         {recentMessages.map((message: any, index: number) => (
-                                            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all">
+                                            <div key={index} onClick={() => router.push('/all/tourguide/reservations')} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all cursor-pointer">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center shadow-sm">
                                                         <i className={`bi bi-${message.type === 'booking' ? 'calendar-check' : 'chat-dots'} text-[#083A85] text-lg`} />
@@ -488,19 +489,19 @@ const TourGuideDashboard = () => {
                             <div className="p-6 border-b">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-[22px] font-medium text-gray-900">Today's Schedule</h2>
-                                    <button
-                                        onClick={() => router.push('/tourguide/schedule')}
-                                        className="text-sm text-[#083A85] hover:underline font-medium"
+                                    <Link
+                                        href="/all/tourguide/schedule"
+                                        className="text-sm text-[#083A85] hover:underline font-medium cursor-pointer"
                                     >
                                         View calendar
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                             <div className="p-6">
                                 {upcomingTours.length > 0 ? (
                                     <div className="space-y-3">
                                         {upcomingTours.map((tour: any, index: number) => (
-                                            <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all cursor-pointer">
+                                            <div key={index} onClick={() => router.push('/all/tourguide/schedule')} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all cursor-pointer">
                                                 <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
                                                     <i className="bi bi-geo-alt text-green-600 text-sm" />
                                                 </div>
@@ -573,19 +574,19 @@ const TourGuideDashboard = () => {
                             <div className="p-6 border-b">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-[22px] font-medium text-gray-900">Recent Reviews</h2>
-                                    <button
-                                        onClick={() => router.push('/tourguide/reviews')}
-                                        className="text-sm text-[#083A85] hover:underline font-medium"
+                                    <Link
+                                        href="/all/tourguide/reviews"
+                                        className="text-sm text-[#083A85] hover:underline font-medium cursor-pointer"
                                     >
                                         View all
-                                    </button>
+                                    </Link>
                                 </div>
                             </div>
                             <div className="p-6">
                                 {recentReviews.length > 0 ? (
                                     <div className="space-y-3">
                                         {recentReviews.map((review: any, index: number) => (
-                                            <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                                            <div key={index} onClick={() => router.push('/all/tourguide/reviews')} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <p className="font-medium text-gray-900">{review.guest}</p>
                                                     <div className="flex items-center">

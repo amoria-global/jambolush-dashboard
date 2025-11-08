@@ -20,6 +20,45 @@ interface WalletData {
   accountNumber?: string;
 }
 
+interface WithdrawalMethod {
+  id: string;
+  userId: number;
+  methodType: string;
+  accountName: string;
+  accountDetails: any;
+  isDefault: boolean;
+  isVerified: boolean;
+  verificationStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface WithdrawalProvider {
+  id: string;
+  code: string;
+  name: string;
+  type: 'BANK' | 'MOBILE_MONEY';
+  country: string;
+  currency: string;
+  active: boolean;
+  accountFormat: {
+    label: string;
+    placeholder: string;
+    example: string;
+    minLength: number;
+    maxLength: number;
+    pattern?: string;
+  };
+  logo?: string;
+  color?: string;
+  fees?: {
+    withdrawalFee: string;
+    note: string;
+  };
+  supportsDeposits?: boolean;
+  supportsPayouts?: boolean;
+}
+
 interface Transaction {
   id: string;
   provider: string;
@@ -54,11 +93,32 @@ const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
+  const [withdrawalMethods, setWithdrawalMethods] = useState<WithdrawalMethod[]>([]);
+
+  // Available Providers
+  const [availableProviders, setAvailableProviders] = useState<WithdrawalProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
 
   // UI States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview');
+
+  // Add Refund Account Modal
+  const [showAddMethodModal, setShowAddMethodModal] = useState(false);
+  const [newMethod, setNewMethod] = useState({
+    methodType: 'MOBILE_MONEY' as 'BANK' | 'MOBILE_MONEY',
+    providerId: '',
+    accountNumber: '',
+    accountName: '',
+    provider: null as WithdrawalProvider | null
+  });
+
+  // Notification State
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  } | null>(null);
 
   // Transaction Filters (fewer filters: by status for guest)
   const [transactionFilter, setTransactionFilter] = useState('all');
@@ -70,7 +130,28 @@ const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
       setUserId(uid);
       fetchAllData(uid);
     }
+    // Fetch available providers
+    fetchAvailableProviders();
   }, []);
+
+  // Notification helper
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    setNotification({ message, type });
+  };
+
+  const fetchAvailableProviders = async () => {
+    try {
+      setLoadingProviders(true);
+      const response = await api.get('/transactions/withdrawal-methods/rwanda');
+      if (response.data.success) {
+        setAvailableProviders(response.data.data.all || []);
+      }
+    } catch (err) {
+      console.error('Error fetching available providers:', err);
+    } finally {
+      setLoadingProviders(false);
+    }
+  };
 
   const fetchAllData = async (uid: number) => {
     try {
@@ -106,12 +187,94 @@ const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
         });
       }
 
+      // Fetch withdrawal methods (refund accounts)
+      const methodsResponse = await api.get(`/transactions/withdrawal-methods/${uid}`);
+      if (methodsResponse.data.success) {
+        setWithdrawalMethods(methodsResponse.data.data || []);
+      }
+
       setError(null);
     } catch (err: any) {
       console.error('Error fetching data:', err);
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddWithdrawalMethod = async () => {
+    if (!userId || !newMethod.providerId || !newMethod.accountNumber || !newMethod.accountName) {
+      showNotification('Please fill in all required fields', 'warning');
+      return;
+    }
+
+    if (!newMethod.provider) {
+      showNotification('Please select a valid provider', 'warning');
+      return;
+    }
+
+    // Check if user already has a withdrawal method of this type
+    const existingMethodOfType = withdrawalMethods.find(m => m.methodType === newMethod.methodType);
+    if (existingMethodOfType) {
+      const methodTypeName = newMethod.methodType === 'BANK' ? 'bank account' : 'mobile money account';
+      showNotification(
+        `You already have a ${methodTypeName}. You can only have one bank account and one mobile money account. Please delete the existing ${methodTypeName} first if you want to add a different one.`,
+        'error'
+      );
+      return;
+    }
+
+    // Validate account number using provider's pattern
+    if (newMethod.provider.accountFormat.pattern) {
+      const pattern = new RegExp(newMethod.provider.accountFormat.pattern);
+      if (!pattern.test(newMethod.accountNumber)) {
+        showNotification(`Invalid ${newMethod.provider.accountFormat.label}. ${newMethod.provider.accountFormat.example ? `Example: ${newMethod.provider.accountFormat.example}` : ''}`, 'error');
+        return;
+      }
+    }
+
+    // Validate length
+    if (newMethod.accountNumber.length < newMethod.provider.accountFormat.minLength ||
+        newMethod.accountNumber.length > newMethod.provider.accountFormat.maxLength) {
+      showNotification(`${newMethod.provider.accountFormat.label} must be between ${newMethod.provider.accountFormat.minLength} and ${newMethod.provider.accountFormat.maxLength} characters`, 'error');
+      return;
+    }
+
+    try {
+      const response = await api.post('/transactions/withdrawal-methods', {
+        userId,
+        methodType: newMethod.methodType,
+        accountName: newMethod.accountName,
+        accountDetails: {
+          providerId: newMethod.provider.id,
+          providerName: newMethod.provider.name,
+          providerCode: newMethod.provider.code,
+          accountNumber: newMethod.accountNumber,
+          accountType: newMethod.methodType,
+          country: newMethod.provider.country,
+          currency: newMethod.provider.currency,
+          ...(newMethod.methodType === 'MOBILE_MONEY' ? { phoneNumber: newMethod.accountNumber } : {}),
+          ...(newMethod.methodType === 'BANK' ? { bankAccountNumber: newMethod.accountNumber } : {})
+        },
+        isDefault: withdrawalMethods.length === 0 // Set as default if it's the first method
+      });
+
+      if (response.data.success) {
+        setWithdrawalMethods([...withdrawalMethods, response.data.data]);
+        setShowAddMethodModal(false);
+        setNewMethod({
+          methodType: 'MOBILE_MONEY',
+          providerId: '',
+          accountNumber: '',
+          accountName: '',
+          provider: null
+        });
+
+        showNotification(response.data.message, 'success');
+      }
+    } catch (err: any) {
+      console.error('Error adding refund account:', err);
+      showNotification(err.response?.data?.message || err.message || 'Failed to add refund account', 'error');
     }
   };
 
@@ -127,7 +290,16 @@ const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
   };
 
   const formatCurrency = (amount: number | undefined) => {
-    return `${(amount || 0).toLocaleString()} ${walletData?.currency || 'RWF'}`;
+    const value = amount || 0;
+    const currency = walletData?.currency || 'RWF';
+
+    // Format based on currency type
+    if (currency === 'USD') {
+      return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    // For other currencies, show without decimals
+    return `${value.toLocaleString()} ${currency}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -230,6 +402,25 @@ const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
               </p>
             </div>
           </div>
+
+          {/* Add Refund Account Button - Only show if user has pending or available balance */}
+          {walletData && ((walletData.pendingBalance || 0) > 0 || (walletData.availableBalance || 0) > 0) && (
+            <div>
+              <button
+                onClick={() => setShowAddMethodModal(true)}
+                className="w-full bg-white text-[#083A85] py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <i className="bi bi-bank" />
+                Add Refund Account
+              </button>
+              {withdrawalMethods.length > 0 && (
+                <p className="text-white/70 text-xs mt-2 text-center">
+                  <i className="bi bi-check-circle-fill mr-1" />
+                  {withdrawalMethods.length} refund account{withdrawalMethods.length > 1 ? 's' : ''} added
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -401,6 +592,231 @@ const UnifiedPayments: React.FC<UnifiedPaymentsProps> = ({ userType }) => {
           </div>
         )}
       </div>
+
+      {/* Add Refund Account Modal */}
+      {showAddMethodModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
+              <h3 className="text-xl font-semibold text-gray-900">Add Refund Account</h3>
+              <p className="text-sm text-gray-500 mt-1">Select a bank or mobile money provider to receive refunds</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Account Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Type <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewMethod({ ...newMethod, methodType: 'MOBILE_MONEY', providerId: '', accountNumber: '', provider: null })}
+                    disabled={withdrawalMethods.some(m => m.methodType === 'MOBILE_MONEY')}
+                    className={`px-4 py-3 rounded-lg border-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      newMethod.methodType === 'MOBILE_MONEY'
+                        ? 'border-[#083A85] bg-blue-50 text-[#083A85]'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <i className="bi bi-phone mr-2" />
+                    Mobile Money
+                    {withdrawalMethods.some(m => m.methodType === 'MOBILE_MONEY') && (
+                      <div className="text-xs mt-1 text-orange-600">
+                        <i className="bi bi-check-circle-fill mr-1" />
+                        Already added
+                      </div>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewMethod({ ...newMethod, methodType: 'BANK', providerId: '', accountNumber: '', provider: null })}
+                    disabled={withdrawalMethods.some(m => m.methodType === 'BANK')}
+                    className={`px-4 py-3 rounded-lg border-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      newMethod.methodType === 'BANK'
+                        ? 'border-[#083A85] bg-blue-50 text-[#083A85]'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <i className="bi bi-bank mr-2" />
+                    Bank
+                    {withdrawalMethods.some(m => m.methodType === 'BANK') && (
+                      <div className="text-xs mt-1 text-orange-600">
+                        <i className="bi bi-check-circle-fill mr-1" />
+                        Already added
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Provider Selection Dropdown */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {newMethod.methodType === 'BANK' ? 'Select Bank' : 'Select Mobile Money Provider'} <span className="text-red-500">*</span>
+                </label>
+                {loadingProviders ? (
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                    <i className="bi bi-arrow-repeat animate-spin mr-2" />
+                    Loading providers...
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={newMethod.providerId}
+                      onChange={(e) => {
+                        const selectedProvider = availableProviders.find(p => p.id === e.target.value);
+                        setNewMethod({
+                          ...newMethod,
+                          providerId: e.target.value,
+                          provider: selectedProvider || null
+                        });
+                      }}
+                      disabled={withdrawalMethods.some(m => m.methodType === newMethod.methodType)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">-- Select {newMethod.methodType === 'BANK' ? 'a bank' : 'a provider'} --</option>
+                      {availableProviders
+                        .filter(p => p.type === newMethod.methodType && p.active)
+                        .map(provider => (
+                          <option key={provider.id} value={provider.id}>
+                            {provider.name}
+                          </option>
+                        ))}
+                    </select>
+                    {newMethod.provider && newMethod.provider.fees && (
+                      <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
+                        <i className="bi bi-info-circle mt-0.5" />
+                        <span>{newMethod.provider.fees.note}</span>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Account Details Form - Shows after provider selection */}
+              {newMethod.provider && (
+                <div className="border-t pt-6 space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <i className="bi bi-info-circle text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">
+                          Selected: {newMethod.provider.name}
+                        </p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          Please provide your account details below
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Account Number Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {newMethod.provider.accountFormat.label} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newMethod.accountNumber}
+                      onChange={(e) => setNewMethod({ ...newMethod, accountNumber: e.target.value })}
+                      placeholder={newMethod.provider.accountFormat.placeholder}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: {newMethod.provider.accountFormat.example}
+                    </p>
+                  </div>
+
+                  {/* Account Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Account Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newMethod.accountName}
+                      onChange={(e) => setNewMethod({ ...newMethod, accountName: e.target.value })}
+                      placeholder="John Doe"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#083A85] focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This should match the name registered on your {newMethod.methodType === 'BANK' ? 'bank' : 'mobile money'} account
+                    </p>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-sm text-amber-800">
+                      <i className="bi bi-shield-check mr-2" />
+                      Your refund account will be reviewed and approved within 24 hours. Once approved, any refunds will be sent to this account.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-gray-200 flex gap-3 sticky bottom-0 bg-white">
+              <button
+                onClick={() => {
+                  setShowAddMethodModal(false);
+                  setNewMethod({
+                    methodType: 'MOBILE_MONEY',
+                    providerId: '',
+                    accountNumber: '',
+                    accountName: '',
+                    provider: null
+                  });
+                }}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddWithdrawalMethod}
+                disabled={!newMethod.providerId || !newMethod.accountNumber || !newMethod.accountName}
+                className="flex-1 px-4 py-3 bg-[#083A85] text-white rounded-lg hover:bg-[#062d6b] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 max-w-md">
+          <div className={`rounded-lg shadow-lg p-4 ${
+            notification.type === 'success' ? 'bg-green-50 border border-green-200' :
+            notification.type === 'error' ? 'bg-red-50 border border-red-200' :
+            notification.type === 'warning' ? 'bg-yellow-50 border border-yellow-200' :
+            'bg-blue-50 border border-blue-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <i className={`bi ${
+                notification.type === 'success' ? 'bi-check-circle-fill text-green-600' :
+                notification.type === 'error' ? 'bi-x-circle-fill text-red-600' :
+                notification.type === 'warning' ? 'bi-exclamation-triangle-fill text-yellow-600' :
+                'bi-info-circle-fill text-blue-600'
+              } text-xl`} />
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${
+                  notification.type === 'success' ? 'text-green-900' :
+                  notification.type === 'error' ? 'text-red-900' :
+                  notification.type === 'warning' ? 'text-yellow-900' :
+                  'text-blue-900'
+                }`}>
+                  {notification.message}
+                </p>
+              </div>
+              <button
+                onClick={() => setNotification(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="bi bi-x-lg" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

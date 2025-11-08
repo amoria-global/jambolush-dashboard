@@ -57,6 +57,15 @@ export interface Property {
 
 // Detailed property info
 export interface PropertyInfo {
+  client: any;
+  coordinates: any;
+  latitude: any;
+  longitude: any;
+  availableFrom: any;
+  availableTo: any;
+  pricingType: string;
+  pricePerMonth: number;
+  minimumStay: string;
   id: number;
   name: string;
   location: string;
@@ -568,7 +577,7 @@ class FrontendAPIService {
 
       // Handle other fetch errors
       if (error.name === 'TypeError' || error.message.includes('fetch')) {
-        throw new Error(`Network error: ${error.message}. Check if the backend server at ${this.baseURL} is running.`);
+        throw new Error(`Network error: ${error.message}. Check if the backend server is running.`);
       }
 
       throw error;
@@ -2308,6 +2317,250 @@ async getWithdrawalHistory(filters?: {
    */
   async confirmTourCheckOut(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
     return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId}/checkout`);
+  }
+
+  // ============ ADDRESS UNLOCK METHODS ============
+
+  /**
+   * Unlock a property address
+   * @param propertyId - Property ID to unlock
+   * @param paymentMethod - Payment method (non_refundable | monthly_booking | deal_code)
+   * @param dealCode - Optional deal code if using deal_code payment method
+   * @param paymentDetails - Optional payment transaction details
+   */
+  async unlockPropertyAddress(data: {
+    propertyId: string;
+    paymentMethod: 'non_refundable' | 'monthly_booking' | 'deal_code';
+    dealCode?: string;
+    paymentDetails?: {
+      method: string;
+      transactionId?: string;
+    };
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/property-unlock/unlock-address', data);
+  }
+
+  /**
+   * Check if a property address is unlocked for current user
+   * @param propertyId - Property ID to check
+   */
+  async checkPropertyUnlocked(propertyId: string): Promise<APIResponse<BackendResponse<{
+    unlocked: boolean;
+    unlockDate?: string;
+    unlockId?: string;
+  }>>> {
+    return this.get<BackendResponse<any>>(`/property-unlock/${propertyId}/unlock-status`);
+  }
+
+  /**
+   * Get user's unlock history
+   * @param userId - User ID (optional, defaults to current user)
+   */
+  async getUserUnlockHistory(userId?: string): Promise<APIResponse<BackendResponse<any>>> {
+    const endpoint = userId ? `/users/${userId}/unlock-history` : '/users/me/unlock-history';
+    return this.get<BackendResponse<any>>(endpoint);
+  }
+
+  /**
+   * Submit appreciation feedback for an unlock
+   * @param unlockId - Unlock transaction ID
+   * @param propertyId - Property ID
+   * @param appreciationLevel - Level of appreciation (appreciated | neutral | not_appreciated)
+   * @param feedback - Optional feedback text
+   */
+  async submitUnlockAppreciation(data: {
+    unlockId: string;
+    propertyId: string;
+    appreciationLevel: 'appreciated' | 'neutral' | 'not_appreciated';
+    feedback?: string;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/property-unlock/unlock-appreciation', data);
+  }
+
+  /**
+   * Validate a deal code
+   * @param code - Deal code to validate
+   */
+  async validateDealCode(code: string): Promise<APIResponse<BackendResponse<{
+    valid: boolean;
+    message: string;
+    data?: {
+      remainingUnlocks: number;
+      expiryDate: string;
+    };
+  }>>> {
+    return this.post<BackendResponse<any>>('/property-unlock/validate-deal-code', { code });
+  }
+
+  /**
+   * Get user's deal codes
+   * @param userId - User ID (optional, defaults to current user)
+   */
+  async getUserDealCodes(userId?: string): Promise<APIResponse<BackendResponse<any>>> {
+    const endpoint = userId ? `/users/${userId}/deal-codes` : '/users/me/deal-codes';
+    return this.get<BackendResponse<any>>(endpoint);
+  }
+
+  /**
+   * Get user's deal codes with analytics
+   * Endpoint: GET /api/property-unlock/my-deal-codes
+   */
+  async getMyDealCodes(): Promise<APIResponse<BackendResponse<{
+    totalDealCodes: number;
+    activeDealCodes: number;
+    dealCodes: Array<{
+      id: number;
+      code: string;
+      remainingUnlocks: number;
+      isActive: boolean;
+      generatedAt: string;
+      expiresAt: string;
+      isExpired: boolean;
+      isValid: boolean;
+      sourceProperty: {
+        id: number;
+        name: string;
+        location: string;
+        image: string | null;
+      };
+      usageHistory: Array<{
+        propertyId: number;
+        propertyName: string;
+        unlockedAt: string;
+      }>;
+    }>;
+  }>>> {
+    return this.get<BackendResponse<any>>('/property-unlock/my-deal-codes');
+  }
+
+  /**
+   * Process unlock payment (initiates payment flow)
+   * @param unlockId - Unlock transaction ID
+   * @param paymentMethod - Payment method details
+   */
+  async processUnlockPayment(data: {
+    unlockId: string;
+    paymentMethod: string;
+    amount: number;
+    currency: string;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/payments/unlock', data);
+  }
+
+  /**
+   * Get host unlock analytics
+   * @param range - Time range (week | month | year)
+   */
+  async getHostUnlockAnalytics(range: 'week' | 'month' | 'year' = 'month'): Promise<APIResponse<BackendResponse<any>>> {
+    return this.get<BackendResponse<any>>(`/property-unlock/host/unlock-analytics?range=${range}`);
+  }
+
+  // ============ UNLOCK FEATURE SPECIFIC METHODS ============
+
+  /**
+   * Cancel unlock request (30% payment method eligible for deal code)
+   * Endpoint: POST /api/property-unlock/cancel
+   */
+  async cancelUnlockRequest(data: {
+    unlockId: string;
+    reason?: string;
+  }): Promise<APIResponse<BackendResponse<{
+    cancelled: boolean;
+    refundEligible: boolean;
+    dealCode?: {
+      code: string;
+      remainingUnlocks: number;
+      expiresAt: string;
+    };
+  }>>> {
+    return this.post<BackendResponse<any>>('/property-unlock/unlock/cancel', data);
+  }
+
+  /**
+   * Get guest unlock stats and history
+   * Endpoint: GET /api/property-unlock/my-unlocks
+   */
+  async getGuestUnlockStats(): Promise<APIResponse<BackendResponse<{
+    unlocks: never[];
+    totalUnlocks: number;
+    totalSpent: number;
+    currency: string;
+    activeDealCodes: number;
+    activeRequests: number;
+    completedBookings: number;
+    recentUnlocks: any[];
+    dealCodes: any[];
+  }>>> {
+    return this.get<BackendResponse<any>>('/property-unlock/my-unlocks');
+  }
+
+  /**
+   * Get host unlock requests (privacy-first, no payment details)
+   * Endpoint: GET /api/property-unlock/host/unlock-requests
+   */
+  async getHostUnlockRequests(): Promise<APIResponse<BackendResponse<{
+    totalRequests: number;
+    pendingRequests: number;
+    completedRequests: number;
+    requestsByProperty: any[];
+  }>>> {
+    return this.get<BackendResponse<any>>('/property-unlock/host/unlock-requests');
+  }
+
+  /**
+   * Create booking from 30% unlock
+   * Endpoint: POST /api/property-unlock/create-booking
+   * Note: Server will use session data to get firstName, lastName, email, phone
+   */
+  async createBookingFromUnlock(data: {
+    unlockId: string;
+    checkIn: string;
+    checkOut: string;
+    guests: number;
+    specialRequests?: string;
+    totalPrice: number;
+  }): Promise<APIResponse<BackendResponse<{
+    bookingId: string;
+    totalAmount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    paymentUrl: string;
+  }>>> {
+    return this.post<BackendResponse<any>>('/property-unlock/create-booking', data);
+  }
+
+  /**
+   * Get unlock fee calculation for a property
+   * Endpoint: GET /api/property-unlock/:propertyId/unlock-fee
+   */
+  async getUnlockFee(propertyId: string): Promise<APIResponse<BackendResponse<{
+    propertyId: number;
+    pricePerNight: number;
+    nonRefundableFee: {
+      usd: number;
+      rwf: number;
+    };
+    threeMonth30Percent: {
+      usd: number;
+      rwf: number;
+      calculation: string;
+    };
+  }>>> {
+    return this.get<BackendResponse<any>>(`/property-unlock/${propertyId}/unlock-fee`);
+  }
+
+  /**
+   * Check payment status for an unlock
+   * Endpoint: GET /api/property-unlock/:unlockId/payment-status
+   */
+  async checkUnlockPaymentStatus(unlockId: string): Promise<APIResponse<BackendResponse<{
+    unlockId: string;
+    paymentStatus: string;
+    transactionReference: string;
+    amountRWF: number;
+    updatedAt: string;
+  }>>> {
+    return this.get<BackendResponse<any>>(`/property-unlock/${unlockId}/payment-status`);
   }
 }
 

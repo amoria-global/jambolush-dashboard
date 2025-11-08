@@ -122,11 +122,6 @@ const UserMyBookings: React.FC = () => {
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
   const [goToPageInput, setGoToPageInput] = useState('');
   const [notification, setNotification] = useState<NotificationState>({
     show: false,
@@ -266,41 +261,6 @@ const UserMyBookings: React.FC = () => {
     router.push(url);
   };
 
-  const handleCancelClick = (bookingId: string) => {
-    setBookingToCancel(bookingId);
-    setCancelReason('');
-    setShowCancelModal(true);
-  };
-
-  const handleCancelConfirm = async () => {
-    if (!bookingToCancel || !cancelReason.trim()) {
-      showNotification('Please provide a reason for cancellation', 'warning');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await api.cancelPropertyBooking(bookingToCancel, cancelReason);
-      
-      showNotification('Booking cancelled successfully', 'success');
-      await fetchBookings();
-      
-      setShowCancelModal(false);
-      if (selectedBooking?.id === bookingToCancel) {
-        setShowModal(false);
-        setSelectedBooking(null);
-      }
-      
-      setBookingToCancel(null);
-      setCancelReason('');
-    } catch (err: any) {
-      console.error('Error cancelling booking:', err);
-      showNotification(err?.data?.message || 'Failed to cancel booking. Please try again.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePrint = (booking: Booking) => {
     const printWindow = window.open('', '', 'width=800,height=600');
     if (printWindow) {
@@ -415,12 +375,7 @@ const UserMyBookings: React.FC = () => {
         />
       )}
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Trips</h1>
-        <p className="text-gray-600">Manage and track all your upcoming and past stays</p>
-      </div>
-
+     
       {/* Filters Section - Airbnb Style */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
         {/* Search Bar */}
@@ -609,7 +564,7 @@ const UserMyBookings: React.FC = () => {
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors text-sm font-medium">
                       View details
                     </button>
-                    {booking.paymentStatus !== 'completed' && (
+                    {booking.paymentStatus !== 'completed' && booking.status !== 'cancelled' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -724,20 +679,12 @@ const UserMyBookings: React.FC = () => {
                         title="View details">
                         <i className="bi bi-eye text-gray-600"></i>
                       </button>
-                      {booking.paymentStatus !== 'completed' && (
+                      {booking.paymentStatus !== 'completed' && booking.status !== 'cancelled' && (
                         <button
                           onClick={() => handlePayNow(booking)}
                           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Pay now">
                           <i className="bi bi-credit-card text-green-600"></i>
-                        </button>
-                      )}
-                      {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                        <button
-                          onClick={() => handleCancelClick(booking.id)}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Cancel booking">
-                          <i className="bi bi-x-circle text-red-600"></i>
                         </button>
                       )}
                     </div>
@@ -801,46 +748,6 @@ const UserMyBookings: React.FC = () => {
               <i className="bi bi-chevron-right"></i>
             </button>
           </nav>
-        </div>
-      )}
-
-      {/* Cancel Modal - Airbnb Style */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setShowCancelModal(false)}></div>
-          <div className="flex items-center justify-center min-h-screen p-4">
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Cancel booking</h3>
-                <p className="text-gray-600 mb-4">Please tell us why you're canceling. This helps us improve our service.</p>
-                
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Reason for cancellation..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-1 focus:ring-[#083A85] resize-none h-32"
-                />
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowCancelModal(false);
-                      setBookingToCancel(null);
-                      setCancelReason('');
-                    }}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium">
-                    Keep booking
-                  </button>
-                  <button
-                    onClick={handleCancelConfirm}
-                    disabled={!cancelReason.trim()}
-                    className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:hover:bg-red-600">
-                    Cancel booking
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>
