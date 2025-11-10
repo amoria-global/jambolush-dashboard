@@ -342,32 +342,68 @@ const HostUnlockAnalytics = () => {
 
           <div className="space-y-3">
             {analytics?.recentUnlocks && analytics.recentUnlocks.length > 0 ? (
-              analytics.recentUnlocks.slice(0, 10).map((unlock, index) => (
+              analytics.recentUnlocks.slice(0, 10).map((unlock: any, index: number) => (
                 <div
                   key={unlock.id}
                   className="flex items-center gap-4 p-4 border border-gray-200 hover:border-gray-300 hover:shadow-md rounded-xl transition-all duration-200"
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-[#F20C8F] to-rose-400 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                    <i className="bi bi-unlock-fill"></i>
+                    {unlock.guest?.profileImage ? (
+                      <img src={unlock.guest.profileImage} alt={unlock.guest.name} className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <i className="bi bi-person-fill"></i>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-gray-900 truncate">
                       {unlock.propertyTitle}
                     </h4>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
-                      <span>{getTimeAgo(unlock.unlockDate)}</span>
+                    <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                      <span className="font-medium">{unlock.guest?.name || 'Unknown Guest'}</span>
                       <span>•</span>
-                      <span className="text-xs">User requested direction</span>
+                      <span>{getTimeAgo(unlock.unlockDate)}</span>
                     </div>
+                    {/* Only show payment details if payment method contains 30_booking or monthly_booking */}
+                    {(unlock.paymentMethod?.includes('30_booking') || unlock.paymentMethod?.includes('monthly_booking')) && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                        {unlock.paymentMethod && (
+                          <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                            {unlock.paymentMethod.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                        {unlock.paymentStatus && (
+                          <span className={`px-2 py-0.5 rounded ${
+                            unlock.paymentStatus === 'COMPLETED' ? 'bg-green-50 text-green-700' :
+                            unlock.paymentStatus === 'PENDING' ? 'bg-yellow-50 text-yellow-700' :
+                            'bg-gray-50 text-gray-700'
+                          }`}>
+                            {unlock.paymentStatus}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      className="px-3 py-1.5 bg-[#083A85] hover:bg-[#062d65] text-white rounded-lg text-xs font-medium transition-colors"
-                      title="Contact Guest"
-                    >
-                      <i className="bi bi-telephone-fill mr-1"></i>
-                      Contact
-                    </button>
+                    {unlock.guest?.email && (
+                      <button
+                        className="px-3 py-1.5 bg-[#083A85] hover:bg-[#062d65] text-white rounded-lg text-xs font-medium transition-colors"
+                        title={`Contact ${unlock.guest.name}`}
+                        onClick={() => window.location.href = `mailto:${unlock.guest.email}`}
+                      >
+                        <i className="bi bi-envelope-fill mr-1"></i>
+                        Email
+                      </button>
+                    )}
+                    {unlock.guest?.phone && (
+                      <button
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors"
+                        title={`Call ${unlock.guest.name}`}
+                        onClick={() => window.location.href = `tel:${unlock.guest.phone}`}
+                      >
+                        <i className="bi bi-telephone-fill mr-1"></i>
+                        Call
+                      </button>
+                    )}
                     {unlock.appreciationSubmitted && (
                       <span className="inline-flex items-center px-2 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded-lg">
                         <i className="bi bi-check-circle-fill mr-1"></i>

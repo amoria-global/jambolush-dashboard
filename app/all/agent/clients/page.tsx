@@ -1,12 +1,13 @@
+"use client";
 
 import React from "react";
 import AgentListingPage from "../../../pages/agent/agent-clients";
-import { Metadata } from "next";
+import AgentAssessmentGuard from "@/app/components/guards/AgentAssessmentGuard";
 
-export const metadata: Metadata = {
-    title: "Clients - JamboLush",
-    description: "Overview of guests and their bookings",
-};
 export default function Guests() {
-  return <AgentListingPage />;
+  return (
+    <AgentAssessmentGuard>
+      <AgentListingPage />
+    </AgentAssessmentGuard>
+  );
 }

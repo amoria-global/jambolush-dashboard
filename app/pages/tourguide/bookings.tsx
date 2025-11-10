@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService'; // Your API service
 import { createViewDetailsUrl } from '@/app/utils/encoder';
+import { formatStatusDisplay, getStatusColor, getStatusIcon, getPaymentStatusColor, getCheckInStatusColor } from "@/app/utils/statusFormatter";
 // Updated types to match server response for tour bookings
 interface User {
   firstName: string;
@@ -429,23 +430,7 @@ const TourBookingsPage: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800';
-      case 'unpaid': return 'bg-red-100 text-red-800';
-      case 'refunded': return 'bg-purple-100 text-purple-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-  const getCheckInStatusColor = (status: string) => {
-    switch (status) {
-      case 'checked_in': return 'bg-green-100 text-green-800';
-      case 'not_checked_in': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-  const getStatusIcon = (status: string) => {
+      const getStatusIcon = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bi-check-circle';
       case 'pending': return 'bi-clock';

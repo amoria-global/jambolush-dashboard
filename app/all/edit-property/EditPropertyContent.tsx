@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
+import React, { useState, useRef, useEffect, ChangeEvent, AnyActionArg } from 'react';
 import api from '@/app/api/apiService';
 import uploadDocumentToSupabase from '@/app/api/storage';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -924,6 +924,7 @@ const EditPropertyContent: React.FC = () => {
           startDate: 'Start date must be at least tomorrow (today and previous dates are not allowed)'
         }));
         setSubmitError('Please correct the validation errors before submitting.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -973,9 +974,7 @@ const EditPropertyContent: React.FC = () => {
             pricePerMonth: parseFloat(formData.pricing.amount)
           };
 
-      console.log('Updating property with data:', requestBody);
-
-      const response = await api.updateProperty(parseInt(propertyId), requestBody);
+      const response: any = await api.updateProperty(parseInt(propertyId), requestBody);
 
       if (response.ok) {
         setSubmitSuccess('Property updated successfully!');
@@ -989,7 +988,7 @@ const EditPropertyContent: React.FC = () => {
           router.push(viewDetailsUrl);
         }, 2000);
       } else {
-        throw new Error(response.data?.message || 'Failed to update property');
+        throw new Error(response.data.data?.message || response.data?.message || 'Failed to update property');
       }
     } catch (error: any) {
       console.error('Error updating property:', error);

@@ -6,6 +6,7 @@ import { Suspense, useEffect } from 'react';
 import TransactionDetail from '@/app/components/details/transaction-detail';
 import BookingDetail from '@/app/components/details/booking-detail';
 import PropertyDetail from '@/app/components/details/property-detail';
+import TourDetail from '@/app/components/details/tour-detail';
 import UserDetail from '@/app/components/details/user-detail';
 
 function ViewDetailsContent() {
@@ -72,9 +73,10 @@ function ViewDetailsContent() {
         {type === 'property-booking' && <BookingDetail id={id} bookingType="property" />}
         {type === 'tour-booking' && <BookingDetail id={id} bookingType="tour" />}
 
-        {(type === 'property' || type === 'tour') && (
-          <PropertyDetail id={id} type={type as 'property' | 'tour'} />
-        )}
+        {/* Property and Tour details */}
+        {type === 'property' && <PropertyDetail id={id} type="property" />}
+        {type === 'tour' && <TourDetail id={id} />}
+
         {type === 'user' && <UserDetail id={id} />}
 
         {/* Fallback for unknown types */}

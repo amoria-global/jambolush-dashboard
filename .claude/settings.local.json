@@ -1,21 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)",
-      "Bash(git checkout:*)",
-      "Bash(awk:*)",
-      "Bash(npx tsc:*)",
-      "Bash(npm install:*)",
-      "Bash(npm uninstall:*)",
-      "Bash(git restore:*)",
-      "Read(//d/amoria/**)",
-      "Bash(git fsck:*)",
-      "Bash(npm run dev:*)",
-      "Bash(find:*)",
-      "Bash(nul)",
-      "Bash(cd:*)",
-      "Bash(git mv:*)",
-      "Bash(move \"app\\components\\modals\\DealCodeRequestModal.tsx\" \"app\\components\\modals\\AppreciationModal.tsx\")"
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

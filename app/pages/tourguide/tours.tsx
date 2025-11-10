@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useEffect, FC } from 'react';
 import api from '@/app/api/apiService';
-import AddTourModal from '@/app/components/tourguide/add-tour';
-import EditTourModal from '@/app/components/tourguide/edit-tour';
+import { useRouter } from 'next/navigation';
+import { encodeId } from '@/app/utils/encoder';
 
 // --- Interfaces ---
 interface Tour {
@@ -43,11 +43,12 @@ type SortOrder = 'asc' | 'desc';
 
 // --- Main Component ---
 const TourGuideMyTours: FC = () => {
+  const router = useRouter();
   const [tours, setTours] = useState<Tour[]>([]);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // UI & Interaction State
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -55,15 +56,11 @@ const TourGuideMyTours: FC = () => {
   const itemsPerPage = 8;
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [goToPageInput, setGoToPageInput] = useState('1');
-  
+
   const [filters, setFilters] = useState({ status: 'all', search: '', category: 'all' });
   const [sortField, setSortField] = useState<SortField>('title');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  
-  // Modal states
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingTourId, setEditingTourId] = useState<string | null>(null);
-  
+
   // User & KYC State
   const [user, setUser] = useState<any>(null);
   const [showKYCModal, setShowKYCModal] = useState(false);
@@ -141,12 +138,13 @@ const TourGuideMyTours: FC = () => {
   // --- Handlers ---
   const handleEditTour = (tourId: string) => {
     if (!checkKYCStatus()) return;
-    setEditingTourId(tourId);
+    const encodedId = encodeId(tourId);
+    router.push(`/all/tourguide/edit-tour?id=${encodedId}`);
   };
-  
+
   const handleAddNewTour = () => {
     if (!checkKYCStatus()) return;
-    setShowAddModal(true);
+    router.push('/all/tourguide/create-tour');
   };
 
   const handleStatusChange = async (tourId: string, newStatus: 'active' | 'paused') => {
@@ -286,17 +284,6 @@ const TourGuideMyTours: FC = () => {
     <div className="p-2 sm:p-4 font-sans antialiased">
       <div className="w-full max-w-8xl mx-auto">
         <KYCPendingModal isOpen={showKYCModal} onClose={() => setShowKYCModal(false)} />
-        {showAddModal && <AddTourModal onClose={() => { setShowAddModal(false); fetchToursAndData(); }} />}
-        {editingTourId && (
-          <EditTourModal 
-            tourId={editingTourId} 
-            onClose={() => setEditingTourId(null)} 
-            onUpdate={() => {
-              setEditingTourId(null);
-              fetchToursAndData();
-            }} 
-          />
-        )}
         
         <header className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
           <div>

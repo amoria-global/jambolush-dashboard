@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/app/api/apiService';
 import AddressModal from '@/app/components/modals/AddressModal';
+import { formatStatusDisplay, getStatusColor, getStatusIcon } from "@/app/utils/statusFormatter";
 
 interface BookingDetailProps {
   id: string;
@@ -239,7 +240,7 @@ export default function BookingDetail({ id, bookingType }: BookingDetailProps) {
     return (
       <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
         <i className={`bi ${config.icon}`}></i>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {formatStatusDisplay(status)}
       </span>
     );
   };

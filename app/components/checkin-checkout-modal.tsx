@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '@/app/api/apiService';
 import AlertNotification from '@/app/components/notify';
+import { fetchExchangeRate, formatRWFAsUSD } from '@/app/services/addressUnlockService';
 
 interface CheckInOutModalProps {
   isOpen: boolean;
@@ -99,6 +100,8 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
 
   useEffect(() => {
     setMounted(true);
+    // Fetch exchange rate on component mount
+    fetchExchangeRate().catch(err => console.error('Failed to fetch exchange rate:', err));
     return () => setMounted(false);
   }, []);
 
@@ -168,7 +171,7 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
       // Call the verify-booking endpoint to get booking details
       console.log('Fetching booking details for:', bookingId.trim());
 
-      const response = await api.post('/checkin/verify-booking', { bookingId: bookingId.trim() });
+      const response = await api.post('/checkin/verify-booking', { bookingId: bookingId.trim().toLowerCase() });
 
       console.log('API Response:', response);
 
@@ -264,7 +267,7 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
       setLoading(true);
 
       const response = await api.post('/checkin/confirm', {
-        bookingId: bookingId.trim(),
+        bookingId: bookingId.trim().toLowerCase(),
         bookingCode: bookingCode.trim().toUpperCase(),
         instructions: instructions.trim() || undefined, // Send instructions if provided
       });
@@ -310,9 +313,9 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
 
       let endpoint = '';
       if (userType === 'host') {
-        endpoint = `/bookings/properties/${bookingId}/checkout`;
+        endpoint = `/bookings/properties/${bookingId.trim().toLowerCase()}/checkout`;
       } else if (userType === 'tourguide') {
-        endpoint = `/bookings/tourguide/${bookingId}/checkout`;
+        endpoint = `/bookings/tourguide/${bookingId.trim().toLowerCase()}/checkout`;
       }
 
       const response = await api.patch(endpoint);
@@ -379,7 +382,7 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
 
         // Refetch booking details now that payment is verified
         const bookingResponse = await api.post('/checkin/verify-booking', {
-          bookingId: bookingId.trim()
+          bookingId: bookingId.trim().toLowerCase()
         });
 
         if (bookingResponse.data.success) {
@@ -445,7 +448,7 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
       setLoading(true);
 
       const response = await api.post('/checkin/resend-code', {
-        bookingId: bookingDetails.bookingId
+        bookingId: bookingDetails.bookingId.toLowerCase()
       });
 
       if (response.data.success) {
@@ -869,9 +872,20 @@ const CheckInOutModal: React.FC<CheckInOutModalProps> = ({
                       <div className="flex justify-between">
                         <span className="text-purple-700">Amount:</span>
                         <span className="font-semibold text-purple-900">
-                          {bookingDetails.booking.currency} {bookingDetails.booking.amount.toLocaleString()}
+                          {bookingDetails.booking.currency === 'RWF'
+                            ? formatRWFAsUSD(bookingDetails.booking.amount)
+                            : `${bookingDetails.booking.currency} ${bookingDetails.booking.amount.toLocaleString()}`
+                          }
                         </span>
                       </div>
+                      {bookingDetails.booking.currency === 'RWF' && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-purple-600">Original:</span>
+                          <span className="text-purple-800">
+                            {bookingDetails.booking.amount.toLocaleString()} RWF
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-purple-700">Payment Status:</span>
                         <span className="font-semibold text-purple-900">{bookingDetails.booking.paymentStatus}</span>

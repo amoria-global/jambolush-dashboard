@@ -396,7 +396,7 @@ class AgentAPIService {
     }
   ): Promise<APIResponse<BackendResponse<AgentBooking>>> {
     return api.put<BackendResponse<AgentBooking>>(
-      `/properties/agent/bookings/${bookingId}`,
+      `/properties/agent/bookings/${bookingId.toLowerCase()}`,
       updateData
     );
   }
@@ -414,7 +414,7 @@ class AgentAPIService {
     }
   ): Promise<APIResponse<BackendResponse<AgentBooking>>> {
     return api.put<BackendResponse<AgentBooking>>(
-      `/properties/agent/properties/${propertyId}/bookings/${bookingId}`,
+      `/properties/agent/properties/${propertyId}/bookings/${bookingId.toLowerCase()}`,
       updateData
     );
   }
@@ -451,7 +451,7 @@ class AgentAPIService {
     bookingId: string
   ): Promise<APIResponse<BackendResponse<any>>> {
     return api.get<BackendResponse<any>>(
-      `/properties/agent/bookings/${bookingId}/transactions`
+      `/properties/agent/bookings/${bookingId.toLowerCase()}/transactions`
     );
   }
 

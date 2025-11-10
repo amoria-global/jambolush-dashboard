@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/app/api/apiService";
 import { createViewDetailsUrl } from "@/app/utils/encoder";
+import { formatStatusDisplay, getStatusColor, getStatusIcon } from "@/app/utils/statusFormatter";
 
 // Types based on your backend service
 interface BookingInfo {
@@ -586,52 +587,8 @@ const BookingsPage: React.FC = () => {
     [format]
   );
 
-  const getStatusColor = useCallback((status: string) => {
-    switch (status) {
-      case "confirmed":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      case "completed":
-        return "bg-blue-100 text-blue-800";
-      case "checked_in":
-        return "bg-purple-100 text-purple-800";
-      case "checked-in":
-        return "bg-purple-100 text-purple-800";
-      case "checked_out":
-        return "bg-indigo-100 text-indigo-800";
-      case "checked-out":
-        return "bg-indigo-100 text-indigo-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  }, []);
-
-  const getStatusIcon = useCallback((status: string) => {
-    switch (status) {
-      case "confirmed":
-        return "bi-check-circle";
-      case "pending":
-        return "bi-clock";
-      case "cancelled":
-        return "bi-x-circle";
-      case "completed":
-        return "bi-check-square";
-      case "checked_in":
-        return "bi-door-open";
-      case "checked-in":
-        return "bi-door-open";
-      case "checked_out":
-        return "bi-door-closed";
-      case "checked-out":
-        return "bi-door-closed";
-      default:
-        return "bi-calendar";
-    }
-  }, []);
-
+  
+  
   // Booking Detail Modal
   const BookingDetailModal = () => {
     if (!selectedBooking) return null;
@@ -680,8 +637,7 @@ const BookingsPage: React.FC = () => {
                         selectedBooking.status
                       )}`}
                     >
-                      {selectedBooking.status.charAt(0).toUpperCase() +
-                        selectedBooking.status.slice(1)}
+                      {formatStatusDisplay(selectedBooking.status)}
                     </span>
                   </div>
                 </div>
@@ -1023,8 +979,7 @@ const BookingsPage: React.FC = () => {
                         booking.status
                       )}`}
                     >
-                      {booking.status.charAt(0).toUpperCase() +
-                        booking.status.slice(1).replace('_', ' ')}
+                      {formatStatusDisplay(booking.status)}
                     </span>
                   </div>
                   <p className="text-gray-600 text-xs mb-3">
@@ -1128,8 +1083,7 @@ const BookingsPage: React.FC = () => {
                           booking.status
                         )}`}
                       >
-                        {booking.status.charAt(0).toUpperCase() +
-                          booking.status.slice(1).replace('_', ' ')}
+                        {formatStatusDisplay(booking.status)}
                       </span>
                     </td>
                     <td className="py-3 px-4">

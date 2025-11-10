@@ -84,11 +84,22 @@ const GuestUnlockHistory = () => {
     }
 
     // Parse address string to PropertyAddress object
-    const parseAddress = (addressStr: string) => {
+    const parseAddress = (addressStr: string | null | undefined) => {
+      if (!addressStr) {
+        return {
+          street: '',
+          city: 'Unknown',
+          state: '',
+          country: 'Rwanda',
+          postalCode: '',
+          latitude: 0,
+          longitude: 0
+        };
+      }
       const parts = addressStr.split(',').map(p => p.trim());
       return {
         street: parts[0] || '',
-        city: parts[1] || '',
+        city: parts[1] || 'Unknown',
         state: parts[2] || '',
         country: parts[parts.length - 1] || 'Rwanda',
         postalCode: '',
@@ -116,7 +127,7 @@ const GuestUnlockHistory = () => {
       currency: backendUnlock.currency || 'RWF',
       address: typeof backendUnlock.address === 'string'
         ? parseAddress(backendUnlock.address)
-        : backendUnlock.address,
+        : backendUnlock.address || parseAddress(null),
       hostContact: {
         name: backendUnlock.hostContactInfo?.hostName || backendUnlock.hostContact?.name || 'Host',
         phone: backendUnlock.hostContactInfo?.hostPhone || backendUnlock.hostContact?.phone || '',
@@ -247,6 +258,13 @@ const GuestUnlockHistory = () => {
   };
 
   const handleViewOnMap = (unlock: UnlockHistoryEntry) => {
+    if (!unlock.address || (!unlock.address.latitude && !unlock.address.longitude)) {
+      setNotification({
+        message: 'Location coordinates not available',
+        type: 'warning'
+      });
+      return;
+    }
     const { latitude, longitude } = unlock.address;
     window.open(`https://www.google.com/maps?q=${latitude},${longitude}`, '_blank');
   };
@@ -560,7 +578,7 @@ const GuestUnlockHistory = () => {
                           <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
                             <span className="flex items-center">
                               <i className="bi bi-geo-alt-fill text-[#F20C8F] mr-1.5"></i>
-                              {unlock.address.city}, {unlock.address.country}
+                              {unlock.address?.city || 'Unknown'}, {unlock.address?.country || 'Rwanda'}
                             </span>
                             <span className="flex items-center">
                               <i className="bi bi-calendar-check text-[#083A85] mr-1.5"></i>
@@ -573,12 +591,17 @@ const GuestUnlockHistory = () => {
                           </div>
 
                           {/* Address Preview */}
-                          <div className="bg-gray-50 rounded-xl p-3 mb-3">
-                            <p className="text-sm text-gray-700">
-                              <i className="bi bi-house-door mr-2"></i>
-                              {unlock.address.street}, {unlock.address.city}, {unlock.address.state} {unlock.address.postalCode}
-                            </p>
-                          </div>
+                          {unlock.address && (
+                            <div className="bg-gray-50 rounded-xl p-3 mb-3">
+                              <p className="text-sm text-gray-700">
+                                <i className="bi bi-house-door mr-2"></i>
+                                {unlock.address.street && `${unlock.address.street}, `}
+                                {unlock.address.city && `${unlock.address.city}, `}
+                                {unlock.address.state && `${unlock.address.state} `}
+                                {unlock.address.postalCode}
+                              </p>
+                            </div>
+                          )}
 
                           {/* Host Contact */}
                           <div className="flex flex-wrap items-center gap-3">
@@ -677,7 +700,7 @@ const GuestUnlockHistory = () => {
                                 className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-400 hover:from-amber-600 hover:to-orange-500 text-white text-sm font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                               >
                                 <i className="bi bi-gift mr-1.5"></i>
-                                Get Deal Code
+                                Respond To Get Deal Code
                               </button>
                             )}
 

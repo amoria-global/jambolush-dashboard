@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/app/api/apiService';
 import AlertNotification from '@/app/components/notify';
 import { createViewDetailsUrl } from '@/app/utils/encoder';
+import { fetchExchangeRate, formatRWFAsUSD } from '@/app/services/addressUnlockService';
 
 interface UnifiedEarningsProps {
   userType: 'agent' | 'host' | 'tourguide';
@@ -89,6 +90,30 @@ interface WithdrawalRequest {
   notes?: string;
 }
 
+interface Bonus {
+  id: string;
+  userId: number;
+  type: string;
+  amount: number;
+  currency: string;
+  status: 'PENDING' | 'CLAIMED' | 'EXPIRED' | 'pending' | 'claimed' | 'expired';
+  description: string;
+  sourceId?: string;
+  sourceType?: string;
+  expiresAt?: string;
+  claimedAt?: string;
+  createdAt: string;
+}
+
+interface BonusSummary {
+  totalBonuses: number;
+  totalPending: number;
+  totalClaimed: number;
+  totalExpired: number;
+  totalAmountPending: number;
+  totalAmountClaimed: number;
+}
+
 interface WithdrawalHistoryResponse {
   withdrawals: WithdrawalRequest[];
   pagination: {
@@ -157,6 +182,8 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   const [withdrawalMethods, setWithdrawalMethods] = useState<WithdrawalMethod[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
+  const [bonuses, setBonuses] = useState<Bonus[]>([]);
+  const [bonusSummary, setBonusSummary] = useState<BonusSummary | null>(null);
 
   // Available Providers
   const [availableProviders, setAvailableProviders] = useState<WithdrawalProvider[]>([]);
@@ -165,7 +192,8 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   // UI States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'withdrawals' | 'methods'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'withdrawals' | 'methods' | 'bonuses'>('overview');
+  const [claimingBonusId, setClaimingBonusId] = useState<string | null>(null);
 
   // Withdrawal Modal States
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -210,6 +238,8 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
     }
     // Fetch available providers
     fetchAvailableProviders();
+    // Fetch exchange rate on component mount
+    fetchExchangeRate().catch(err => console.error('Failed to fetch exchange rate:', err));
   }, []);
 
   // Notification helper
@@ -257,6 +287,34 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
           pendingAmount: walletResponse.data.data?.pendingBalance || 0,
           transactionCount: txs.length,
           averageTransaction: txs.length > 0 ? (income + withdrawals) / txs.length : 0
+        });
+      }
+
+      // Fetch bonuses
+      try {
+        const bonusResponse = await api.get(`/transactions/bonuses/${uid}`);
+        if (bonusResponse.data.success) {
+          setBonuses(bonusResponse.data.data.bonuses || []);
+          setBonusSummary(bonusResponse.data.data.summary || {
+            totalBonuses: 0,
+            totalPending: 0,
+            totalClaimed: 0,
+            totalExpired: 0,
+            totalAmountPending: 0,
+            totalAmountClaimed: 0
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching bonuses:', err);
+        // Don't fail the entire page if bonuses fail
+        setBonuses([]);
+        setBonusSummary({
+          totalBonuses: 0,
+          totalPending: 0,
+          totalClaimed: 0,
+          totalExpired: 0,
+          totalAmountPending: 0,
+          totalAmountClaimed: 0
         });
       }
 
@@ -627,6 +685,53 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
     }
   };
 
+  const handleClaimBonus = async (bonusId: string) => {
+    if (!userId) return;
+
+    try {
+      setClaimingBonusId(bonusId);
+      const response = await api.post(`/transactions/bonuses/${bonusId}/claim`);
+
+      if (response.data.success) {
+        // Update bonus status locally
+        setBonuses(bonuses.map(b =>
+          b.id === bonusId
+            ? { ...b, status: 'claimed' as const, claimedAt: new Date().toISOString() }
+            : b
+        ));
+
+        // Update summary
+        if (bonusSummary) {
+          const claimedBonus = bonuses.find(b => b.id === bonusId);
+          if (claimedBonus) {
+            setBonusSummary({
+              ...bonusSummary,
+              totalPending: bonusSummary.totalPending - 1,
+              totalClaimed: bonusSummary.totalClaimed + 1,
+              totalAmountPending: bonusSummary.totalAmountPending - claimedBonus.amount,
+              totalAmountClaimed: bonusSummary.totalAmountClaimed + claimedBonus.amount
+            });
+          }
+        }
+
+        showNotification('Bonus claimed successfully!', 'success');
+
+        // Refresh wallet data to show updated balance
+        if (userId) {
+          const walletResponse = await api.get(`/transactions/wallet/${userId}`);
+          if (walletResponse.data.success) {
+            setWalletData(walletResponse.data.data);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('Error claiming bonus:', err);
+      showNotification(err.response?.data?.message || 'Failed to claim bonus', 'error');
+    } finally {
+      setClaimingBonusId(null);
+    }
+  };
+
   const getFilteredTransactions = () => {
     let filtered = [...transactions];
 
@@ -650,9 +755,14 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
 
   const formatCurrency = (amount: number) => {
     const currency = walletData?.currency || 'USD';
-    return currency === 'USD'
-      ? `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : `${amount.toLocaleString()} ${currency}`;
+
+    // Always convert RWF to USD for display
+    if (currency === 'RWF') {
+      return formatRWFAsUSD(amount);
+    }
+
+    // For USD wallets, show as-is
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
 
@@ -758,10 +868,17 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
         <div className="mb-8 bg-gradient-to-br from-[#083A85] to-[#062d6b] rounded-2xl p-8 shadow-lg text-white">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-white/80 text-sm mb-2">Total Balance</p>
+              <p className="text-white/80 text-sm mb-2">
+                Total Balance {walletData?.currency === 'RWF' && <span className="text-xs">(shown in USD)</span>}
+              </p>
               <h2 className="text-4xl font-bold">
                 {formatCurrency(walletData?.totalBalance || 0)}
               </h2>
+              {walletData?.currency === 'RWF' && (
+                <p className="text-white/60 text-xs mt-1">
+                  Original: {walletData.totalBalance.toLocaleString()} RWF
+                </p>
+              )}
             </div>
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
               <i className="bi bi-wallet2 text-3xl" />
@@ -774,12 +891,22 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
               <p className="text-xl font-semibold">
                 {formatCurrency(walletData?.availableBalance || 0)}
               </p>
+              {walletData?.currency === 'RWF' && (
+                <p className="text-white/50 text-xs mt-0.5">
+                  {walletData.availableBalance.toLocaleString()} RWF
+                </p>
+              )}
             </div>
             <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
               <p className="text-white/70 text-xs mb-1">Pending</p>
               <p className="text-xl font-semibold">
                 {formatCurrency(walletData?.pendingBalance || 0)}
               </p>
+              {walletData?.currency === 'RWF' && (
+                <p className="text-white/50 text-xs mt-0.5">
+                  {walletData.pendingBalance.toLocaleString()} RWF
+                </p>
+              )}
             </div>
           </div>
 
@@ -854,6 +981,22 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
               <i className="bi bi-credit-card mr-2" />
               Methods
             </button>
+            <button
+              onClick={() => setActiveTab('bonuses')}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors whitespace-nowrap relative ${
+                activeTab === 'bonuses'
+                  ? 'text-[#083A85] border-b-2 border-[#083A85]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <i className="bi bi-gift mr-2" />
+              Bonuses
+              {bonusSummary && bonusSummary.totalPending > 0 && (
+                <span className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {bonusSummary.totalPending}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -902,6 +1045,56 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                 </p>
               </div>
             </div>
+
+            {/* Bonuses Summary Card */}
+            {bonusSummary && bonusSummary.totalBonuses > 0 && (
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 shadow-sm border border-green-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                      <i className="bi bi-gift text-white text-2xl" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Your Bonuses</h3>
+                      <p className="text-sm text-gray-600">Earn extra rewards and claim them anytime</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('bonuses')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                  >
+                    View All Bonuses
+                    <i className="bi bi-arrow-right ml-2" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600 mb-1">Pending to Claim</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {bonusSummary.totalPending}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatCurrency(bonusSummary.totalAmountPending)}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600 mb-1">Claimed</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      {bonusSummary.totalClaimed}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatCurrency(bonusSummary.totalAmountClaimed)}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-sm text-gray-600 mb-1">Total Earned</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      {formatCurrency(bonusSummary.totalAmountPending + bonusSummary.totalAmountClaimed)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Recent Transactions */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -1071,9 +1264,16 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                           <h3 className="font-semibold text-gray-900 text-lg">
                             {request.currency === 'USD'
                               ? `$${request.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : request.currency === 'RWF'
+                              ? formatRWFAsUSD(request.amount)
                               : `${request.amount.toLocaleString()} ${request.currency}`
                             }
                           </h3>
+                          {request.currency === 'RWF' && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Original: {request.amount.toLocaleString()} RWF
+                            </p>
+                          )}
                           <p className="text-sm text-gray-600 mt-1">
                             {request.destination?.providerName || request.withdrawalMethod?.providerName || 'Mobile Money'} - {' '}
                             {request.destination?.holderName || request.withdrawalMethod?.accountName}
@@ -1157,6 +1357,171 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'bonuses' && (
+          <div className="space-y-6">
+            {/* Bonus Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-gift text-green-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Pending Bonuses</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {bonusSummary?.totalPending || 0}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {formatCurrency(bonusSummary?.totalAmountPending || 0)}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-check-circle text-blue-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Claimed Bonuses</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {bonusSummary?.totalClaimed || 0}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {formatCurrency(bonusSummary?.totalAmountClaimed || 0)}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <i className="bi bi-award text-purple-600 text-2xl" />
+                  <span className="text-sm text-gray-500">Total Bonuses</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {bonusSummary?.totalBonuses || 0}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  {formatCurrency((bonusSummary?.totalAmountPending || 0) + (bonusSummary?.totalAmountClaimed || 0))}
+                </p>
+              </div>
+            </div>
+
+            {/* Bonuses List */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Bonuses</h3>
+              <div className="space-y-3">
+                {bonuses.length > 0 ? (
+                  bonuses.map(bonus => {
+                    const isPending = bonus.status.toLowerCase() === 'pending';
+                    const isClaimed = bonus.status.toLowerCase() === 'claimed';
+                    const isExpired = bonus.status.toLowerCase() === 'expired';
+                    const isExpiringSoon = bonus.expiresAt && new Date(bonus.expiresAt) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+                    return (
+                      <div
+                        key={bonus.id}
+                        className={`flex items-center justify-between p-4 border rounded-lg transition-all ${
+                          isPending
+                            ? 'border-green-200 bg-green-50'
+                            : isClaimed
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            isPending
+                              ? 'bg-green-100'
+                              : isClaimed
+                              ? 'bg-blue-100'
+                              : 'bg-gray-100'
+                          }`}>
+                            <i className={`bi ${
+                              isPending
+                                ? 'bi-gift'
+                                : isClaimed
+                                ? 'bi-check-circle-fill'
+                                : 'bi-x-circle'
+                            } text-xl ${
+                              isPending
+                                ? 'text-green-600'
+                                : isClaimed
+                                ? 'text-blue-600'
+                                : 'text-gray-600'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900">{bonus.description || bonus.type}</p>
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                isPending
+                                  ? 'bg-green-100 text-green-700'
+                                  : isClaimed
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {bonus.status.charAt(0).toUpperCase() + bonus.status.slice(1).toLowerCase()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {isClaimed && bonus.claimedAt
+                                ? `Claimed: ${formatDate(bonus.claimedAt)}`
+                                : `Created: ${formatDate(bonus.createdAt)}`
+                              }
+                            </p>
+                            {bonus.expiresAt && isPending && (
+                              <p className={`text-xs mt-1 ${
+                                isExpiringSoon ? 'text-orange-600 font-medium' : 'text-gray-500'
+                              }`}>
+                                <i className="bi bi-clock mr-1" />
+                                Expires: {formatDate(bonus.expiresAt)}
+                                {isExpiringSoon && ' - Expiring soon!'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className={`text-lg font-semibold ${
+                              isPending
+                                ? 'text-green-600'
+                                : isClaimed
+                                ? 'text-blue-600'
+                                : 'text-gray-600'
+                            }`}>
+                              +{formatCurrency(bonus.amount)}
+                            </p>
+                          </div>
+                          {isPending && (
+                            <button
+                              onClick={() => handleClaimBonus(bonus.id)}
+                              disabled={claimingBonusId === bonus.id}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {claimingBonusId === bonus.id ? (
+                                <>
+                                  <i className="bi bi-arrow-repeat animate-spin mr-2" />
+                                  Claiming...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="bi bi-check-circle mr-2" />
+                                  Claim Now
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <i className="bi bi-gift text-5xl mb-3" />
+                    <p className="text-lg font-medium">No bonuses yet</p>
+                    <p className="text-sm">Bonuses will appear here when you earn them</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

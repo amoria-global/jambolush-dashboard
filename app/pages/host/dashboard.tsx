@@ -6,51 +6,116 @@ import Link from 'next/link';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/app/api/apiService';
 
+// TypeScript interfaces for enhanced API response
+interface Booking {
+    id: string;
+    propertyId: number;
+    propertyName: string;
+    guestId: number;
+    guestName: string;
+    guestEmail: string;
+    checkIn: string;
+    checkOut: string;
+    guests: number;
+    totalPrice: number;
+    status: string;
+    message: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface PropertyPerformance {
+    propertyId: number;
+    propertyName: string;
+    views: number;
+    bookings: number;
+    rating: number;
+    reviewsCount: number;
+    wishlistedBy: number;
+    conversionRate: string;
+}
+
+interface Earnings {
+    totalGross: number;
+    totalPlatformFee: number;
+    totalNet: number;
+    transactionsCount: number;
+    byStatus: any[];
+}
+
+interface Analytics {
+    totalViews: number;
+    averageViewDuration: number;
+    totalWishlisted: number;
+    activeBlockedDates: number;
+    pendingPayments: number;
+}
+
+interface QuickStats {
+    todayCheckIns: number;
+    todayCheckOuts: number;
+    occupiedProperties: number;
+    pendingActions: number;
+}
+
+interface RecentActivity {
+    id: string;
+    type: string;
+    title: string;
+    description: string;
+    timestamp: string;
+    propertyId: number;
+    bookingId: string;
+    isRead: boolean;
+    priority: string;
+}
+
+interface EnhancedDashboardData {
+    totalProperties: number;
+    activeProperties: number;
+    totalBookings: number;
+    totalRevenue: number;
+    averageRating: number;
+    recentBookings: Booking[];
+    propertyPerformance: PropertyPerformance[];
+    upcomingCheckIns: Booking[];
+    pendingReviews: number;
+    earnings: Earnings;
+    analytics: Analytics;
+    quickStats: QuickStats;
+    recentActivity: RecentActivity[];
+    alerts: any[];
+    marketTrends: {
+        demandTrend: string;
+        averagePrice: number;
+        competitorActivity: string;
+    };
+}
+
 const HostDashboard = () => {
     const router = useRouter();
-    
+
     // State for dashboard data
-    const [dashboardData, setDashboardData] = useState<any>(null);
-    const [enhancedData, setEnhancedData] = useState<any>(null);
-    const [bookingsData, setBookingsData] = useState<any>([]);
-    const [earningsData, setEarningsData] = useState<any>([]);
-    const [propertiesData, setPropertiesData] = useState<any>([]);
-    const [loading, setLoading] = useState<any>(true);
-    const [error, setError] = useState<any>(null);
+    const [dashboardData, setDashboardData] = useState<EnhancedDashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [userName, setUserName] = useState('Host');
 
-    // Fetch all dashboard data
+    // Fetch all dashboard data from enhanced endpoint
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
 
                 const user = JSON.parse(localStorage.getItem('userSession') || '{}');
-                if (user.name) {
-                    setUserName(user.name);
+                if (user.name || user.firstName) {
+                    setUserName(user.firstName || user.name);
                 }
 
-                // Fetch basic dashboard data
-                const dashboardResponse = await api.get('/properties/host/dashboard');
-                const dashboard = dashboardResponse.data.data;
-                setDashboardData(dashboard);
-
-                // Fetch enhanced dashboard data
+                // Fetch enhanced dashboard data (single API call)
                 const enhancedResponse = await api.get('/properties/host/dashboard/enhanced');
                 const enhanced = enhancedResponse.data.data;
-                setEnhancedData(enhanced);
-
-                // Fetch recent bookings
-                const bookingsResponse = await api.get('/properties/host/bookings');
-                setBookingsData(bookingsResponse.data.data.bookings);
-
-                // Fetch earnings data
-                const earningsResponse = await api.get('/properties/host/earnings');
-                setEarningsData(earningsResponse.data.data);
-
-                // Fetch host's properties
-                const propertiesResponse = await api.get('/properties/host/my-properties');
-                setPropertiesData(propertiesResponse.data.data.properties);
+                setDashboardData(enhanced);
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -63,99 +128,195 @@ const HostDashboard = () => {
         fetchDashboardData();
     }, []);
 
-    // Transform earnings data for chart
-    const transformEarningsData = (monthlyEarnings: any) => {
-        if (!monthlyEarnings || monthlyEarnings.length === 0) {
-            return [
-                { month: 'Jan', earnings: 0 },
-                { month: 'Feb', earnings: 0 },
-                { month: 'Mar', earnings: 0 },
-                { month: 'Apr', earnings: 0 },
-                { month: 'May', earnings: 0 },
-                { month: 'Jun', earnings: 0 },
-            ];
-        }
-        
-        return monthlyEarnings.map((item: any) => ({
-            month: new Date(item.month).toLocaleDateString('en-US', { month: 'short' }),
-            earnings: item.earnings || 0
-        }));
-    };
-
-    // Transform property bookings data for chart
-    const transformPropertyBookingsData = (propertyPerformance: any) => {
+    // Transform property performance data for pie chart
+    const getPropertyPerformance = (propertyPerformance: PropertyPerformance[]) => {
         if (!propertyPerformance || propertyPerformance.length === 0) {
-            return [
-                { day: 'Mon', bookings: 0 },
-                { day: 'Tue', bookings: 0 },
-                { day: 'Wed', bookings: 0 },
-                { day: 'Thu', bookings: 0 },
-                { day: 'Fri', bookings: 0 },
-                { day: 'Sat', bookings: 0 },
-                { day: 'Sun', bookings: 0 },
-            ];
-        }
-        
-        return propertyPerformance.slice(0, 7).map((item: any, index: number) => ({
-            day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index],
-            bookings: item.bookings || 0
-        }));
-    };
-
-    // Get property types from properties data
-    const getPropertyTypes = (properties: any) => {
-        if (!properties || properties.length === 0) {
-            return [
-                { name: 'No Properties', value: 1, color: '#E5E7EB' }
-            ];
+            return [];
         }
 
-        const typeCount: any = {};
-        properties.forEach((property: any) => {
-            const type = property.type || property.category || 'Other';
-            typeCount[type] = (typeCount[type] || 0) + 1;
-        });
-
-        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-        return Object.entries(typeCount).map(([name, value], index) => ({
-            name,
-            value,
+        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#8B5CF6'];
+        return propertyPerformance.slice(0, 5).map((property, index) => ({
+            name: property.propertyName,
+            value: property.bookings,
             color: colors[index % colors.length]
         }));
     };
 
-    // Transform recent bookings for activity section
-    const transformRecentActivity = (bookings: any) => {
-        if (!bookings || bookings.length === 0) return [];
-        
-        return bookings.slice(0, 4).map((booking: any) => ({
-            guest: booking.guestName || booking.user?.name || 'Guest',
-            message: booking.specialRequests || booking.notes || 'New booking confirmed',
-            time: new Date(booking.createdAt).toLocaleTimeString(),
-            type: booking.status === 'confirmed' ? 'booking' : 'inquiry'
+    // Transform upcoming check-ins with better structure
+    const transformUpcomingCheckIns = (checkIns: Booking[]) => {
+        if (!checkIns || checkIns.length === 0) {
+            return [];
+        }
+
+        return checkIns.slice(0, 4).map((checkin) => {
+            const checkInDate = new Date(checkin.checkIn);
+            const checkOutDate = new Date(checkin.checkOut);
+            const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            return {
+                title: checkin.propertyName,
+                guest: checkin.guestName,
+                time: checkInDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                duration: `${nights} night${nights > 1 ? 's' : ''}`,
+                guests: checkin.guests,
+                status: checkin.status,
+                amount: `$${checkin.totalPrice}`
+            };
+        });
+    };
+
+    // Calculate occupancy data from recent bookings
+    const getOccupancyData = (bookings: Booking[]) => {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        if (!bookings || bookings.length === 0) {
+            return days.map(day => ({ day, occupancy: 0 }));
+        }
+
+        const dayOccupancy: { [key: string]: number } = {};
+        bookings.forEach((booking) => {
+            const day = new Date(booking.checkIn).toLocaleDateString('en-US', { weekday: 'short' });
+            dayOccupancy[day] = (dayOccupancy[day] || 0) + 1;
+        });
+
+        return days.map(day => ({
+            day,
+            occupancy: ((dayOccupancy[day] || 0) / Math.max(...Object.values(dayOccupancy), 1)) * 100
         }));
     };
 
-    // Transform upcoming check-ins
-    const transformUpcomingCheckIns = (checkIns: any) => {
-        if (!checkIns || checkIns.length === 0) return [];
-        
-        return checkIns.slice(0, 3).map((checkin: any) => ({
-            title: checkin.propertyName || checkin.property?.name,
-            time: new Date(checkin.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            guests: checkin.guests || checkin.numberOfGuests || 0,
-            duration: `${checkin.nights || 1} nights`,
-            guest: checkin.guestName || 'Guest',
-            status: checkin.status || 'confirmed'
-        }));
+    const getTimeBasedGreeting = () => {
+        const hour = new Date().getHours();
+
+        // Early Morning (5-7 AM)
+        const earlyMorningMessages = [
+            `🌅 Rise and shine, early bird!`,
+            `☕ First coffee, first booking!`,
+            `🏡 Your properties await!`,
+            `🌄 Start strong today!`,
+            `⏰ Early host, happy guests!`,
+            `🌤 New day, new opportunities!`,
+            `💪 Power up your hosting!`,
+            `🔥 Ignite your hospitality!`,
+            `✨ Morning magic begins!`,
+            `🎯 Aim for 5-star reviews!`
+        ];
+
+        // Morning (7-12 PM)
+        const morningMessages = [
+            `🌅 Good morning!`,
+            `☕ Coffee and bookings!`,
+            `💡 Fresh start today!`,
+            `🏃 Let's make it great!`,
+            `📅 New bookings await!`,
+            `🌞 Shine bright as a host!`,
+            `🤝 Connect with guests!`,
+            `📈 Growth starts now!`,
+            `🎨 Create amazing experiences!`,
+            `🚀 Launch into success!`,
+            `🌱 Grow your business!`,
+            `⭐ Excellence awaits!`,
+            `🎪 Make hosting magical!`,
+            `🏆 Champion host mode!`,
+            `🎵 Start with positivity!`
+        ];
+
+        // Afternoon (12-17 PM)
+        const afternoonMessages = [
+            `☀️ Good afternoon!`,
+            `🚀 Keep momentum going!`,
+            `🔥 Stay on fire!`,
+            `🌱 Growing strong!`,
+            `📊 Peak performance time!`,
+            `💪 Power through!`,
+            `🎯 Hit your targets!`,
+            `⚡ Energy boost time!`,
+            `🌻 Bloom in hospitality!`,
+            `🎪 Afternoon excellence!`,
+            `🏃‍♂️ Sprint to success!`,
+            `🎨 Create memories!`,
+            `🔮 Afternoon magic!`,
+            `🌊 Ride the wave!`,
+            `🎭 Showtime for hosts!`,
+            `🏅 Excellence continues!`
+        ];
+
+        // Evening (17-21 PM)
+        const eveningMessages = [
+            `🌇 Good evening!`,
+            `📖 Review your day!`,
+            `🌟 You did amazing!`,
+            `🎶 Relax and review!`,
+            `🍵 Wind down time!`,
+            `🙌 Celebrate wins!`,
+            `🛋 Comfort for guests!`,
+            `🌌 Evening serenity!`,
+            `🍷 Unwind gracefully!`,
+            `🎨 Evening creativity!`,
+            `🧘‍♀️ Find your calm!`,
+            `🎬 Review time!`,
+            `🌹 Evening elegance!`,
+            `📚 Learn and grow!`,
+            `🕯 Cozy evening vibes!`,
+            `🎭 Evening excellence!`
+        ];
+
+        // Night (21-24 PM)
+        const nightMessages = [
+            `🌙 Good night!`,
+            `🛌 Rest well, host!`,
+            `✨ Dream of success!`,
+            `😴 Recharge for tomorrow!`,
+            `🔕 Peace and quiet!`,
+            `💤 Sweet dreams!`,
+            `🌠 Night inspiration!`,
+            `🛡 Safe and sound!`,
+            `🌜 Moonlit planning!`,
+            `🎶 Peaceful night!`,
+            `🏰 Dream big!`,
+            `🌌 Starry success!`,
+            `🛏 Rest easy!`,
+            `🔮 Tomorrow awaits!`
+        ];
+
+        // Late Night/Midnight (0-5 AM)
+        const lateNightMessages = [
+            `🌃 Night owl hosting!`,
+            `🦉 Late night warrior!`,
+            `⭐ Stars guide you!`,
+            `🌙 Midnight momentum!`,
+            `💻 Late night planning!`,
+            `🎧 Quiet productivity!`,
+            `🔥 Burning bright!`,
+            `🌌 Limitless potential!`,
+            `☕ Midnight fuel!`,
+            `🎯 Sharp focus!`,
+            `🚀 Night launch!`,
+            `🎪 Midnight magic!`,
+            `🔬 Deep planning!`,
+            `🎨 Creative hours!`
+        ];
+
+        const pickRandom = (messages: string[]) =>
+            messages[Math.floor(Math.random() * messages.length)];
+
+        if (hour >= 0 && hour < 5) return pickRandom(lateNightMessages);
+        if (hour >= 5 && hour < 7) return pickRandom(earlyMorningMessages);
+        if (hour >= 7 && hour < 12) return pickRandom(morningMessages);
+        if (hour >= 12 && hour < 17) return pickRandom(afternoonMessages);
+        if (hour >= 17 && hour < 21) return pickRandom(eveningMessages);
+        return pickRandom(nightMessages);
     };
 
     if (loading) {
         return (
-            <div className="mt-20 flex items-center justify-center min-h-screen">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading dashboard...</p>
+                    <div className="relative w-16 h-16 mx-auto">
+                        <div className="absolute inset-0 rounded-full border-4 border-gray-200"></div>
+                        <div className="absolute inset-0 rounded-full border-4 border-t-pink-500 animate-spin"></div>
+                    </div>
+                    <p className="mt-4 text-gray-600 font-medium">Loading dashboard...</p>
                 </div>
             </div>
         );
@@ -163,319 +324,370 @@ const HostDashboard = () => {
 
     if (error) {
         return (
-            <div className="mt-20 flex items-center justify-center min-h-screen">
-                <div className="text-center text-red-600">
-                    <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
-                    <p>{error}</p>
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center max-w-md px-4">
+                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                        <i className="bi bi-exclamation-triangle text-3xl text-red-500"></i>
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                        Oops! Something went wrong
+                    </h2>
+                    <p className="text-gray-600 mb-6">{error}</p>
                     <button 
                         onClick={() => window.location.reload()} 
-                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                        className="px-6 py-3 bg-pink-500 text-white rounded-xl font-medium hover:bg-pink-600 transform transition-all duration-200 hover:scale-105"
                     >
-                        Retry
+                        Try Again
                     </button>
                 </div>
             </div>
         );
     }
 
-    // Prepare data for UI
-    const chartEarningsData = transformEarningsData(dashboardData?.monthlyEarnings);
-    const chartBookingsData = transformPropertyBookingsData(dashboardData?.propertyPerformance);
-    const propertyTypes = getPropertyTypes(propertiesData);
-    const recentActivity = transformRecentActivity(bookingsData);
-    const upcomingCheckIns = transformUpcomingCheckIns(dashboardData?.upcomingCheckIns);
+    // Prepare data for UI from enhanced API response
+    const propertyPerformance = getPropertyPerformance(dashboardData?.propertyPerformance || []);
+    const upcomingCheckIns = transformUpcomingCheckIns(dashboardData?.upcomingCheckIns || []);
+    const chartOccupancyData = getOccupancyData(dashboardData?.recentBookings || []);
 
-    // Summary cards data
+    // Calculate occupancy rate percentage
+    const calculateOccupancyRate = () => {
+        if (!dashboardData) return 0;
+        const { totalProperties, totalBookings } = dashboardData;
+        if (totalProperties === 0) return 0;
+        // Simple occupancy calculation: bookings / active properties
+        return Math.round((totalBookings / (totalProperties * 30)) * 100); // Assuming 30 days
+    };
+
+    // Summary cards data with gradients
     const summaryCards = [
-        {
-            title: 'Active Properties',
-            value: dashboardData?.activeProperties?.toString() || '0',
-            change: `${dashboardData?.totalProperties || 0} total properties`,
-            icon: 'house-door',
-            bgColor: 'bg-pink-500',
-            iconBg: '#F20C8F',
-        },
-        {
-            title: 'Total Guests',
-            value: dashboardData?.totalGuests?.toString() || '0',
-            change: `${dashboardData?.totalBookings || 0} bookings`,
-            icon: 'people',
-            bgColor: 'bg-blue-800',
-            iconBg: '#083A85',
-        },
         {
             title: 'Total Revenue',
             value: `$${dashboardData?.totalRevenue?.toLocaleString() || '0'}`,
-            change: 'All time earnings',
-            icon: 'currency-dollar',
-            bgColor: 'bg-green-500',
-            iconBg: '#10B981',
+            change: `${dashboardData?.earnings?.transactionsCount || 0} transactions`,
+            icon: 'cash-stack',
+            percentage: null,
+            bgGradient: 'from-green-500 to-emerald-400',
+        },
+        {
+            title: 'Active Bookings',
+            value: dashboardData?.totalBookings?.toString() || '0',
+            change: `${dashboardData?.activeProperties || 0} active properties`,
+            icon: 'calendar-check-fill',
+            percentage: null,
+            bgGradient: 'from-pink-500 to-rose-400',
+        },
+        {
+            title: 'Occupancy Rate',
+            value: `${calculateOccupancyRate()}%`,
+            change: 'Based on current bookings',
+            icon: 'house-door-fill',
+            percentage: null,
+            bgGradient: 'from-blue-800 to-blue-600',
         },
         {
             title: 'Average Rating',
-            value: dashboardData?.averageRating?.toFixed(1) || '0.0',
+            value: dashboardData?.averageRating ? dashboardData.averageRating.toFixed(1) : 'N/A',
             change: `${dashboardData?.pendingReviews || 0} pending reviews`,
-            icon: 'star',
-            bgColor: 'bg-amber-500',
-            iconBg: '#F59E0B',
+            icon: 'star-fill',
+            percentage: null,
+            bgGradient: 'from-amber-500 to-orange-400',
         },
     ];
 
-    // Recent reviews (from recent bookings with reviews)
-    const recentReviews = bookingsData
-        .filter((booking: any) => booking.review)
-        .slice(0, 3)
-        .map((booking: any) => ({
-            guest: booking.guestName || booking.user?.name || 'Anonymous',
-            rating: booking.review?.rating || 5,
-            comment: booking.review?.comment || 'Great experience!',
-            property: booking.property?.name || booking.propertyName || 'Property',
-            date: new Date(booking.review?.createdAt || booking.createdAt).toLocaleDateString()
-        }));
-
-    // Quick stats
-    const quickStats = [
-        { 
-            label: 'Bookings Completed', 
-            value: dashboardData?.completedBookings?.toString() || '0', 
-            icon: 'check-circle' 
+    // Performance metrics from analytics
+    const performanceMetrics = [
+        {
+            label: 'Total Views',
+            value: dashboardData?.analytics?.totalViews?.toString() || '0',
+            icon: 'eye-fill',
+            trend: 'stable'
         },
-        { 
-            label: 'Occupancy Rate', 
-            value: `${dashboardData?.occupancyRate || 0}%`,
-            icon: 'graph-up' 
+        {
+            label: 'Wishlisted',
+            value: dashboardData?.analytics?.totalWishlisted?.toString() || '0',
+            icon: 'heart-fill',
+            trend: 'stable'
         },
-        { 
-            label: 'Repeat Guests', 
-            value: `${dashboardData?.repeatGuestRate || 0}%`,
-            icon: 'arrow-repeat' 
+        {
+            label: 'Pending Payments',
+            value: dashboardData?.analytics?.pendingPayments?.toString() || '0',
+            icon: 'credit-card-fill',
+            trend: 'stable'
         },
-        { 
-            label: 'Response Time', 
-            value: dashboardData?.averageResponseTime || '< 1hr', 
-            icon: 'clock' 
+        {
+            label: 'Total Properties',
+            value: dashboardData?.totalProperties?.toString() || '0',
+            icon: 'house-fill',
+            trend: 'stable'
         },
     ];
-    
-    const getTimeBasedGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 17) return 'Good afternoon';
-        if (hour < 21) return 'Good evening';
-        return 'Good night';
-    };
     
     return (
-        <div className="mt-20">
-            <div className="max-w-7xl mx-auto">
+        <div className="p-1">
+            <div className="max-w-9xl mx-auto px-3 sm:px-3 lg:px-4">
                           
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
-                        {getTimeBasedGreeting()}, {userName}!
-                    </h1>
-                    <p className="text-gray-600 text-md">Here's what's happening with your property business</p>
+                {/* Header Section */}
+                <div className="mb-8 md:mb-10 bg-white shadow-sm rounded-lg p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h1 className="text-xl sm:text-2xl text-gray-900">
+                                {getTimeBasedGreeting()}, <span className="font-semibold">{userName}</span>
+                            </h1>
+                            <p className="mt-2 ml-2 text-base sm:text-lg text-gray-600">
+                                Your hosting dashboard overview
+                            </p>
+                        </div>
+                        <div className="mt-4 sm:mt-0">
+                            <span className="text-sm text-gray-500">
+                                {new Date().toLocaleDateString('en-US', { 
+                                    weekday: 'long', 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                })}
+                            </span>
+                        </div>
+                    </div>
                 </div>
                
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                     {summaryCards.map((card, index) => (
-                        <div key={index} className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                            <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
-                                <i className={`bi bi-${card.icon}`} />
-                            </div>
-                            <div className="flex items-center mb-3">
-                                <div 
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white"
-                                    style={{ backgroundColor: card.iconBg }}
-                                >
-                                    <i className={`bi bi-${card.icon} text-md sm:text-base`}/>
+                        <div 
+                            key={index} 
+                            className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transform transition-all duration-300 hover:-translate-y-1"
+                        >
+                            <div className="p-5 sm:p-6">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className={`p-3 rounded-xl bg-gradient-to-br ${card.bgGradient} shadow-lg`}>
+                                        <i className={`bi bi-${card.icon} text-white text-lg`} />
+                                    </div>
+                                    {card.percentage && (
+                                        <span className="flex items-center text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                            <i className="bi bi-arrow-up-short mr-0.5" />
+                                            {card.percentage}
+                                        </span>
+                                    )}
                                 </div>
-                                <span className="text-md sm:text-md text-gray-600 font-medium">{card.title}</span>
-                            </div>
-                            <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">{card.value}</div>
-                            <div className="text-md sm:text-md text-green-600 flex items-center font-medium">
-                                <i className="bi bi-arrow-up mr-1" />
-                                {card.change}
+                                <h3 className="text-sm font-medium text-gray-600 mb-1">
+                                    {card.title}
+                                </h3>
+                                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                                    {card.value}
+                                </p>
+                                <p className="text-sm text-gray-500">{card.change}</p>
                             </div>
                         </div>
                     ))}
                 </div>
 
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
-                    {/* Earnings Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-graph-up mr-2 text-pink-500" />
-                                Monthly Earnings
-                            </h3>
-                            <div className="text-md text-gray-500">
-                                <i className="bi bi-three-dots" />
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                    {/* Earnings Overview */}
+                    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 p-6 md:p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    Earnings Overview
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Financial summary
+                                </p>
                             </div>
+                            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <i className="bi bi-three-dots text-gray-400" />
+                            </button>
                         </div>
-                        <div className="h-48 sm:h-56 lg:h-64">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartEarningsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: 'white', 
-                                            border: '1px solid #e5e7eb', 
-                                            borderRadius: '8px',
-                                            fontSize: '12px'
-                                        }} 
-                                    />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="earnings" 
-                                        stroke="#F20C8F" 
-                                        strokeWidth={3} 
-                                        dot={{ fill: '#F20C8F', strokeWidth: 2, r: 4 }} 
-                                        activeDot={{ r: 6, stroke: '#F20C8F', strokeWidth: 2 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
+                        <div className="space-y-4">
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-gray-600 mb-1">Total Gross</p>
+                                        <p className="text-3xl font-bold text-gray-900">
+                                            ${dashboardData?.earnings?.totalGross?.toFixed(2) || '0.00'}
+                                        </p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                                        <i className="bi bi-cash-stack text-white text-xl" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-xl bg-gray-50">
+                                    <p className="text-xs text-gray-500 mb-1">Platform Fee</p>
+                                    <p className="text-xl font-bold text-gray-900">
+                                        ${dashboardData?.earnings?.totalPlatformFee?.toFixed(2) || '0.00'}
+                                    </p>
+                                </div>
+                                <div className="p-4 rounded-xl bg-gray-50">
+                                    <p className="text-xs text-gray-500 mb-1">Net Earnings</p>
+                                    <p className="text-xl font-bold text-green-600">
+                                        ${dashboardData?.earnings?.totalNet?.toFixed(2) || '0.00'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-gray-600">Total Transactions</p>
+                                        <p className="text-2xl font-bold text-gray-900">
+                                            {dashboardData?.earnings?.transactionsCount || 0}
+                                        </p>
+                                    </div>
+                                    <i className="bi bi-receipt text-3xl text-blue-500" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Property Bookings Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-bar-chart mr-2 text-blue-800" />
-                                Weekly Property Bookings
-                            </h3>
-                            <div className="text-md text-gray-500">
-                                <i className="bi bi-three-dots" />
+                    {/* Occupancy Rate Chart */}
+                    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 p-6 md:p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    Weekly Occupancy
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Property utilization rate
+                                </p>
                             </div>
+                            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <i className="bi bi-three-dots text-gray-400" />
+                            </button>
                         </div>
-                        <div className="h-48 sm:h-56 lg:h-64">
+                        <div className="h-64 sm:h-72">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={chartBookingsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="day" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                <BarChart data={chartOccupancyData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                                    <XAxis 
+                                        dataKey="day" 
+                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                        axisLine={{ stroke: '#e5e7eb' }}
+                                    />
+                                    <YAxis 
+                                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                                        axisLine={{ stroke: '#e5e7eb' }}
+                                    />
                                     <Tooltip 
                                         contentStyle={{ 
                                             backgroundColor: 'white', 
-                                            border: '1px solid #e5e7eb', 
-                                            borderRadius: '8px',
-                                            fontSize: '12px'
+                                            border: 'none',
+                                            borderRadius: '12px',
+                                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                                         }} 
                                     />
-                                    <Bar dataKey="bookings" fill="#083A85" radius={[6, 6, 0, 0]} />
+                                    <Bar 
+                                        dataKey="occupancy" 
+                                        fill="#F20C8F" 
+                                        radius={[8, 8, 0, 0]}
+                                        barSize={40}
+                                    />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
 
-                {/* Properties & Activity */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-6">
-                    {/* Today's Check-ins */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-calendar-week mr-2 text-green-600" />
-                                Upcoming Check-ins
-                            </h3>
-                            <Link href="/all/host/bookings" className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
-                                View Calendar
+                {/* Activity Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Upcoming Check-ins */}
+                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 p-6 md:p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    Upcoming Check-ins
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Today's arrivals
+                                </p>
+                            </div>
+                            <Link
+                                href="/all/host/bookings"
+                                className="text-sm font-medium text-pink-500 hover:text-pink-600 transition-colors cursor-pointer"
+                            >
+                                View all →
                             </Link>
                         </div>
                         <div className="space-y-3">
                             {upcomingCheckIns.length > 0 ? upcomingCheckIns.map((checkin: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push('/all/host/bookings')}>
-                                    <div className="flex items-start justify-between mb-2">
+                                <div
+                                    key={index}
+                                    onClick={() => router.push('/all/host/bookings')}
+                                    className="group p-4 rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                >
+                                    <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{checkin.title}</h4>
-                                            <p className="text-md text-gray-600 mt-1">{checkin.guest}</p>
+                                            <div className="flex items-center mb-2">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full mr-3 animate-pulse"></div>
+                                                <h4 className="font-semibold text-gray-900">
+                                                    {checkin.title}
+                                                </h4>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                                                <span className="flex items-center">
+                                                    <i className="bi bi-person mr-1.5" />
+                                                    {checkin.guest}
+                                                </span>
+                                                <span className="flex items-center">
+                                                    <i className="bi bi-clock mr-1.5" />
+                                                    {checkin.time} • {checkin.duration}
+                                                </span>
+                                                <span className="flex items-center">
+                                                    <i className="bi bi-people mr-1.5" />
+                                                    {checkin.guests} guests
+                                                </span>
+                                                {checkin.amount && (
+                                                    <span className="font-semibold text-green-600">
+                                                        {checkin.amount}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
-                                            checkin.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                                            checkin.status === 'confirmed' 
+                                                ? 'bg-green-100 text-green-700' 
+                                                : 'bg-yellow-100 text-yellow-700'
                                         }`}>
                                             {checkin.status}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between text-md text-gray-500">
-                                        <span>{checkin.time} • {checkin.duration}</span>
-                                        <span>{checkin.guests} guests</span>
-                                    </div>
                                 </div>
                             )) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-calendar-x text-3xl mb-2" />
-                                    <p>No upcoming check-ins</p>
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i className="bi bi-calendar-x text-2xl text-gray-400" />
+                                    </div>
+                                    <p className="text-gray-500">
+                                        No check-ins scheduled for today
+                                    </p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Recent Activity */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-chat-dots mr-2 text-blue-600" />
-                                Recent Activity
+                    {/* Property Performance */}
+                    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 p-6">
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                Top Properties
                             </h3>
-                            <Link href="/all/host/bookings" className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
-                                View All
-                            </Link>
+                            <p className="text-sm text-gray-500 mt-1">
+                                By bookings this month
+                            </p>
                         </div>
-                        <div className="space-y-3">
-                            {recentActivity.length > 0 ? recentActivity.map((activity: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push('/all/host/bookings')}>
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="flex-1">
-                                            <h4 className="font-medium text-gray-800 text-md">{activity.guest}</h4>
-                                            <p className="text-md text-gray-600 mt-1 line-clamp-2">{activity.message}</p>
-                                        </div>
-                                        <span className={`px-2 py-1 rounded-full text-md font-medium ${
-                                            activity.type === 'booking' ? 'bg-green-100 text-green-800' :
-                                            activity.type === 'inquiry' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                            {activity.type}
-                                        </span>
-                                    </div>
-                                    <div className="text-md text-gray-500">{activity.time}</div>
-                                </div>
-                            )) : (
-                                <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-chat-square-dots text-3xl mb-2" />
-                                    <p>No recent activity</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bottom Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-                    {/* Property Types */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-pie-chart mr-2 text-gray-600" />
-                                Property Types
-                            </h3>
-                        </div>
-                        <div className="h-48 sm:h-56">
+                        <div className="h-48">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
-                                        data={propertyTypes}
+                                        data={propertyPerformance}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={30}
+                                        innerRadius={40}
                                         outerRadius={70}
                                         paddingAngle={5}
                                         dataKey="value"
                                     >
-                                        {propertyTypes.map((entry, index) => (
+                                        {propertyPerformance.map((entry: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
@@ -483,74 +695,135 @@ const HostDashboard = () => {
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="flex flex-wrap justify-center gap-3 mt-3">
-                            {propertyTypes.map((type: any, index) => (
-                                <div key={index} className="flex items-center text-md font-medium">
-                                    <div 
-                                        className="w-3 h-3 mr-2 rounded-sm"
-                                        style={{ backgroundColor: type.color }}
-                                    ></div>
-                                    {type.name} ({type.value})
+                        <div className="space-y-2 mt-6">
+                            {propertyPerformance.slice(0, 3).map((property: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                        <div 
+                                            className="w-3 h-3 rounded-full mr-3"
+                                            style={{ backgroundColor: property.color }}
+                                        />
+                                        <span className="text-sm text-gray-600 truncate max-w-[120px]">
+                                            {property.name}
+                                        </span>
+                                    </div>
+                                    <span className="text-sm font-semibold text-gray-900">
+                                        {property.value}
+                                    </span>
                                 </div>
                             ))}
                         </div>
                     </div>
+                </div>
 
-                    {/* Recent Reviews */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-star mr-2 text-amber-500" />
-                                Recent Reviews
-                            </h3>
-                            <Link href="/all/host/properties" className="text-md text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
-                                View All
+                {/* Recent Activity & Performance Metrics */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    {/* Recent Activity */}
+                    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 p-6 md:p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    Recent Activity
+                                </h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Latest updates
+                                </p>
+                            </div>
+                            <Link
+                                href="/all/host/bookings"
+                                className="text-sm font-medium text-pink-500 hover:text-pink-600 transition-colors cursor-pointer"
+                            >
+                                View all →
                             </Link>
                         </div>
-                        <div className="space-y-4">
-                            {recentReviews.length > 0 ? recentReviews.map((review: any, index: number) => (
-                                <div key={index} className="p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => router.push('/all/host/properties')}>
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="flex-1">
-                                            <div className="flex items-center mb-1">
-                                                <h4 className="font-medium text-gray-800 text-md mr-2">{review.guest}</h4>
-                                                <div className="flex items-center">
-                                                    {[...Array(review.rating)].map((_, i) => (
-                                                        <i key={i} className="bi bi-star-fill text-yellow-500 text-md" />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <p className="text-md text-gray-600 mb-1">{review.comment}</p>
-                                            <div className="flex items-center justify-between text-md text-gray-500">
-                                                <span>{review.property}</span>
-                                                <span>{review.date}</span>
-                                            </div>
+                        <div className="space-y-3">
+                            {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 ?
+                                dashboardData.recentActivity.slice(0, 5).map((activity, index) => (
+                                <div
+                                    key={activity.id || index}
+                                    onClick={() => router.push('/all/host/bookings')}
+                                    className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <i className={`bi bi-${
+                                            activity.type === 'booking' ? 'calendar-check' :
+                                            activity.type === 'inquiry' ? 'chat-dots' :
+                                            activity.type === 'checkout' ? 'door-open' :
+                                            'bell'
+                                        } text-gray-600`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                            {activity.title}
+                                        </p>
+                                        <p className="text-sm text-gray-600 line-clamp-1">
+                                            {activity.description}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-xs text-gray-400">
+                                                {new Date(activity.timestamp).toLocaleTimeString([], {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </p>
                                         </div>
                                     </div>
+                                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                                        activity.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                        activity.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-green-100 text-green-700'
+                                    }`}>
+                                        {activity.type}
+                                    </span>
                                 </div>
                             )) : (
                                 <div className="text-center py-8 text-gray-500">
-                                    <i className="bi bi-star text-3xl mb-2" />
-                                    <p>No reviews yet</p>
+                                    <i className="bi bi-inbox text-3xl mb-2" />
+                                    <p>No recent activity</p>
                                 </div>
                             )}
                         </div>
                     </div>
-                </div>
 
-                {/* Quick Stats */}
-                <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Performance Stats</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
-                        {quickStats.map((stat, index) => (
-                            <div key={index} className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                                <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
-                                    <i className={`bi bi-${stat.icon}`} />
+                    {/* Performance Metrics */}
+                    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300 p-6 md:p-8">
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold text-gray-900">
+                                Performance Metrics
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Your hosting stats
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            {performanceMetrics.map((metric, index) => (
+                                <div
+                                    key={index}
+                                    className="p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
+                                            <i className={`bi bi-${metric.icon} text-lg ${
+                                                metric.trend === 'up' ? 'text-green-500' :
+                                                metric.trend === 'down' ? 'text-red-500' :
+                                                'text-gray-500'
+                                            }`} />
+                                        </div>
+                                        {metric.trend !== 'stable' && (
+                                            <i className={`bi bi-arrow-${metric.trend} text-xs ${
+                                                metric.trend === 'up' ? 'text-green-500' : 'text-red-500'
+                                            }`} />
+                                        )}
+                                    </div>
+                                    <p className="text-2xl font-bold text-gray-900">
+                                        {metric.value}
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        {metric.label}
+                                    </p>
                                 </div>
-                                <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">{stat.value}</div>
-                                <div className="text-md lg:text-md text-gray-600 font-medium">{stat.label}</div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
