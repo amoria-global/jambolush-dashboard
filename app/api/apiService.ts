@@ -1143,7 +1143,7 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
    * @param type - Optional booking type ('property' or 'tour')
    */
   async getBooking(bookingId: string, type?: 'property' | 'tour'): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    const url = type ? `/bookings/${bookingId}?type=${type}` : `/bookings/${bookingId}`;
+    const url = type ? `/bookings/${bookingId.toLowerCase()}?type=${type}` : `/bookings/${bookingId.toLowerCase()}`;
     return this.get<BackendResponse<BookingInfo>>(url);
   }
 
@@ -1151,21 +1151,21 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
    * Get booking by confirmation code (public)
    */
   async getBookingByConfirmation(bookingId: string): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    return this.get<BackendResponse<BookingInfo>>(`/bookings/confirmation/${bookingId}`);
+    return this.get<BackendResponse<BookingInfo>>(`/bookings/confirmation/${bookingId.toLowerCase()}`);
   }
 
   /**
    * Update booking
    */
   async updateBooking(bookingId: string, updateData: any, role: 'guest' | 'host' = 'guest'): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    return this.put<BackendResponse<BookingInfo>>(`/bookings/${bookingId}?role=${role}`, updateData);
+    return this.put<BackendResponse<BookingInfo>>(`/bookings/${bookingId.toLowerCase()}?role=${role}`, updateData);
   }
 
   /**
    * Cancel booking
    */
   async cancelBooking(bookingId: string, reason: string, role: 'guest' | 'host' = 'guest'): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    return this.patch<BackendResponse<BookingInfo>>(`/bookings/${bookingId}/cancel?role=${role}`, { reason });
+    return this.patch<BackendResponse<BookingInfo>>(`/bookings/${bookingId.toLowerCase()}/cancel?role=${role}`, { reason });
   }
 
   /**
@@ -1184,14 +1184,14 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
    * Confirm booking (host action)
    */
   async confirmBooking(bookingId: string): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    return this.patch<BackendResponse<BookingInfo>>(`/bookings/${bookingId}/confirm`);
+    return this.patch<BackendResponse<BookingInfo>>(`/bookings/${bookingId.toLowerCase()}/confirm`);
   }
 
   /**
    * Complete booking (host action)
    */
   async completeBooking(bookingId: string): Promise<APIResponse<BackendResponse<BookingInfo>>> {
-    return this.patch<BackendResponse<BookingInfo>>(`/bookings/${bookingId}/complete`);
+    return this.patch<BackendResponse<BookingInfo>>(`/bookings/${bookingId.toLowerCase()}/complete`);
   }
 
   /**
@@ -1321,6 +1321,41 @@ async getNotificationStats(): Promise<APIResponse<BackendResponse<NotificationSt
    */
   async deleteProperty(propertyId: number): Promise<APIResponse<BackendResponse<any>>> {
     return this.delete<BackendResponse<any>>(`/properties/${propertyId}`);
+  }
+
+  // ============ ASSESSMENT API METHODS ============
+
+  /**
+   * Check assessment status for current user (agent)
+   * Returns whether the user has submitted an assessment
+   */
+  async getAssessmentStatus(): Promise<APIResponse<BackendResponse<{
+    hasSubmitted: boolean;
+    submittedAt?: string;
+    score?: number;
+    percentage?: number;
+    assessmentId?: string;
+    isPassed?: boolean;
+    status?: string;
+    correctAnswers?: number;
+    totalQuestions?: number;
+  }>>> {
+    return this.get<BackendResponse<any>>('/auth/agent/assessment/status');
+  }
+
+  /**
+   * Submit assessment data (40 questions required)
+   * Used by agents to submit their assessment results
+   */
+  async submitAssessment(assessmentData: {
+    questionsAndAnswers: Array<{
+      questionId: number;
+      question: string;
+      answer: string;
+      isCorrect: boolean;
+    }>;
+  }): Promise<APIResponse<BackendResponse<any>>> {
+    return this.post<BackendResponse<any>>('/auth/agent/assessment/submit', assessmentData);
   }
 
 // ============ KYC API METHODS ============
@@ -1532,7 +1567,7 @@ async getKYCStatus(): Promise<APIResponse<BackendResponse<{
    */
   async requestRefund(bookingId: string, reason: string, amount?: number): Promise<APIResponse<BackendResponse<any>>> {
     return this.post<BackendResponse<any>>('/payments/refund', {
-      bookingId,
+      bookingId: bookingId.toLowerCase(),
       reason,
       amount
     });
@@ -1624,7 +1659,7 @@ async getPropertyBooking(bookingId: string): Promise<APIResponse<BackendResponse
  * Cancel property booking
  */
 async cancelPropertyBooking(bookingId: string, reason?: string): Promise<APIResponse<BackendResponse<any>>> {
-  return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/cancel`, { 
+  return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId.toLowerCase()}/cancel`, {
     reason: reason || 'Cancelled by user' ,
     type: 'property'
   });
@@ -1638,7 +1673,7 @@ async updatePropertyBooking(bookingId: string, updateData: {
   message?: string;
   specialRequests?: string;
 }): Promise<APIResponse<BackendResponse<any>>> {
-  return this.put<BackendResponse<any>>(`/bookings/properties/${bookingId}`, updateData);
+  return this.put<BackendResponse<any>>(`/bookings/properties/${bookingId.toLowerCase()}`, updateData);
 }
 
 /**
@@ -2197,7 +2232,7 @@ async getWithdrawalHistory(filters?: {
     specialRequests?: string;
     notes?: string;
   }>>> {
-    return this.post<BackendResponse<any>>('/checkin/verify-booking', { bookingId });
+    return this.post<BackendResponse<any>>('/checkin/verify-booking', { bookingId: bookingId.toLowerCase() });
   }
 
   /**
@@ -2221,7 +2256,7 @@ async getWithdrawalHistory(filters?: {
     fundsReleased: boolean;
   }>>> {
     return this.post<BackendResponse<any>>('/checkin/confirm', {
-      bookingId,
+      bookingId: bookingId.toLowerCase(),
       bookingCode: bookingCode.toUpperCase(),
       instructions: instructions?.trim() || undefined
     });
@@ -2234,7 +2269,7 @@ async getWithdrawalHistory(filters?: {
     canWithdraw: boolean;
     reason?: string;
   }>>> {
-    return this.get<BackendResponse<any>>(`/checkin/can-withdraw/${bookingId}`);
+    return this.get<BackendResponse<any>>(`/checkin/can-withdraw/${bookingId.toLowerCase()}`);
   }
 
   /**
@@ -2247,7 +2282,7 @@ async getWithdrawalHistory(filters?: {
     paymentStatus: string;
     status: string;
   }>>> {
-    return this.get<BackendResponse<any>>(`/checkin/status/${bookingId}`);
+    return this.get<BackendResponse<any>>(`/checkin/status/${bookingId.toLowerCase()}`);
   }
 
   /**
@@ -2287,7 +2322,7 @@ async getWithdrawalHistory(filters?: {
     destination: string;
   }>>> {
     return this.post<BackendResponse<any>>('/checkin/resend-code', {
-      bookingId
+      bookingId: bookingId.toLowerCase()
     });
   }
 
@@ -2295,28 +2330,28 @@ async getWithdrawalHistory(filters?: {
    * Confirm property booking check-in (Host only) - Legacy single-step method
    */
   async confirmPropertyCheckIn(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
-    return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/checkin`);
+    return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId.toLowerCase()}/checkin`);
   }
 
   /**
    * Confirm property booking check-out (Host only)
    */
   async confirmPropertyCheckOut(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
-    return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId}/checkout`);
+    return this.patch<BackendResponse<any>>(`/bookings/properties/${bookingId.toLowerCase()}/checkout`);
   }
 
   /**
    * Confirm tour booking check-in (Tour guide only) - Legacy single-step method
    */
   async confirmTourCheckIn(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
-    return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId}/checkin`);
+    return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId.toLowerCase()}/checkin`);
   }
 
   /**
    * Confirm tour booking check-out (Tour guide only)
    */
   async confirmTourCheckOut(bookingId: string): Promise<APIResponse<BackendResponse<any>>> {
-    return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId}/checkout`);
+    return this.patch<BackendResponse<any>>(`/bookings/tourguide/${bookingId.toLowerCase()}/checkout`);
   }
 
   // ============ ADDRESS UNLOCK METHODS ============

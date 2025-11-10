@@ -5,6 +5,7 @@ import api from '@/app/api/apiService';
 import { useRouter } from 'next/navigation';
 import PhotoViewerModal from '@/app/components/photo-viewers';
 import { encodeId, createViewDetailsUrl } from '@/app/utils/encoder';
+import AgentAssessmentGuard from "@/app/components/guards/AgentAssessmentGuard";
 
 // Types
 interface Property {
@@ -680,6 +681,7 @@ const PropertiesPage: React.FC = () => {
     }
 
     return (
+        <AgentAssessmentGuard>
          <>
         <head>
             <title>Properties Listing - Jambolush</title>
@@ -1231,6 +1233,7 @@ const PropertiesPage: React.FC = () => {
             `}</style>
         </div>
     </>
+        </AgentAssessmentGuard>
     );
 };
 

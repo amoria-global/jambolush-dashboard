@@ -1,9 +1,12 @@
+"use client";
+
 import UnifiedEarnings from '@/app/components/unified-earnings';
-import { Metadata } from 'next';
-export const metadata: Metadata = {
-    title: "Earnings - Jambolush",
-    description: "Overview of agent earnings and payouts",
-};
+import AgentAssessmentGuard from "@/app/components/guards/AgentAssessmentGuard";
+
 export default function AgentEarnings() {
-  return <UnifiedEarnings userType="agent" />;
+  return (
+    <AgentAssessmentGuard>
+      <UnifiedEarnings userType="agent" />
+    </AgentAssessmentGuard>
+  );
 }

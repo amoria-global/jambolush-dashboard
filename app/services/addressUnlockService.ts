@@ -78,6 +78,27 @@ export async function calculateUnlockFees(pricePerNight: number): Promise<Unlock
 }
 
 /**
+ * Convert RWF amount to USD using current exchange rate
+ * @param amountRWF - Amount in RWF
+ * @returns Amount in USD
+ */
+export async function convertRWFToUSD(amountRWF: number): Promise<number> {
+  const exchangeRate = await fetchExchangeRate();
+  return amountRWF / exchangeRate;
+}
+
+/**
+ * Convert RWF amount to USD synchronously using cached rate or fallback
+ * @param amountRWF - Amount in RWF
+ * @returns Amount in USD
+ */
+export function convertRWFToUSDSync(amountRWF: number): number {
+  // Use cached rate if available, otherwise use fallback
+  const rate = exchangeRateCache?.rate || FALLBACK_RATE;
+  return amountRWF / rate;
+}
+
+/**
  * Format currency amount for display
  * @param amount - Amount to format
  * @param currency - Currency code (USD or RWF)
@@ -94,6 +115,20 @@ export function formatCurrency(amount: number | undefined | null, currency: 'USD
   } else {
     return `${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} RWF`;
   }
+}
+
+/**
+ * Format RWF amount as USD for display (converts and formats in one step)
+ * @param amountRWF - Amount in RWF
+ * @returns Formatted USD string
+ */
+export function formatRWFAsUSD(amountRWF: number | undefined | null): string {
+  if (amountRWF === undefined || amountRWF === null || isNaN(amountRWF)) {
+    return '$0.00';
+  }
+
+  const amountUSD = convertRWFToUSDSync(amountRWF);
+  return `$${amountUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**

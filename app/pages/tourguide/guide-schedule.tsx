@@ -1,9 +1,9 @@
-//app/pages/tourguide/guide-schedule.tsx
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '@/app/api/apiService';
+import ScheduleModal from '@/app/components/modals/ScheduleModal';
 
-// Types
+// Types remain the same
 interface TourSchedule {
   id: string;
   scheduleId?: string;
@@ -75,34 +75,32 @@ const KYCPendingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="p-6">
-          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full">
-            <i className="bi bi-hourglass-split text-2xl text-yellow-600"></i>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md transform transition-all animate-slideUp">
+        <div className="p-8">
+          <div className="flex items-center justify-center w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-amber-100 to-amber-50 rounded-full">
+            <i className="bi bi-hourglass-split text-4xl text-amber-600 animate-pulse"></i>
           </div>
-          <h3 className="text-xl font-semibold text-center text-gray-900 mb-3">
+          <h3 className="text-2xl font-bold text-center text-gray-900 mb-4">
             KYC Verification Pending
           </h3>
-          <p className="text-gray-600 text-center mb-6">
+          <p className="text-gray-600 text-center leading-relaxed mb-8 text-base">
             Your account verification is currently being processed. Please wait for verification to complete before performing this action. This process typically takes 2-4 hours.
           </p>
-          <div className="flex justify-center">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-[#083A85] text-white rounded-lg hover:bg-[#083A85]/80 transition-colors font-medium cursor-pointer"
-            >
-              Understood
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-full py-4 bg-gradient-to-r from-[#083A85] to-[#0a4191] text-white rounded-2xl hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 font-semibold text-base"
+          >
+            Understood
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-const TourGuideSchedulePage: React.FC = () => {
-  // Date formatting helpers
+const TourGuideSchedule: React.FC = () => {
+  // Date formatting helpers (same as before)
   const format = (date: Date, formatStr: string) => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const fullMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -128,7 +126,10 @@ const TourGuideSchedulePage: React.FC = () => {
   };
 
   const formatCurrency = (amount: number): string => {
-    return amount.toLocaleString('en-US');
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   // Helper function to normalize tour data from API
@@ -163,18 +164,17 @@ const TourGuideSchedulePage: React.FC = () => {
     };
   };
 
-  // States
+  // States (same as before)
   const [schedules, setSchedules] = useState<TourSchedule[]>([]);
   const [filteredSchedules, setFilteredSchedules] = useState<TourSchedule[]>([]);
   const [availableTours, setAvailableTours] = useState<Tour[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(12);
+  const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSchedule, setSelectedSchedule] = useState<TourSchedule | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showAddEditModal, setShowAddEditModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleModalMode, setScheduleModalMode] = useState<'add' | 'edit' | 'view'>('add');
   const [editingSchedule, setEditingSchedule] = useState<Partial<TourSchedule> | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
@@ -210,7 +210,7 @@ const TourGuideSchedulePage: React.FC = () => {
     }
   };
 
-  // API Functions
+  // API Functions (same as before)
   const fetchAvailableTours = async () => {
     try {
       const response: any = await api.get('/tours/guide/my-tours');
@@ -244,7 +244,7 @@ const TourGuideSchedulePage: React.FC = () => {
             const monthSchedules = response.data.data.days.flatMap((day: any) => 
               (day.tours || []).map((tour: any) => normalizeTourData({
                 ...tour,
-                date: day.date // Use the day's date
+                date: day.date
               }))
             );
             
@@ -255,7 +255,6 @@ const TourGuideSchedulePage: React.FC = () => {
         }
       }
       
-      // Remove duplicates based on schedule ID
       const uniqueSchedules = allSchedules.filter((schedule, index, self) => 
         index === self.findIndex(s => s.id === schedule.id)
       );
@@ -289,16 +288,16 @@ const TourGuideSchedulePage: React.FC = () => {
     }
   };
 
-  const createTourSchedule = async (scheduleData: Partial<TourSchedule>) => {
+  const createTourSchedule = async (scheduleData: any) => {
     try {
       setLoading(true);
-      
+
       if (!scheduleData.tourId) {
         throw new Error('Tour selection is required to create a schedule');
       }
-      
+
       const response: any = await api.post(`/tours/${scheduleData.tourId}/schedules`, scheduleData);
-      
+
       if (response.data.success) {
         await fetchTourSchedules();
         return response.data.data;
@@ -314,11 +313,11 @@ const TourGuideSchedulePage: React.FC = () => {
     }
   };
 
-  const updateTourSchedule = async (scheduleId: string, scheduleData: Partial<TourSchedule>) => {
+  const updateTourSchedule = async (scheduleId: string, scheduleData: any) => {
     try {
       setLoading(true);
       const response: any = await api.put(`/tours/schedules/${scheduleId}`, scheduleData);
-      
+
       if (response.data.success) {
         await fetchTourSchedules();
         return response.data.data;
@@ -354,7 +353,7 @@ const TourGuideSchedulePage: React.FC = () => {
     }
   };
 
-  // Load data on component mount and when month changes
+  // Load data on component mount
   useEffect(() => {
     fetchAvailableTours();
     fetchTourSchedules();
@@ -367,7 +366,7 @@ const TourGuideSchedulePage: React.FC = () => {
     fetchCalendarData(year, month);
   }, [currentMonth]);
 
-  // Calculate summary stats with safe number handling
+  // Calculate summary stats
   const summaryStats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -379,13 +378,11 @@ const TourGuideSchedulePage: React.FC = () => {
       return scheduleDate.getTime() === today.getTime();
     });
     
-    // Safe calculation of total guests
     const totalGuests = schedules.reduce((sum, s) => {
       const guests = s.currentGuests || s.bookedSlots || 0;
       return sum + (isNaN(guests) ? 0 : guests);
     }, 0);
     
-    // Safe calculation of revenue
     const revenue = schedules
       .filter(s => s.status === 'confirmed' || s.status === 'completed')
       .reduce((sum, s) => {
@@ -411,7 +408,6 @@ const TourGuideSchedulePage: React.FC = () => {
   useEffect(() => {
     let filtered = [...schedules];
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(schedule => {
         const title = schedule.title || schedule.tourTitle || '';
@@ -421,17 +417,14 @@ const TourGuideSchedulePage: React.FC = () => {
       });
     }
 
-    // Status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(schedule => schedule.status === statusFilter);
     }
 
-    // Tour type filter
     if (tourTypeFilter !== 'all') {
       filtered = filtered.filter(schedule => schedule.tourType === tourTypeFilter);
     }
 
-    // Date range filter
     if (dateRange.start || dateRange.end) {
       const startDate = dateRange.start ? new Date(dateRange.start) : new Date(0);
       const endDate = dateRange.end ? new Date(dateRange.end) : new Date(9999, 11, 31);
@@ -444,7 +437,7 @@ const TourGuideSchedulePage: React.FC = () => {
     setCurrentPage(1);
   }, [schedules, searchTerm, statusFilter, tourTypeFilter, dateRange]);
 
-  // Pagination for list view
+  // Pagination
   const paginatedSchedules = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredSchedules.slice(startIndex, startIndex + itemsPerPage);
@@ -470,12 +463,10 @@ const TourGuideSchedulePage: React.FC = () => {
         const date = new Date(currentDate);
         const dateString = date.toISOString().split('T')[0];
         
-        // Find calendar day data from server response
         const calendarDay = calendarData.find(day => 
           day.date.startsWith(dateString)
         );
         
-        // If no server data, filter from local schedules
         const daySchedules = calendarDay?.tours || filteredSchedules.filter(s => {
           const scheduleDate = new Date(s.date);
           return scheduleDate.getDate() === date.getDate() &&
@@ -483,7 +474,6 @@ const TourGuideSchedulePage: React.FC = () => {
                  scheduleDate.getFullYear() === date.getFullYear();
         });
         
-        // Safe calculation of totals
         const totalBookings = calendarDay?.totalBookings || daySchedules.reduce((sum, s) => {
           const guests = s.currentGuests || s.bookedSlots || 0;
           return sum + (isNaN(guests) ? 0 : guests);
@@ -514,8 +504,9 @@ const TourGuideSchedulePage: React.FC = () => {
 
   // Handlers
   const handleViewDetails = (schedule: TourSchedule) => {
-    setSelectedSchedule(schedule);
-    setShowDetailModal(true);
+    setEditingSchedule(schedule);
+    setScheduleModalMode('view');
+    setShowScheduleModal(true);
   };
 
   const handleAddNew = () => {
@@ -525,54 +516,31 @@ const TourGuideSchedulePage: React.FC = () => {
       return;
     }
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    const firstTour = availableTours[0];
-    setEditingSchedule({
-      tourId: firstTour.id,
-      title: firstTour.title,
-      tourTitle: firstTour.title,
-      tourType: (firstTour.type as any) || 'city',
-      date: tomorrow,
-      startTime: '09:00',
-      endTime: '12:00',
-      duration: 3,
-      location: firstTour.location,
-      meetingPoint: '',
-      maxGuests: 10,
-      currentGuests: 0,
-      status: 'available',
-      price: firstTour.price || 50,
-      pricePerPerson: true,
-      language: ['English'],
-      description: '',
-      specialInstructions: '',
-      guestNotes: ''
-    });
-    setShowAddEditModal(true);
+    setEditingSchedule(null);
+    setScheduleModalMode('add');
+    setShowScheduleModal(true);
   };
 
   const handleEdit = (schedule: TourSchedule) => {
     if (!checkKYCStatus()) return;
     setEditingSchedule(schedule);
-    setShowAddEditModal(true);
+    setScheduleModalMode('edit');
+    setShowScheduleModal(true);
   };
 
-  const handleSaveSchedule = async () => {
-    if (editingSchedule) {
-      try {
-        if (editingSchedule.id) {
-          await updateTourSchedule(editingSchedule.id, editingSchedule);
-        } else {
-          await createTourSchedule(editingSchedule);
-        }
-        setShowAddEditModal(false);
-        setEditingSchedule(null);
-        setError(null);
-      } catch (err) {
-        console.error('Error saving schedule:', err);
+  const handleSaveSchedule = async (scheduleData: any) => {
+    try {
+      if (editingSchedule && editingSchedule.scheduleId) {
+        await updateTourSchedule(editingSchedule.scheduleId, scheduleData);
+      } else {
+        await createTourSchedule(scheduleData);
       }
+      setShowScheduleModal(false);
+      setEditingSchedule(null);
+      setError(null);
+    } catch (err) {
+      console.error('Error saving schedule:', err);
+      throw err;
     }
   };
 
@@ -581,7 +549,7 @@ const TourGuideSchedulePage: React.FC = () => {
     if (confirm('Are you sure you want to delete this tour schedule? This action cannot be undone.')) {
       try {
         await deleteTourSchedule(scheduleId);
-        setShowDetailModal(false);
+        setShowScheduleModal(false);
         setError(null);
       } catch (err) {
         console.error('Error deleting schedule:', err);
@@ -602,253 +570,199 @@ const TourGuideSchedulePage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'bg-green-100 text-green-800';
-      case 'confirmed': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'available': return 'bi-calendar-plus';
-      case 'confirmed': return 'bi-calendar-check';
-      case 'pending': return 'bi-hourglass-split';
-      case 'cancelled': return 'bi-calendar-x';
-      case 'completed': return 'bi-check-circle';
-      default: return 'bi-calendar';
-    }
-  };
-
-  const getTourTypeIcon = (type: string) => {
-    switch (type) {
-      case 'city': return 'bi-buildings';
-      case 'nature': return 'bi-tree';
-      case 'cultural': return 'bi-palette';
-      case 'adventure': return 'bi-bicycle';
-      case 'food': return 'bi-cup-hot';
-      case 'historical': return 'bi-hourglass';
-      default: return 'bi-map';
+      case 'available': return 'bg-green-100 text-green-700';
+      case 'confirmed': return 'bg-blue-100 text-blue-700';
+      case 'pending': return 'bg-yellow-100 text-yellow-700';
+      case 'cancelled': return 'bg-red-100 text-red-700';
+      case 'completed': return 'bg-gray-100 text-gray-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   return (
-    <div className="pt-4 md:pt-14 min-h-screen bg-gray-50">
-      <div className="mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-8">
+    <div className="min-h-screen">
+      <div className="max-w-8xl mx-auto px-4 sm:px-4 lg:px-4 py-4">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#083A85]">Tour Guide Schedule</h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">Manage your availability and scheduled tours</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Tour Schedule</h1>
+            <p className="text-gray-500 mt-1">Manage your tours and bookings</p>
+          </div>
+          <button
+            onClick={handleAddNew}
+            className="mt-4 sm:mt-0 px-6 py-3 bg-[#083A85] text-white rounded-full font-medium hover:bg-[#083A85]/90 transition-all flex items-center gap-2"
+          >
+            <i className="bi bi-plus-lg"></i>
+            <span>Add Schedule</span>
+          </button>
         </div>
-
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Today</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{summaryStats.today}</p>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <i className="bi bi-calendar-day text-blue-600 text-xl"></i>
               </div>
-              <i className="bi bi-calendar-day text-lg sm:text-2xl text-gray-400"></i>
+              <div>
+                <p className="text-sm text-gray-500">Today</p>
+                <p className="text-2xl font-bold text-gray-900">{summaryStats.today}</p>
+              </div>
             </div>
           </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Upcoming</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-600">{summaryStats.upcoming}</p>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <i className="bi bi-calendar-week-fill text-green-600 text-xl"></i>
               </div>
-              <i className="bi bi-calendar-week text-lg sm:text-2xl text-blue-500"></i>
+              <div>
+                <p className="text-sm text-gray-500">Upcoming</p>
+                <p className="text-2xl font-bold text-gray-900">{summaryStats.upcoming}</p>
+              </div>
             </div>
           </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Confirmed</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">{summaryStats.confirmed}</p>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                <i className="bi bi-people-fill text-purple-600 text-xl"></i>
               </div>
-              <i className="bi bi-calendar-check text-lg sm:text-2xl text-green-500"></i>
+              <div>
+                <p className="text-sm text-gray-500">Total Guests</p>
+                <p className="text-2xl font-bold text-gray-900">{summaryStats.totalGuests}</p>
+              </div>
             </div>
           </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Pending</p>
-                <p className="text-lg sm:text-2xl font-bold text-yellow-600">{summaryStats.pending}</p>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                <i className="bi bi-cash-stack text-emerald-600 text-xl"></i>
               </div>
-              <i className="bi bi-hourglass-split text-lg sm:text-2xl text-yellow-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs sm:text-sm text-gray-600">Available</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-600">{summaryStats.available}</p>
+                <p className="text-sm text-gray-500">Revenue</p>
+                <p className="text-xl font-bold text-gray-900">${formatCurrency(summaryStats.revenue)}</p>
               </div>
-              <i className="bi bi-calendar-plus text-lg sm:text-2xl text-purple-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Total Tours</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-600">{summaryStats.total}</p>
-              </div>
-              <i className="bi bi-map text-lg sm:text-2xl text-gray-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Guests</p>
-                <p className="text-lg sm:text-2xl font-bold text-indigo-600">{summaryStats.totalGuests}</p>
-              </div>
-              <i className="bi bi-people text-lg sm:text-2xl text-indigo-500"></i>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 rounded-lg shadow-xl p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs sm:text-sm text-gray-600">Revenue</p>
-                <p className="text-lg sm:text-xl font-bold text-green-600">${formatCurrency(summaryStats.revenue)}</p>
-              </div>
-              <i className="bi bi-cash-stack text-lg sm:text-2xl text-green-500"></i>
             </div>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="bg-gray-50 rounded-lg shadow-xl p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Search */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Search</label>
-              <div className="relative">
+        {/* Filters - Optimized */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+          <div className="p-4">
+            {/* First Row: Search and Main Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Search</label>
                 <input
                   type="text"
-                  placeholder="Tour name or location..."
+                  placeholder="Search tours..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 sm:pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#083A85] focus:border-[#083A85] text-sm"
                 />
-                <i className="bi bi-search absolute left-2 sm:left-3 top-2.5 sm:top-3 text-gray-700 text-sm sm:text-base"></i>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#083A85] focus:border-[#083A85] text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="available">Available</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="pending">Pending</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Tour Type</label>
+                <select
+                  value={tourTypeFilter}
+                  onChange={(e) => setTourTypeFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#083A85] focus:border-[#083A85] text-sm"
+                >
+                  <option value="all">All Types</option>
+                  <option value="city">City</option>
+                  <option value="nature">Nature</option>
+                  <option value="cultural">Cultural</option>
+                  <option value="adventure">Adventure</option>
+                  <option value="food">Food</option>
+                  <option value="historical">Historical</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Date Range</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#083A85] focus:border-[#083A85] text-xs"
+                    placeholder="From"
+                  />
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#083A85] focus:border-[#083A85] text-xs"
+                    placeholder="To"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Status Filter */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="all">All Status</option>
-                <option value="available">Available</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-
-            {/* Tour Type Filter */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Tour Type</label>
-              <select
-                value={tourTypeFilter}
-                onChange={(e) => setTourTypeFilter(e.target.value)}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="all">All Types</option>
-                <option value="city">City Tour</option>
-                <option value="nature">Nature</option>
-                <option value="cultural">Cultural</option>
-                <option value="adventure">Adventure</option>
-                <option value="food">Food & Culinary</option>
-                <option value="historical">Historical</option>
-              </select>
-            </div>
-
-            {/* Date Range */}
-            <div>
-              <label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">Date Range</label>
+            {/* Second Row: View Toggle and Results Count */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-3 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Showing <span className="font-semibold text-gray-700">{filteredSchedules.length}</span> schedule{filteredSchedules.length !== 1 ? 's' : ''}
+              </p>
               <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 text-xs sm:text-sm border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                  className="flex-1 min-w-0 px-2 py-2 text-xs sm:text-sm border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <button
+                  onClick={() => setViewMode('calendar')}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    viewMode === 'calendar'
+                      ? 'bg-[#083A85] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <i className="bi bi-calendar3"></i>
+                  <span>Calendar</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    viewMode === 'list'
+                      ? 'bg-[#083A85] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <i className="bi bi-list-ul"></i>
+                  <span>List</span>
+                </button>
               </div>
-            </div>
-          </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-6 gap-4">
-            <p className="text-sm sm:text-base text-gray-600">
-              Showing {viewMode === 'list' ? paginatedSchedules.length : filteredSchedules.length} of {filteredSchedules.length} tours
-            </p>
-            <div className="flex gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
-                  viewMode === 'calendar' 
-                    ? 'bg-blue-900 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                style={{ backgroundColor: viewMode === 'calendar' ? '#083A85' : undefined }}
-              >
-                <i className="bi bi-calendar3 mr-1 sm:mr-2"></i>
-                <span className="hidden sm:inline">Calendar</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm sm:text-base ${
-                  viewMode === 'list' 
-                    ? 'bg-blue-900 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                style={{ backgroundColor: viewMode === 'list' ? '#083A85' : undefined }}
-              >
-                <i className="bi bi-list-ul mr-1 sm:mr-2"></i>
-                <span className="hidden sm:inline">List</span>
-              </button>
             </div>
           </div>
         </div>
 
-        {/* Loading State */}
+        {/* Loading */}
         {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+          <div className="flex justify-center items-center h-96">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#083A85]"></div>
           </div>
         )}
 
-        {/* Error State */}
+        {/* Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-8">
             <div className="flex items-center">
-              <i className="bi bi-exclamation-triangle text-red-600 mr-2"></i>
-              <span className="text-red-800">{error}</span>
+              <i className="bi bi-exclamation-triangle-fill text-red-600 mr-3"></i>
+              <span className="text-red-800 flex-1 text-sm">{error}</span>
               <button
                 onClick={() => setError(null)}
-                className="ml-auto text-red-600 hover:text-red-800"
+                className="text-red-600 hover:text-red-800"
               >
                 <i className="bi bi-x-lg"></i>
               </button>
@@ -858,809 +772,222 @@ const TourGuideSchedulePage: React.FC = () => {
 
         {/* Empty State */}
         {!loading && !error && filteredSchedules.length === 0 && (
-          <div className="bg-gray-100 rounded-lg shadow-xl p-8 sm:p-12 text-center">
-            <i className="bi bi-calendar text-4xl sm:text-6xl text-gray-300"></i>
-            <h3 className="text-lg sm:text-xl font-medium text-gray-900 mt-4">
-              {schedules.length === 0 
-                ? "No tours scheduled"
-                : "No tours found"}
+          <div className="bg-white rounded-2xl shadow-sm p-12 text-center border border-gray-200">
+            <i className="bi bi-calendar-x text-6xl text-gray-300 mb-4"></i>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {schedules.length === 0 ? "No tours scheduled yet" : "No matching tours found"}
             </h3>
-            <p className="text-sm sm:text-base text-gray-600 mt-2">
-              {schedules.length === 0 
-                ? "Start by adding your first tour schedule!"
-                : "Try adjusting your filters or search criteria"}
+            <p className="text-sm text-gray-500 mb-6">
+              {schedules.length === 0
+                ? "Start planning your tours. Add your first schedule to get started."
+                : "Try adjusting your filters to see more results."}
             </p>
             {schedules.length === 0 && availableTours.length > 0 && (
               <button
                 onClick={handleAddNew}
-                className="mt-4 px-4 sm:px-6 py-2 sm:py-3 text-white rounded-lg font-medium cursor-pointer text-sm sm:text-base"
-                style={{ backgroundColor: '#083A85' }}
+                className="px-6 py-3 bg-[#083A85] text-white rounded-full font-medium hover:bg-[#083A85]/90 transition-all"
               >
-                <i className="bi bi-plus-circle mr-2"></i>Add Your First Schedule
+                <i className="bi bi-plus-circle-fill mr-2"></i>
+                Create Your First Schedule
               </button>
             )}
-            {availableTours.length === 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                You need to create tours first before scheduling.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Calendar View */}
-        {!loading && !error && filteredSchedules.length > 0 && viewMode === 'calendar' && (
-          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6">
-            {/* Calendar Header */}
-            <div className="flex justify-between items-center mb-4 sm:mb-6">
-              <button
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-              >
-                <i className="bi bi-chevron-left text-lg sm:text-xl"></i>
-              </button>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">{format(currentMonth, 'MMMM yyyy')}</h2>
-              <button
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-              >
-                <i className="bi bi-chevron-right text-lg sm:text-xl"></i>
-              </button>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
-              {/* Day Headers */}
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="bg-gray-50 p-1 sm:p-2 text-center text-xs sm:text-sm font-medium text-gray-700">
-                  <span className="hidden sm:inline">{day}</span>
-                  <span className="sm:hidden">{day.substring(0, 1)}</span>
-                </div>
-              ))}
-              
-              {/* Calendar Days */}
-              {calendarViewData.map((week, weekIndex) => (
-                week.map((day, dayIndex) => {
-                  const isToday = new Date().toDateString() === day.date.toDateString();
-                  
-                  return (
-                    <div
-                      key={`${weekIndex}-${dayIndex}`}
-                      className={`bg-white min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 ${
-                        !day.isCurrentMonth ? 'opacity-50' : ''
-                      } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <span className={`text-xs sm:text-sm font-medium ${
-                          isToday ? 'text-blue-600' : 'text-gray-900'
-                        }`}>
-                          {day.date.getDate()}
-                        </span>
-                        {day.schedules.length > 0 && (
-                          <span className="bg-gray-200 text-gray-700 text-xs px-1 rounded">
-                            {day.schedules.length}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {/* Tour indicators */}
-                      <div className="space-y-1">
-                        {day.schedules.slice(0, window.innerWidth < 640 ? 1 : 3).map((schedule, index) => (
-                          <div
-                            key={`${schedule.id}-${index}`}
-                            onClick={() => handleViewDetails(schedule)}
-                            className={`text-xs p-1 rounded cursor-pointer hover:opacity-80 ${
-                              getStatusColor(schedule.status)
-                            }`}
-                          >
-                            <div className="truncate">
-                              <span className="hidden sm:inline">{schedule.startTime} - </span>
-                              {schedule.title || schedule.tourTitle}
-                            </div>
-                            <div className="flex justify-between items-center mt-1">
-                              <span className="text-xs">
-                                {schedule.currentGuests || schedule.bookedSlots || 0}/{schedule.maxGuests || schedule.totalSlots || 0}
-                              </span>
-                              <i className={`bi ${getTourTypeIcon(schedule.tourType)} text-xs`}></i>
-                            </div>
-                          </div>
-                        ))}
-                        {day.schedules.length > (window.innerWidth < 640 ? 1 : 3) && (
-                          <div className="text-xs text-gray-500 text-center">
-                            +{day.schedules.length - (window.innerWidth < 640 ? 1 : 3)} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              ))}
-            </div>
           </div>
         )}
 
         {/* List View */}
         {!loading && !error && filteredSchedules.length > 0 && viewMode === 'list' && (
-          <div className="bg-white rounded-lg shadow-xl overflow-hidden">
-            {/* Mobile Card View */}
-            <div className="block sm:hidden">
-              <div className="divide-y divide-gray-200">
-                {paginatedSchedules.map((schedule) => {
-                  const isUpcoming = schedule.date >= new Date() && schedule.status !== 'completed';
-                  const isPast = schedule.date < new Date() || schedule.status === 'completed';
-                  
-                  return (
-                    <div key={schedule.id} className={`p-4 ${isPast ? 'opacity-60' : ''}`}>
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900 text-sm">{schedule.title || schedule.tourTitle}</h3>
-                          <p className="text-xs text-gray-800 mt-1">
-                            <i className={`bi ${getTourTypeIcon(schedule.tourType)} mr-1`}></i>
-                            {schedule.tourType} • {schedule.duration}h
-                          </p>
-                        </div>
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(schedule.status)}`}>
-                          {schedule.status}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-800 mb-3">
-                        <div>
-                          <i className="bi bi-calendar mr-1"></i>
-                          {format(schedule.date, 'MMM dd')}
-                        </div>
-                        <div>
-                          <i className="bi bi-clock mr-1"></i>
-                          {schedule.startTime}
-                        </div>
-                        <div>
-                          <i className="bi bi-geo-alt mr-1"></i>
-                          {schedule.location}
-                        </div>
-                        <div>
-                          <i className="bi bi-people mr-1"></i>
-                          {schedule.currentGuests || schedule.bookedSlots || 0}/{schedule.maxGuests || schedule.totalSlots || 0}
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-900">
-                          ${formatCurrency((schedule.price || 0) * (schedule.currentGuests || schedule.bookedSlots || 0))}
-                        </span>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewDetails(schedule)}
-                            className="text-blue-600 hover:text-blue-900 cursor-pointer"
-                          >
-                            <i className="bi bi-eye text-sm"></i>
-                          </button>
-                          <button
-                            onClick={() => handleEdit(schedule)}
-                            className="text-gray-600 hover:text-gray-900 cursor-pointer"
-                          >
-                            <i className="bi bi-pencil text-sm"></i>
-                          </button>
-                          {schedule.status !== 'cancelled' && schedule.status !== 'completed' && (
-                            <button
-                              onClick={() => handleCancelTour(schedule)}
-                              className="text-red-600 hover:text-red-900 cursor-pointer"
-                            >
-                              <i className="bi bi-x-circle text-sm"></i>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Progress bar */}
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                        <div 
-                          className="bg-blue-600 h-1.5 rounded-full"
-                          style={{ 
-                            width: `${Math.min(100, ((schedule.currentGuests || schedule.bookedSlots || 0) / (schedule.maxGuests || schedule.totalSlots || 1)) * 100)}%` 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Date & Time
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Tour
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Guests
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Revenue
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-right text-sm lg:text-base font-medium text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedSchedules.map((schedule) => {
-                    const isUpcoming = schedule.date >= new Date() && schedule.status !== 'completed';
-                    const currentGuests = schedule.currentGuests || schedule.bookedSlots || 0;
-                    const maxGuests = schedule.maxGuests || schedule.totalSlots || 1;
-                    
-                    return (
-                      <tr key={schedule.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm lg:text-base font-medium text-gray-900">
-                              {format(schedule.date, 'EEE, MMM dd')}
-                            </div>
-                            <div className="text-sm lg:text-base text-gray-500">
-                              {schedule.startTime} - {schedule.endTime}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4">
-                          <div className="flex items-center">
-                            <i className={`bi ${getTourTypeIcon(schedule.tourType)} text-lg lg:text-xl mr-2 lg:mr-3 text-gray-400`}></i>
-                            <div>
-                              <div className="text-sm lg:text-base font-medium text-gray-900">{schedule.title || schedule.tourTitle}</div>
-                              <div className="text-sm lg:text-base text-gray-500 capitalize">{schedule.tourType} • {schedule.duration}h</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4">
-                          <div className="text-sm lg:text-base text-gray-600">
-                            <i className="bi bi-geo-alt text-gray-400 mr-1"></i>
-                            {schedule.location}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {(schedule.language || ['English']).join(', ')}
-                          </div>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="text-sm lg:text-base font-medium text-gray-900">
-                              {currentGuests}/{maxGuests}
-                            </div>
-                            {currentGuests >= maxGuests && (
-                              <span className="ml-2 bg-red-100 text-red-800 text-xs sm:text-sm px-2 py-1 rounded-full">
-                                Full
-                              </span>
-                            )}
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${Math.min(100, (currentGuests / maxGuests) * 100)}%` }}
-                            ></div>
-                          </div>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs lg:text-sm leading-5 font-semibold rounded-full ${getStatusColor(schedule.status)}`}>
-                            <i className={`bi ${getStatusIcon(schedule.status)} mr-1`}></i>
-                            {schedule.status}
-                          </span>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm lg:text-base font-medium text-gray-900">
-                            ${formatCurrency((schedule.price || 0) * currentGuests)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ${formatCurrency(schedule.price || 0)}/person
-                          </div>
-                        </td>
-                        <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm lg:text-base font-medium">
-                          <button
-                            onClick={() => handleViewDetails(schedule)}
-                            className="text-blue-600 hover:text-blue-900 mr-2 lg:mr-3 cursor-pointer"
-                            title="View details"
-                          >
-                            <i className="bi bi-eye text-sm lg:text-lg"></i>
-                          </button>
-                          <button
-                            onClick={() => handleEdit(schedule)}
-                            className="text-gray-600 hover:text-gray-900 mr-2 lg:mr-3 cursor-pointer"
-                            title="Edit schedule"
-                          >
-                            <i className="bi bi-pencil text-sm lg:text-lg"></i>
-                          </button>
-                          {schedule.status !== 'cancelled' && schedule.status !== 'completed' && (
-                            <button
-                              onClick={() => handleCancelTour(schedule)}
-                              className="text-red-600 hover:text-red-900 cursor-pointer"
-                              title="Cancel tour"
-                            >
-                              <i className="bi bi-x-circle text-sm lg:text-lg"></i>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination for List View */}
-            {totalPages > 1 && (
-              <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-sm text-gray-700 order-2 sm:order-1">
-                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSchedules.length)} of {filteredSchedules.length} tours
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedSchedules.map((schedule) => (
+              <div key={schedule.id} className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(schedule.status)}`}>
+                      {schedule.status.charAt(0).toUpperCase() + schedule.status.slice(1)}
+                    </span>
+                    <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">
+                      {schedule.tourType.charAt(0).toUpperCase() + schedule.tourType.slice(1)}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
+
+                  <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                    {schedule.title || schedule.tourTitle}
+                  </h4>
+                  <p className="text-sm text-gray-500 mb-4">{schedule.location}</p>
+
+                  <div className="space-y-2 text-sm text-gray-600 mb-4">
+                    <div className="flex items-center">
+                      <i className="bi bi-calendar mr-2"></i>
+                      {format(schedule.date, 'MMM dd, yyyy')}
+                    </div>
+                    <div className="flex items-center">
+                      <i className="bi bi-clock mr-2"></i>
+                      {schedule.startTime} - {schedule.endTime}
+                    </div>
+                    <div className="flex items-center">
+                      <i className="bi bi-people mr-2"></i>
+                      {schedule.currentGuests || 0} / {schedule.maxGuests || 0} guests
+                    </div>
+                    <div className="flex items-center">
+                      <i className="bi bi-cash mr-2"></i>
+                      ${schedule.price} per person
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className={`px-2 sm:px-3 py-2 rounded-lg transition-colors text-sm ${
-                        currentPage === 1
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'
-                      }`}
+                      onClick={() => handleViewDetails(schedule)}
+                      className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-all font-medium"
                     >
-                      <i className="bi bi-chevron-left"></i>
+                      <i className="bi bi-eye mr-1"></i>
+                      View
                     </button>
-
-                    {[...Array(Math.min(window.innerWidth < 640 ? 3 : 5, totalPages))].map((_, index) => {
-                      let pageNum;
-                      const maxPages = window.innerWidth < 640 ? 3 : 5;
-                      if (totalPages <= maxPages) {
-                        pageNum = index + 1;
-                      } else if (currentPage <= Math.floor(maxPages/2) + 1) {
-                        pageNum = index + 1;
-                      } else if (currentPage >= totalPages - Math.floor(maxPages/2)) {
-                        pageNum = totalPages - maxPages + 1 + index;
-                      } else {
-                        pageNum = currentPage - Math.floor(maxPages/2) + index;
-                      }
-
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-2 sm:px-3 py-2 rounded-lg transition-colors cursor-pointer text-sm ${
-                            currentPage === pageNum
-                              ? 'text-white'
-                              : 'bg-white text-gray-700 hover:bg-gray-100'
-                          }`}
-                          style={{ 
-                            backgroundColor: currentPage === pageNum ? '#083A85' : undefined 
-                          }}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className={`px-2 sm:px-3 py-2 rounded-lg transition-colors text-sm ${
-                        currentPage === totalPages
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 cursor-pointer'
-                      }`}
+                      onClick={() => handleEdit(schedule)}
+                      className="flex-1 py-2 bg-[#083A85] text-white rounded-lg text-sm hover:bg-[#072f6b] transition-all font-medium"
                     >
-                      <i className="bi bi-chevron-right"></i>
+                      <i className="bi bi-pencil mr-1"></i>
+                      Edit
                     </button>
                   </div>
                 </div>
               </div>
-            )}
+            ))}
           </div>
         )}
 
-        {/* Floating Action Button */}
-        {!loading && (
-          <button
-            onClick={handleAddNew}
-            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-40 cursor-pointer"
-            style={{ backgroundColor: '#083A85' }}
-            title="Add New Schedule"
-          >
-            <i className="bi bi-plus text-xl sm:text-2xl"></i>
-          </button>
+        {/* Pagination */}
+        {totalPages > 1 && viewMode === 'list' && (
+          <div className="flex justify-center items-center gap-2 mt-8">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-full transition-all ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <i className="bi bi-chevron-left"></i>
+            </button>
+
+            {[...Array(Math.min(5, totalPages))].map((_, index) => {
+              const pageNum = index + 1;
+              return (
+                <button
+                  key={index}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-4 py-2 rounded-full transition-all text-sm font-medium ${
+                    currentPage === pageNum
+                      ? 'bg-[#083A85] text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`p-2 rounded-full transition-all ${
+                currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <i className="bi bi-chevron-right"></i>
+            </button>
+          </div>
         )}
 
-        {/* Add/Edit Modal */}
-        {showAddEditModal && editingSchedule && (
-          <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-white rounded-lg w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl">
-              <div className="p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                    {editingSchedule.id ? 'Edit Schedule' : 'Add New Schedule'}
-                  </h2>
-                  <button
-                    onClick={() => setShowAddEditModal(false)}
-                    className="text-gray-400 hover:text-red-600 cursor-pointer"
-                  >
-                    <i className="bi bi-x-lg text-xl"></i>
-                  </button>
-                </div>
-                
-                {/* Form fields */}
-                <div className="space-y-4">
-                  {/* Tour Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Tour</label>
-                    <select
-                      value={editingSchedule.tourId || ''}
-                      onChange={(e) => {
-                        const selectedTour = availableTours.find(tour => tour.id === e.target.value);
-                        setEditingSchedule(prev => ({
-                          ...prev,
-                          tourId: e.target.value,
-                          title: selectedTour?.title || '',
-                          tourTitle: selectedTour?.title || '',
-                          tourType: (selectedTour?.type as any) || 'city',
-                          location: selectedTour?.location || '',
-                          price: selectedTour?.price || 50
-                        }));
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      {availableTours.map(tour => (
-                        <option key={tour.id} value={tour.id}>
-                          {tour.title} - {tour.location}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Tour Title</label>
-                    <input
-                      type="text"
-                      value={editingSchedule.title || editingSchedule.tourTitle || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ 
-                        ...prev, 
-                        title: e.target.value,
-                        tourTitle: e.target.value 
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter tour title"
-                      readOnly
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tour Type</label>
-                      <select
-                        value={editingSchedule.tourType}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, tourType: e.target.value as any }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled
-                      >
-                        <option value="city">City Tour</option>
-                        <option value="nature">Nature</option>
-                        <option value="cultural">Cultural</option>
-                        <option value="adventure">Adventure</option>
-                        <option value="food">Food & Culinary</option>
-                        <option value="historical">Historical</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Duration (hours)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={editingSchedule.duration || 3}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, duration: parseInt(e.target.value) || 1 }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <input
-                      type="text"
-                      value={editingSchedule.location || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, location: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter location"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                      <input
-                        type="date"
-                        value={editingSchedule.date ? editingSchedule.date.toISOString().split('T')[0] : ''}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, date: new Date(e.target.value) }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
-                      <input
-                        type="time"
-                        value={editingSchedule.startTime || '09:00'}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, startTime: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
-                      <input
-                        type="time"
-                        value={editingSchedule.endTime || '17:00'}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, endTime: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Max Guests</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editingSchedule.maxGuests || 10}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, maxGuests: parseInt(e.target.value) || 1 }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Price per Person ($)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={editingSchedule.price || 50}
-                        onChange={(e) => setEditingSchedule(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Meeting Point</label>
-                    <input
-                      type="text"
-                      value={editingSchedule.meetingPoint || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, meetingPoint: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter meeting point"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
-                    <textarea
-                      value={editingSchedule.specialInstructions || ''}
-                      onChange={(e) => setEditingSchedule(prev => ({ ...prev, specialInstructions: e.target.value }))}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter any special instructions for guests"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => setShowAddEditModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveSchedule}
-                    className="flex-1 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
-                    style={{ backgroundColor: '#083A85' }}
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving...' : (editingSchedule.id ? 'Update Schedule' : 'Create Schedule')}
-                  </button>
-                </div>
-              </div>
+        {/* Calendar View */}
+        {!loading && !error && filteredSchedules.length > 0 && viewMode === 'calendar' && (
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <button
+                onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1))}
+                className="p-2 hover:bg-gray-100 rounded-full transition-all"
+              >
+                <i className="bi bi-chevron-left text-lg"></i>
+              </button>
+              <h2 className="text-xl font-bold text-gray-900">{format(currentMonth, 'MMMM yyyy')}</h2>
+              <button
+                onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1))}
+                className="p-2 hover:bg-gray-100 rounded-full transition-all"
+              >
+                <i className="bi bi-chevron-right text-lg"></i>
+              </button>
             </div>
-          </div>
-        )}
 
-        {/* Detail Modal */}
-        {showDetailModal && selectedSchedule && (
-          <div className="fixed inset-0 backdrop-blur-md bg-gray-900/30 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="p-4 sm:p-6">
-                <div className="flex justify-between items-start mb-4 sm:mb-6">
-                  <div className="flex-1 mr-4">
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                      {selectedSchedule.title || selectedSchedule.tourTitle}
-                    </h2>
-                    <p className="text-gray-600 mt-1 text-sm sm:text-base">
-                      <i className={`bi ${getTourTypeIcon(selectedSchedule.tourType)} mr-2`}></i>
-                      {selectedSchedule.tourType} Tour • {selectedSchedule.duration} hours
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="text-gray-400 hover:text-red-600 cursor-pointer flex-shrink-0"
+            <div className="grid grid-cols-7 gap-2">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+                  {day}
+                </div>
+              ))}
+              {calendarViewData.flat().map((dayData, index) => {
+                const isToday = dayData.date.toDateString() === new Date().toDateString();
+                return (
+                  <div
+                    key={index}
+                    onClick={() => dayData.schedules.length > 0 && handleViewDetails(dayData.schedules[0])}
+                    className={`p-2 text-center rounded-lg cursor-pointer transition-all min-h-[60px] ${
+                      !dayData.isCurrentMonth ? 'text-gray-400' : 'text-gray-900'
+                    } ${isToday ? 'bg-[#083A85]/10 ring-2 ring-[#083A85]' : ''} ${
+                      dayData.schedules.length > 0 ? 'bg-gray-50 hover:bg-gray-100' : 'hover:bg-gray-50'
+                    }`}
                   >
-                    <i className="bi bi-x-lg text-xl sm:text-2xl"></i>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-calendar3 text-gray-600 text-lg sm:text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Date</p>
-                    <p className="font-semibold text-sm sm:text-base">{format(selectedSchedule.date, 'EEE, MMM dd')}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-clock text-gray-600 text-lg sm:text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Time</p>
-                    <p className="font-semibold text-sm sm:text-base">{selectedSchedule.startTime} - {selectedSchedule.endTime}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-people text-gray-600 text-lg sm:text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Guests</p>
-                    <p className="font-semibold text-sm sm:text-base">
-                      {selectedSchedule.currentGuests || selectedSchedule.bookedSlots || 0}/{selectedSchedule.maxGuests || selectedSchedule.totalSlots || 0}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <i className="bi bi-cash-stack text-gray-600 text-lg sm:text-xl mb-1"></i>
-                    <p className="text-sm sm:text-base text-gray-600">Revenue</p>
-                    <p className="font-semibold text-sm sm:text-base">
-                      ${formatCurrency((selectedSchedule.price || 0) * (selectedSchedule.currentGuests || selectedSchedule.bookedSlots || 0))}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mb-4 sm:mb-6">
-                  <h3 className="text-base sm:text-lg font-bold mb-2">Status & Details</h3>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3">
-                    <span className={`px-3 py-1 text-sm sm:text-base font-semibold rounded-full ${getStatusColor(selectedSchedule.status)}`}>
-                      <i className={`bi ${getStatusIcon(selectedSchedule.status)} mr-1`}></i>
-                      {selectedSchedule.status}
+                    <span className={`text-sm font-medium ${isToday ? 'text-[#083A85]' : ''}`}>
+                      {dayData.date.getDate()}
                     </span>
-                    <span className="text-gray-600 text-sm sm:text-base">
-                      <i className="bi bi-geo-alt mr-1"></i>
-                      {selectedSchedule.location}
-                    </span>
-                    <span className="text-gray-600 text-sm sm:text-base">
-                      <i className="bi bi-translate mr-1"></i>
-                      {(selectedSchedule.language || ['English']).join(', ')}
-                    </span>
-                  </div>
-                  {selectedSchedule.meetingPoint && (
-                    <p className="text-gray-600 mb-2 text-sm sm:text-base">
-                      <i className="bi bi-pin-map mr-2"></i>
-                      <strong>Meeting Point:</strong> {selectedSchedule.meetingPoint}
-                    </p>
-                  )}
-                  {selectedSchedule.description && (
-                    <p className="text-gray-600 text-sm sm:text-base">{selectedSchedule.description}</p>
-                  )}
-                </div>
-
-                {selectedSchedule.specialInstructions && (
-                  <div className="mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-bold mb-2">Special Instructions</h3>
-                    <p className="text-gray-600 bg-yellow-50 rounded-lg p-3 text-sm sm:text-base">
-                      <i className="bi bi-info-circle mr-2"></i>
-                      {selectedSchedule.specialInstructions}
-                    </p>
-                  </div>
-                )}
-
-                {selectedSchedule.guestNotes && (
-                  <div className="mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-bold mb-2">Guest Notes</h3>
-                    <p className="text-gray-600 bg-blue-50 rounded-lg p-3 text-sm sm:text-base">
-                      <i className="bi bi-sticky mr-2"></i>
-                      {selectedSchedule.guestNotes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Bookings List */}
-                {selectedSchedule.bookings && selectedSchedule.bookings.length > 0 && (
-                  <div className="mb-4 sm:mb-6">
-                    <h3 className="text-base sm:text-lg font-bold mb-3">Guest Bookings</h3>
-                    <div className="bg-gray-50 rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th className="px-3 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Guest Name</th>
-                              <th className="px-3 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Email</th>
-                              <th className="px-3 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">People</th>
-                              <th className="px-3 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Status</th>
-                              <th className="px-3 sm:px-4 py-2 text-left text-xs sm:text-sm font-medium text-gray-700">Special Requests</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {selectedSchedule.bookings.map((booking) => (
-                              <tr key={booking.id}>
-                                <td className="px-3 sm:px-4 py-2 text-xs sm:text-sm">{booking.guestName}</td>
-                                <td className="px-3 sm:px-4 py-2 text-xs sm:text-sm">{booking.guestEmail}</td>
-                                <td className="px-3 sm:px-4 py-2 text-xs sm:text-sm">{booking.numberOfPeople}</td>
-                                <td className="px-3 sm:px-4 py-2 text-xs sm:text-sm">
-                                  <span className={`px-2 py-1 text-xs rounded-full ${
-                                    booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                                    booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {booking.status}
-                                  </span>
-                                </td>
-                                <td className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-500">
-                                  {booking.specialRequests || '-'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    {dayData.schedules.length > 0 && (
+                      <div className="mt-1">
+                        <div className="w-2 h-2 bg-[#083A85] rounded-full mx-auto"></div>
+                        <span className="text-xs text-gray-500 mt-1 block">{dayData.schedules.length}</span>
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => {
-                      setShowDetailModal(false);
-                      handleEdit(selectedSchedule);
-                    }}
-                    className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
-                    <i className="bi bi-pencil mr-2"></i>
-                    Edit Schedule
-                  </button>
-                  {selectedSchedule.status !== 'cancelled' && selectedSchedule.status !== 'completed' && (
-                    <button
-                      onClick={() => {
-                        handleCancelTour(selectedSchedule);
-                        setShowDetailModal(false);
-                      }}
-                      className="flex-1 px-4 sm:px-6 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                    >
-                      <i className="bi bi-x-circle mr-2"></i>
-                      Cancel Tour
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      handleDelete(selectedSchedule.id);
-                    }}
-                    className="px-4 sm:px-6 py-2 sm:py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium cursor-pointer text-sm sm:text-base"
-                  >
-                    <i className="bi bi-trash mr-2"></i>
-                    Delete
-                  </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
         )}
-
       </div>
+
       <KYCPendingModal isOpen={showKYCModal} onClose={() => setShowKYCModal(false)} />
+
+      {/* Schedule Modal */}
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setEditingSchedule(null);
+        }}
+        onSave={handleSaveSchedule}
+        tours={availableTours.map(tour => ({
+          id: tour.id,
+          title: tour.title,
+          type: tour.type,
+          location: tour.location,
+          price: tour.price
+        }))}
+        initialData={editingSchedule ? {
+          id: editingSchedule.id,
+          scheduleId: editingSchedule.scheduleId,
+          tourId: editingSchedule.tourId || '',
+          startDate: editingSchedule.date,
+          endDate: editingSchedule.date,
+          startTime: editingSchedule.startTime || '09:00',
+          endTime: editingSchedule.endTime || '17:00',
+          maxGuests: editingSchedule.maxGuests,
+          availableSlots: editingSchedule.maxGuests || editingSchedule.totalSlots,
+          isAvailable: editingSchedule.status === 'available'
+        } : null}
+        mode={scheduleModalMode}
+      />
     </div>
   );
 };
 
-export default TourGuideSchedulePage;
+export default TourGuideSchedule;
