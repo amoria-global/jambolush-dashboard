@@ -5,6 +5,10 @@ import React, { useEffect, useState } from 'react';
 import { agentAssessmentGuard, cacheAssessmentStatus, getCachedAssessmentStatus } from '@/app/utils/agentAssessmentGuard';
 import AssessmentModal from '../modals/AssessmentModal';
 
+// FEATURE FLAG: Temporarily disable assessment check
+// Set to true to enable assessment requirement, false to disable
+const ENABLE_ASSESSMENT_CHECK = false;
+
 interface AgentAssessmentGuardProps {
   children: React.ReactNode;
   showLoading?: boolean;
@@ -34,6 +38,14 @@ const AgentAssessmentGuard: React.FC<AgentAssessmentGuardProps> = ({
 
   useEffect(() => {
     const checkAssessment = async () => {
+      // If assessment check is disabled, allow access immediately
+      if (!ENABLE_ASSESSMENT_CHECK) {
+        console.log('Assessment check is disabled. Allowing access.');
+        setCanAccess(true);
+        setIsChecking(false);
+        return;
+      }
+
       try {
         // First, check cache for faster UX
         const cachedStatus = getCachedAssessmentStatus();
