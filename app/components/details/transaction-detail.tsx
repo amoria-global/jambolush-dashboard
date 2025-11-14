@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import api from '@/app/api/apiService';
+import { encodeId } from '@/app/utils/encoder';
 
 interface TransactionDetailProps {
   id: string;
@@ -225,7 +226,7 @@ export default function TransactionDetail({ id }: TransactionDetailProps) {
                 </p>
               </div>
               <a
-                href={`/view-details?ref=${btoa(transaction.bookingId)}&type=booking`}
+                href={`/view-details?ref=${encodeId(transaction.bookingId)}&type=booking`}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
                 View Booking

@@ -597,7 +597,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   return (
-    <div className="fixed top-0 right-0 left-0 lg:left-60 flex items-center justify-between px-5 py-3.5 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm z-30 transition-all duration-300">
+    <div className="fixed top-0 right-0 left-0 lg:left-60 flex items-center justify-between px-5 py-3.5 bg-white backdrop-blur-md border-b border-gray-200 shadow-sm z-30 transition-all duration-300">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
@@ -705,8 +705,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
               </div>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden backdrop-blur-sm">
-                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200/50 flex items-center justify-between">
+                <div className="absolute right-0 mt-3 w-72 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden backdrop-blur-sm">
+                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200 flex items-center justify-between">
                     <h6 className="font-bold text-gray-900 text-base tracking-tight">Notifications</h6>
                     {notificationsLoading && (
                       <div className="w-4 h-4 border-2 border-[#083A85] border-t-transparent rounded-full animate-spin"></div>
@@ -761,7 +761,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                   {notifications.length > 0 && (
                     <a
                       href="/all/notifications"
-                      className="block text-center px-4 py-3 text-sm font-semibold text-[#083A85] hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 transition-all border-t border-gray-200/50"
+                      className="block text-center px-4 py-3 text-sm font-semibold text-[#083A85] hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 transition-all border-t border-gray-200"
                       onClick={(e) => {
                         e.preventDefault();
                         router.push('/all/notifications');
@@ -831,8 +831,8 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
               </div>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-3 w-56 sm:w-64 bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden backdrop-blur-sm">
-                  <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 border-b border-gray-200/50">
+                <div className="absolute right-0 mt-3 w-56 sm:w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden backdrop-blur-sm">
+                  <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 border-b border-gray-200">
                     <p className="font-bold text-gray-900 text-base tracking-tight">{getUserDisplayName()}</p>
                     <p className="text-xs font-semibold text-[#083A85] mt-0.5">
                       {getRoleDisplayName(userSession.role, user.tourGuideType)} Account
@@ -867,7 +867,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
                       <span>Settings</span>
                     </a>
                   </div>
-                  <div className="border-t border-gray-200/50 p-2">
+                  <div className="border-t border-gray-200 p-2">
                     <button
                       onClick={() => {
                         setIsProfileOpen(false);

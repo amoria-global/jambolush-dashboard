@@ -8,7 +8,7 @@ import { UnlockFeeCalculation } from '@/app/types/addressUnlock';
 // Exchange rate cache
 let exchangeRateCache: { rate: number; timestamp: number } | null = null;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
-const FALLBACK_RATE = 1350; // RWF per USD
+const FALLBACK_RATE = 1451; // RWF per USD (updated 2025-11-14)
 
 /**
  * Fetch current USD to RWF exchange rate from Hexarate API
@@ -20,11 +20,11 @@ export async function fetchExchangeRate(): Promise<number> {
   }
 
   try {
-    const response = await fetch('https://hexarate.paikama.co/api/rates/latest/USD');
+    const response = await fetch('https://hexarate.paikama.co/api/rates/latest/USD?target=RWF');
     const data = await response.json();
 
-    if (data && data.data && data.data.mid && data.data.mid.RWF) {
-      const rate = data.data.mid.RWF;
+    if (data && data.data && data.data.mid) {
+      const rate = data.data.mid;
 
       // Update cache
       exchangeRateCache = {
@@ -129,6 +129,38 @@ export function formatRWFAsUSD(amountRWF: number | undefined | null): string {
 
   const amountUSD = convertRWFToUSDSync(amountRWF);
   return `$${amountUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Smart currency formatter that detects currency and converts if needed
+ * This function handles any amount and automatically converts RWF to USD
+ * @param amount - Amount to format
+ * @param currency - Currency code (optional, will auto-detect if not provided)
+ * @returns Formatted USD string
+ */
+export function formatPriceAsUSD(amount: number | undefined | null, currency?: string): string {
+  if (amount === undefined || amount === null || isNaN(amount)) {
+    return '$0.00';
+  }
+
+  // If currency is explicitly RWF or KES (Kenya Shillings), or amount is suspiciously large (> 1000),
+  // assume it's RWF and convert
+  if (currency === 'RWF' || currency === 'KES' || currency === 'Rwf' || amount > 1000) {
+    return formatRWFAsUSD(amount);
+  }
+
+  // If currency is USD and amount is reasonable
+  if (currency === 'USD' && amount <= 1000) {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  // Default: if no currency specified and amount is large, treat as RWF
+  if (!currency && amount > 1000) {
+    return formatRWFAsUSD(amount);
+  }
+
+  // Otherwise treat as USD
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
