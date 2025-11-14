@@ -430,20 +430,20 @@ const GuestUnlockHistory = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
         <div className="text-center">
           <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 rounded-full border-4 border-gray-200"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700"></div>
             <div className="absolute inset-0 rounded-full border-4 border-t-[#F20C8F] animate-spin"></div>
           </div>
-          <p className="mt-4 text-gray-600 font-medium">Loading your unlock history...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-300 font-medium">Loading your unlock history...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-900 dark:to-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <motion.div
@@ -451,10 +451,10 @@ const GuestUnlockHistory = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Address Unlocks
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Manage your unlocked properties and deal codes
           </p>
         </motion.div>
@@ -466,39 +466,39 @@ const GuestUnlockHistory = () => {
           transition={{ delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-br from-[#F20C8F] to-rose-400 rounded-xl">
                 <i className="bi bi-unlock-fill text-white text-2xl"></i>
               </div>
-              <span className="text-sm font-medium text-gray-500">Total Unlocked</span>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Unlocked</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.totalUnlocked || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Properties accessed</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.totalUnlocked || 0}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Properties accessed</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-br from-[#083A85] to-blue-600 rounded-xl">
                 <i className="bi bi-cash-stack text-white text-2xl"></i>
               </div>
-              <span className="text-sm font-medium text-gray-500">Total Spent</span>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Spent</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
               {formatCurrency(stats?.totalSpent || 0, stats?.currency as any || 'RWF')}
             </p>
-            <p className="text-xs text-gray-500 mt-1">Unlock fees paid</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Unlock fees paid</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-400 rounded-xl">
                 <i className="bi bi-ticket-perforated-fill text-white text-2xl"></i>
               </div>
-              <span className="text-sm font-medium text-gray-500">Active Codes</span>
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Codes</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">{stats?.activeDealCodes || 0}</p>
-            <p className="text-xs text-gray-500 mt-1">Deal codes available</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.activeDealCodes || 0}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Deal codes available</p>
           </div>
         </motion.div>
 
@@ -509,13 +509,13 @@ const GuestUnlockHistory = () => {
           transition={{ delay: 0.2 }}
           className="mb-6"
         >
-          <div className="bg-white rounded-2xl shadow-sm p-2 inline-flex">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-2 inline-flex">
             <button
               onClick={() => setActiveTab('history')}
               className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
                 activeTab === 'history'
                   ? 'bg-gradient-to-r from-[#F20C8F] to-rose-400 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               <i className="bi bi-clock-history mr-2"></i>
@@ -526,7 +526,7 @@ const GuestUnlockHistory = () => {
               className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 ${
                 activeTab === 'deal-codes'
                   ? 'bg-gradient-to-r from-[#F20C8F] to-rose-400 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               <i className="bi bi-ticket-perforated mr-2"></i>
@@ -552,7 +552,7 @@ const GuestUnlockHistory = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                    className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group"
                   >
                     <div className="p-6">
                       <div className="flex flex-col lg:flex-row lg:items-center gap-6">
@@ -563,7 +563,7 @@ const GuestUnlockHistory = () => {
                             alt={unlock.propertyTitle}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           />
-                          <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-semibold text-gray-900">
+                          <div className="absolute top-3 right-3 px-3 py-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-full text-xs font-semibold text-gray-900 dark:text-white">
                             {unlock.paymentMethod === 'non_refundable' ? 'Non-refundable' :
                              unlock.paymentMethod === 'monthly_booking' ? '30% Booking' : 'Deal Code'}
                           </div>
@@ -571,11 +571,11 @@ const GuestUnlockHistory = () => {
 
                         {/* Property Details */}
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                             {unlock.propertyTitle}
                           </h3>
 
-                          <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
+                          <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
                             <span className="flex items-center">
                               <i className="bi bi-geo-alt-fill text-[#F20C8F] mr-1.5"></i>
                               {unlock.address?.city || 'Unknown'}, {unlock.address?.country || 'Rwanda'}
@@ -584,7 +584,7 @@ const GuestUnlockHistory = () => {
                               <i className="bi bi-calendar-check text-[#083A85] mr-1.5"></i>
                               {getTimeAgo(unlock.unlockDate)}
                             </span>
-                            <span className="flex items-center font-semibold text-gray-900">
+                            <span className="flex items-center font-semibold text-gray-900 dark:text-white">
                               <i className="bi bi-cash mr-1.5"></i>
                               {formatCurrency(unlock.amountPaid, unlock.currency as any)}
                             </span>
@@ -592,8 +592,8 @@ const GuestUnlockHistory = () => {
 
                           {/* Address Preview */}
                           {unlock.address && (
-                            <div className="bg-gray-50 rounded-xl p-3 mb-3">
-                              <p className="text-sm text-gray-700">
+                            <div className="bg-gray-50 dark:bg-slate-700 rounded-xl p-3 mb-3">
+                              <p className="text-sm text-gray-700 dark:text-gray-300">
                                 <i className="bi bi-house-door mr-2"></i>
                                 {unlock.address.street && `${unlock.address.street}, `}
                                 {unlock.address.city && `${unlock.address.city}, `}
@@ -609,7 +609,7 @@ const GuestUnlockHistory = () => {
                               <div className="w-8 h-8 bg-gradient-to-br from-[#F20C8F] to-rose-400 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2">
                                 {unlock.hostContact.name.charAt(0)}
                               </div>
-                              <span className="text-sm font-medium text-gray-700">
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                 {unlock.hostContact.name}
                                 {unlock.hostContact.verified && (
                                   <i className="bi bi-patch-check-fill text-blue-500 ml-1"></i>
@@ -620,14 +620,14 @@ const GuestUnlockHistory = () => {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleContactHost(unlock, 'phone')}
-                                className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium transition-colors"
+                                className="px-3 py-1.5 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium transition-colors"
                               >
                                 <i className="bi bi-telephone-fill mr-1"></i>
                                 Call
                               </button>
                               <button
                                 onClick={() => handleContactHost(unlock, 'email')}
-                                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                                className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium transition-colors"
                               >
                                 <i className="bi bi-envelope-fill mr-1"></i>
                                 Email
@@ -635,7 +635,7 @@ const GuestUnlockHistory = () => {
                               {unlock.hostContact.whatsapp && (
                                 <button
                                   onClick={() => handleContactHost(unlock, 'whatsapp')}
-                                  className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium transition-colors"
+                                  className="px-3 py-1.5 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium transition-colors"
                                 >
                                   <i className="bi bi-whatsapp mr-1"></i>
                                   WhatsApp
@@ -646,9 +646,9 @@ const GuestUnlockHistory = () => {
 
                           {/* Reward Badge */}
                           {unlock.rewardReceived && (
-                            <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-lg">
-                              <i className="bi bi-gift-fill text-amber-600 mr-2"></i>
-                              <span className="text-xs font-medium text-amber-800">
+                            <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-lg">
+                              <i className="bi bi-gift-fill text-amber-600 dark:text-amber-400 mr-2"></i>
+                              <span className="text-xs font-medium text-amber-800 dark:text-amber-300">
                                 {unlock.rewardReceived.type === 'both' ? 'Refund + Deal Code Received' :
                                  unlock.rewardReceived.type === 'deal_code' ? 'Deal Code Received' :
                                  'Refund Processed'}
@@ -658,15 +658,15 @@ const GuestUnlockHistory = () => {
 
                           {/* Status Badge */}
                           {unlock.status === 'cancelled' && (
-                            <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-red-100 rounded-lg">
-                              <i className="bi bi-x-circle-fill text-red-600 mr-2"></i>
-                              <span className="text-xs font-medium text-red-800">Request Cancelled</span>
+                            <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                              <i className="bi bi-x-circle-fill text-red-600 dark:text-red-400 mr-2"></i>
+                              <span className="text-xs font-medium text-red-800 dark:text-red-300">Request Cancelled</span>
                             </div>
                           )}
                           {unlock.bookingCompleted && (
-                            <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-green-100 rounded-lg">
-                              <i className="bi bi-check-circle-fill text-green-600 mr-2"></i>
-                              <span className="text-xs font-medium text-green-800">Booking Completed</span>
+                            <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                              <i className="bi bi-check-circle-fill text-green-600 dark:text-green-400 mr-2"></i>
+                              <span className="text-xs font-medium text-green-800 dark:text-green-300">Booking Completed</span>
                             </div>
                           )}
                         </div>
@@ -676,7 +676,7 @@ const GuestUnlockHistory = () => {
                           <div className="flex flex-col gap-2 w-full lg:w-auto">
                             <button
                               onClick={() => handleViewOnMap(unlock)}
-                              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-all duration-300"
+                              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-all duration-300"
                             >
                               <i className="bi bi-map mr-1.5"></i>
                               View Map
@@ -686,7 +686,7 @@ const GuestUnlockHistory = () => {
                             {unlock.canCancel && unlock.status !== 'cancelled' && !unlock.bookingCompleted && (
                               <button
                                 onClick={() => handleCancelRequest(unlock)}
-                                className="px-4 py-2 border-2 border-red-300 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-all duration-300"
+                                className="px-4 py-2 border-2 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm font-medium rounded-lg transition-all duration-300"
                               >
                                 <i className="bi bi-x-circle mr-1.5"></i>
                                 Cancel
@@ -724,15 +724,15 @@ const GuestUnlockHistory = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="bg-white rounded-2xl shadow-sm p-12 text-center"
+                  className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-12 text-center"
                 >
-                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="bi bi-lock text-4xl text-gray-400"></i>
+                  <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="bi bi-lock text-4xl text-gray-400 dark:text-gray-500"></i>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                     No Unlocked Properties Yet
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
                     Start exploring properties and unlock addresses to view host contact information
                   </p>
                   <button
@@ -763,7 +763,7 @@ const GuestUnlockHistory = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 ${
+                      className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 ${
                         !isActive ? 'opacity-60' : ''
                       }`}
                     >
@@ -773,31 +773,31 @@ const GuestUnlockHistory = () => {
                             <div className={`p-3 rounded-xl ${
                               isActive
                                 ? 'bg-gradient-to-br from-green-500 to-emerald-400'
-                                : 'bg-gray-300'
+                                : 'bg-gray-300 dark:bg-gray-600'
                             }`}>
                               <i className="bi bi-ticket-perforated-fill text-white text-xl"></i>
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold text-gray-900 font-mono tracking-wider">
+                                <span className="text-2xl font-bold text-gray-900 dark:text-white font-mono tracking-wider">
                                   {code.code}
                                 </span>
                                 <button
                                   onClick={() => handleCopyDealCode(code.code)}
-                                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                   title="Copy code"
                                 >
                                   <i className={`bi ${
-                                    copiedCode === code.code ? 'bi-check-circle-fill text-green-500' : 'bi-clipboard'
+                                    copiedCode === code.code ? 'bi-check-circle-fill text-green-500' : 'bi-clipboard text-gray-600 dark:text-gray-400'
                                   } text-lg`}></i>
                                 </button>
                               </div>
                               <span className={`inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full ${
                                 isActive
-                                  ? 'bg-green-100 text-green-700'
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                   : isExpired
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-gray-100 text-gray-700'
+                                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                               }`}>
                                 {isActive ? 'Active' : isExpired ? 'Expired' : 'Used'}
                               </span>
@@ -806,20 +806,20 @@ const GuestUnlockHistory = () => {
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div>
-                              <span className="text-gray-500">Remaining Unlocks</span>
-                              <p className="font-bold text-gray-900 text-lg">
+                              <span className="text-gray-500 dark:text-gray-400">Remaining Unlocks</span>
+                              <p className="font-bold text-gray-900 dark:text-white text-lg">
                                 {code.remainingUnlocks} / {code.totalUnlocks}
                               </p>
                             </div>
                             <div>
-                              <span className="text-gray-500">Expires On</span>
-                              <p className="font-semibold text-gray-900">
+                              <span className="text-gray-500 dark:text-gray-400">Expires On</span>
+                              <p className="font-semibold text-gray-900 dark:text-white">
                                 {formatDate(code.expiryDate)}
                               </p>
                             </div>
                             <div>
-                              <span className="text-gray-500">Source</span>
-                              <p className="font-semibold text-gray-900 capitalize">
+                              <span className="text-gray-500 dark:text-gray-400">Source</span>
+                              <p className="font-semibold text-gray-900 dark:text-white capitalize">
                                 {code.source.replace('_', ' ')}
                               </p>
                             </div>
@@ -845,15 +845,15 @@ const GuestUnlockHistory = () => {
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="bg-white rounded-2xl shadow-sm p-12 text-center"
+                  className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-12 text-center"
                 >
-                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="bi bi-ticket-perforated text-4xl text-gray-400"></i>
+                  <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="bi bi-ticket-perforated text-4xl text-gray-400 dark:text-gray-500"></i>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                     No Deal Codes Available
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
                     Earn deal codes by providing feedback on unlocked properties
                   </p>
                 </motion.div>

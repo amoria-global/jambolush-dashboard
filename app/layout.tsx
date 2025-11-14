@@ -263,8 +263,8 @@ export default function RootLayout({
         {/* Session Expired Modal */}
         <SessionExpiredModal />
 
-        <main className="transition-all duration-300" style={{ marginLeft: '0', paddingTop: '60px' }}>
-          <div className="md:ml-56 p-4 sm:p-2 md:p-6">
+        <main className="transition-all duration-300" style={{ marginLeft: '0', paddingTop: '63px' }}>
+          <div className="md:ml-56 p-4 sm:p-65]md:p-6">
             {children}
           </div>
         </main>
