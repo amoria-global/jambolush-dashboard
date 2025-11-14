@@ -761,6 +761,16 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
       return formatRWFAsUSD(amount);
     }
 
+    // Additional check: if amount is suspiciously large (> 1000), it's likely RWF
+    // This handles cases where currency field might be missing or incorrect
+    if (amount > 1000 && currency === 'USD') {
+      console.warn('Large USD amount detected - might be RWF. Amount:', amount, 'Currency:', currency);
+      // If amount seems too large for USD, treat as RWF
+      if (amount > 10000) {
+        return formatRWFAsUSD(amount);
+      }
+    }
+
     // For USD wallets, show as-is
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
