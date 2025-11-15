@@ -39,6 +39,12 @@ const GuestDashboard = () => {
       setLoading(true);
       setError(null);
 
+      // Set authentication token
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        api.setAuth(token);
+      }
+
       const user = JSON.parse(localStorage.getItem('userSession') || '{}');
       const userId = user.id || user.userId;
 
@@ -193,7 +199,24 @@ const GuestDashboard = () => {
     );
   }
 
-  const totalBookings = (dashboardData.bookings.properties?.length || 0) + (dashboardData.bookings.tours?.length || 0);
+  // Extract stats from the new API format
+  const stats = dashboardData.bookings.stats || {};
+  const totalBookings = stats.totalBookings || 0;
+  const upcomingBookings = stats.upcomingBookings || 0;
+  const completedBookings = stats.completedBookings || 0;
+  const cancelledBookings = stats.cancelledBookings || 0;
+  const totalSpent = stats.totalSpent || 0;
+  const walletBalance = stats.wallet?.balance || 0;
+  const walletPending = stats.wallet?.pendingBalance || 0;
+  const walletCurrency = stats.wallet?.currency || 'USD';
+  const wishlistTotal = stats.wishlist?.totalItems || 0;
+  const totalReviews = stats.reviews?.totalReviews || 0;
+  const pendingReviews = stats.reviews?.totalPendingReviews || 0;
+  const dealCodesActive = stats.dealCodes?.active || 0;
+  const addressUnlocksTotal = stats.addressUnlocks?.total || 0;
+  const notificationsUnread = stats.notifications?.unread || 0;
+  const transactionCount = stats.payments?.transactionCount || 0;
+
   const pendingTransactions = dashboardData.payments.transactions?.filter((t: any) => t.status === 'pending') || [];
   const getTimeBasedGreeting = () => {
         const hour = new Date().getHours();
@@ -319,7 +342,7 @@ const GuestDashboard = () => {
     };
     
   return (
-    <div className="px-4">
+    <div className="px-8">
        {/* Header Section */}
         <div className="mb-8 md:mb-10 px-4 bg-white shadow-sm rounded-lg py-6 max-w-7xl mx-auto mx-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -345,31 +368,91 @@ const GuestDashboard = () => {
         </div>
 
       <div className="py-2">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
-          <StatCard 
-            title="Total Bookings" 
+        {/* Quick Stats - 3 columns on desktop, 2 on tablet, 1 on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 mb-6">
+          <StatCard
+            title="Total Bookings"
             value={totalBookings}
             color="blue"
             icon="calendar-check"
           />
-          <StatCard 
-            title="Wallet Balance" 
-            value={dashboardData.payments.wallet?.balance ? `${dashboardData.payments.wallet.balance} ${dashboardData.payments.wallet.currency || 'USD'}` : '0 USD'}
+          <StatCard
+            title="Upcoming"
+            value={upcomingBookings}
+            color="purple"
+            icon="calendar-event"
+          />
+          <StatCard
+            title="Completed"
+            value={completedBookings}
+            color="green"
+            icon="check-circle"
+          />
+          <StatCard
+            title="Cancelled"
+            value={cancelledBookings}
+            color="orange"
+            icon="x-circle"
+          />
+          <StatCard
+            title="Total Spent"
+            value={`${totalSpent} ${walletCurrency}`}
+            color="blue"
+            icon="cash-stack"
+          />
+          <StatCard
+            title="Wallet Balance"
+            value={`${walletBalance} ${walletCurrency}`}
             color="green"
             icon="wallet2"
           />
-          <StatCard 
-            title="Wishlist Items" 
-            value={dashboardData.bookings.wishlist?.length || 0}
+          <StatCard
+            title="Pending Balance"
+            value={`${walletPending} ${walletCurrency}`}
+            color="orange"
+            icon="clock-history"
+          />
+          <StatCard
+            title="Wishlist Items"
+            value={wishlistTotal}
             color="purple"
             icon="heart"
           />
-          <StatCard 
-            title="Pending Payments" 
-            value={pendingTransactions.length}
+          <StatCard
+            title="Reviews Given"
+            value={totalReviews}
+            color="blue"
+            icon="star"
+          />
+          <StatCard
+            title="Pending Reviews"
+            value={pendingReviews}
             color="orange"
-            icon="clock"
+            icon="pencil-square"
+          />
+          <StatCard
+            title="Active Deals"
+            value={dealCodesActive}
+            color="green"
+            icon="tag"
+          />
+          <StatCard
+            title="Unlocked Addresses"
+            value={addressUnlocksTotal}
+            color="purple"
+            icon="geo-alt"
+          />
+          <StatCard
+            title="Notifications"
+            value={notificationsUnread}
+            color="orange"
+            icon="bell"
+          />
+          <StatCard
+            title="Transactions"
+            value={transactionCount}
+            color="blue"
+            icon="receipt"
           />
         </div>
 
@@ -444,7 +527,7 @@ const GuestDashboard = () => {
                     Available Balance
                   </span>
                   <span className="font-bold text-lg text-gray-800">
-                    {dashboardData.payments.wallet?.balance || 0} {dashboardData.payments.wallet?.currency || 'USD'}
+                    {walletBalance} {walletCurrency}
                   </span>
                 </div>
                 <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
@@ -453,14 +536,14 @@ const GuestDashboard = () => {
                     Pending
                   </span>
                   <span className="text-orange-600 font-bold">
-                    {dashboardData.payments.wallet?.pendingBalance || 0} {dashboardData.payments.wallet?.currency || 'USD'}
+                    {walletPending} {walletCurrency}
                   </span>
                 </div>
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center p-3 bg-[#083A85] bg-opacity-10 rounded-lg">
                     <span className="font-bold text-gray-800">Total</span>
                     <span className="font-bold text-lg text-[#083A85]">
-                      {(dashboardData.payments.wallet?.balance || 0) + (dashboardData.payments.wallet?.pendingBalance || 0)} {dashboardData.payments.wallet?.currency || 'USD'}
+                      {walletBalance + walletPending} {walletCurrency}
                     </span>
                   </div>
                 </div>
@@ -558,20 +641,20 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, color, icon }) => {
   const config = colorConfig[color];
 
   return (
-    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 relative overflow-hidden">
-      <div className="absolute top-2 right-2 opacity-5 text-5xl">
+    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-3 md:p-4 relative overflow-hidden">
+      <div className="absolute top-1 right-1 opacity-5 text-3xl md:text-4xl">
         <i className={`bi bi-${icon}`} />
       </div>
-      <div className="flex items-center mb-4">
-        <div 
-          className="w-10 h-10 rounded-lg flex items-center justify-center mr-3 text-white"
+      <div className="flex items-center mb-2">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center mr-2 text-white"
           style={{ backgroundColor: config.bg }}
         >
-          <i className={`bi bi-${icon} text-base`}/>
+          <i className={`bi bi-${icon} text-sm`}/>
         </div>
-        <span className="text-sm text-gray-600 font-medium">{title}</span>
+        <span className="text-xs md:text-sm text-gray-600 font-medium line-clamp-1">{title}</span>
       </div>
-      <div className="text-2xl lg:text-3xl font-bold mb-2 text-gray-800">{value}</div>
+      <div className="text-xl md:text-2xl font-bold text-gray-800">{value}</div>
     </div>
   );
 };

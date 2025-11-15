@@ -316,7 +316,11 @@ const TourGuideSchedule: React.FC = () => {
   const updateTourSchedule = async (scheduleId: string, scheduleData: any) => {
     try {
       setLoading(true);
-      const response: any = await api.put(`/tours/schedules/${scheduleId}`, scheduleData);
+
+      // Remove tourId from update data - schedules can't change their associated tour
+      const { tourId, ...updatePayload } = scheduleData;
+
+      const response: any = await api.put(`/tours/schedules/${scheduleId}`, updatePayload);
 
       if (response.data.success) {
         await fetchTourSchedules();
@@ -530,8 +534,11 @@ const TourGuideSchedule: React.FC = () => {
 
   const handleSaveSchedule = async (scheduleData: any) => {
     try {
-      if (editingSchedule && editingSchedule.scheduleId) {
-        await updateTourSchedule(editingSchedule.scheduleId, scheduleData);
+      // Use scheduleId if available, otherwise fall back to id
+      const scheduleIdToUpdate = editingSchedule?.scheduleId || editingSchedule?.id;
+
+      if (editingSchedule && scheduleIdToUpdate) {
+        await updateTourSchedule(scheduleIdToUpdate, scheduleData);
       } else {
         await createTourSchedule(scheduleData);
       }
@@ -580,12 +587,12 @@ const TourGuideSchedule: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen mt-4 px-3">
       <div className="max-w-8xl mx-auto px-4 sm:px-4 lg:px-4 py-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Tour Schedule</h1>
+            <h1 className="text-2xl font-bold text-gray-900">My Tour Schedule</h1>
             <p className="text-gray-500 mt-1">Manage your tours and bookings</p>
           </div>
           <button

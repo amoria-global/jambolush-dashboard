@@ -1031,6 +1031,19 @@ const handleNotificationClick = async (notification: Notification) => {
 
 // Main component with proper Suspense wrapper
 const NotificationsPage: React.FC = () => {
+  useEffect(() => {
+    document.title = 'Notifications - Jambolush';
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Stay updated with your latest alerts, messages, and notifications');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Stay updated with your latest alerts, messages, and notifications';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   return (
     <Suspense fallback={<NotificationsLoading />}>
       <NotificationsContent />

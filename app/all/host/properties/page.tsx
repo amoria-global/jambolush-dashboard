@@ -568,28 +568,106 @@ const HostPropertiesPage: React.FC = () => {
         bookings: BookingDetail[];
     }> = ({ label, count, dotColor, bookings }) => {
         const [showTooltip, setShowTooltip] = useState(false);
+        const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+        const cardRef = React.useRef<HTMLDivElement>(null);
+        const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+        const animationFrameRef = React.useRef<number | null>(null);
 
         // Calculate total guests
         const totalGuests = bookings.reduce((sum, booking) => sum + (booking.guests || 0), 0);
 
-        return (
-            <div
-                className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200 relative"
-                onMouseEnter={() => setShowTooltip(true)}
-                onMouseLeave={() => setShowTooltip(false)}
-            >
-                <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-500 font-medium">{label}</span>
-                    <div className={`w-2 h-2 rounded-full ${dotColor}`}></div>
-                </div>
-                <p className="text-2xl font-semibold text-gray-900">{count}</p>
-                {totalGuests > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">{totalGuests} guests</p>
-                )}
+        const updateTooltipPosition = () => {
+            if (cardRef.current) {
+                const rect = cardRef.current.getBoundingClientRect();
+                setTooltipPosition({
+                    top: rect.bottom + 8,
+                    left: rect.left
+                });
+            }
+        };
 
-                {/* Tooltip */}
+        const handleMouseEnter = () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+            updateTooltipPosition();
+            setShowTooltip(true);
+        };
+
+        const handleMouseLeave = () => {
+            timeoutRef.current = setTimeout(() => {
+                setShowTooltip(false);
+            }, 200);
+        };
+
+        const handleTooltipMouseEnter = () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+            setShowTooltip(true);
+        };
+
+        const handleTooltipMouseLeave = () => {
+            setShowTooltip(false);
+        };
+
+        // Update tooltip position on scroll or resize
+        React.useEffect(() => {
+            if (showTooltip) {
+                const updatePosition = () => {
+                    updateTooltipPosition();
+                    animationFrameRef.current = requestAnimationFrame(updatePosition);
+                };
+                animationFrameRef.current = requestAnimationFrame(updatePosition);
+
+                return () => {
+                    if (animationFrameRef.current) {
+                        cancelAnimationFrame(animationFrameRef.current);
+                    }
+                };
+            }
+        }, [showTooltip]);
+
+        React.useEffect(() => {
+            return () => {
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                }
+                if (animationFrameRef.current) {
+                    cancelAnimationFrame(animationFrameRef.current);
+                }
+            };
+        }, []);
+
+        return (
+            <>
+                <div
+                    ref={cardRef}
+                    className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200"
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                >
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500 font-medium">{label}</span>
+                        <div className={`w-2 h-2 rounded-full ${dotColor}`}></div>
+                    </div>
+                    <p className="text-2xl font-semibold text-gray-900">{count}</p>
+                    {totalGuests > 0 && (
+                        <p className="text-xs text-gray-500 mt-1">{totalGuests} guests</p>
+                    )}
+                </div>
+
+                {/* Tooltip - Fixed positioning that follows the card */}
                 {showTooltip && bookings.length > 0 && (
-                    <div className="absolute z-50 left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-h-96 overflow-y-auto">
+                    <div
+                        className="fixed z-[9999] w-80 bg-white rounded-lg shadow-xl border border-gray-200 p-4 max-h-96 overflow-y-auto"
+                        style={{
+                            top: `${tooltipPosition.top}px`,
+                            left: `${tooltipPosition.left}px`
+                        }}
+                        onMouseEnter={handleTooltipMouseEnter}
+                        onMouseLeave={handleTooltipMouseLeave}
+                    >
                         <div className="space-y-3">
                             {bookings.map((booking, idx) => (
                                 <div key={idx} className="pb-3 border-b border-gray-100 last:border-0 last:pb-0">
@@ -614,7 +692,7 @@ const HostPropertiesPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-            </div>
+            </>
         );
     };
 
@@ -977,7 +1055,7 @@ const HostPropertiesPage: React.FC = () => {
                     )}
 
                 {/* Stats Cards - Horizontal scroll on mobile */}
-                <div className="flex gap-4 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="flex gap-4 mb-6 overflow-x-auto overflow-y-visible pb-2 scrollbar-hide">
                     <div className="min-w-[140px] bg-white rounded-xl p-4 border border-gray-200">
                         <div className="flex items-center justify-between mb-1">
                             <span className="text-xs text-gray-500 font-medium">Total</span>

@@ -862,7 +862,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
   }
 
   return (
-    <div className="min-h-screen pt-5">
+    <div className="min-h-screen pt-5 px-4">
       <div className="max-w-8xl mx-auto px-2 sm:px-3 lg:px-4 py-6">
         {/* Header */}
         <div className="mb-8">
@@ -1134,8 +1134,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                           ? 'text-green-600'
                           : 'text-red-600'
                       }`}>
-                        {transaction.type === 'CREDIT' ? '+' : '-'}
-                        {formatCurrency(Math.abs(transaction.amount))}
+                        {transaction.type === 'CREDIT' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                       </p>
                       <p className="text-xs text-gray-500">
                         Balance: {formatCurrency(transaction.balanceAfter)}
@@ -1209,8 +1208,7 @@ const UnifiedEarnings: React.FC<UnifiedEarningsProps> = ({ userType }) => {
                           ? 'text-green-600'
                           : 'text-red-600'
                       }`}>
-                        {transaction.type === 'CREDIT' ? '+' : '-'}
-                        {formatCurrency(Math.abs(transaction.amount))}
+                        {transaction.type === 'CREDIT' ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
                       </p>
                       <p className="text-xs text-gray-500">
                         After: {formatCurrency(transaction.balanceAfter)}

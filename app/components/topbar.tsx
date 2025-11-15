@@ -597,7 +597,7 @@ export default function TopBar({ onMenuButtonClick }: TopBarProps) {
   };
 
   return (
-    <div className="fixed top-0 right-0 left-0 lg:left-60 flex items-center justify-between px-5 py-3.5 bg-white backdrop-blur-md border-b border-gray-200 shadow-sm z-30 transition-all duration-300">
+    <div className="fixed top-0 right-0 left-0 lg:left-60 flex items-center justify-between px-5 py-2.5 bg-white backdrop-blur-md border-b border-gray-200 shadow-sm z-30 transition-all duration-300">
       <div className="flex items-center gap-4">
         <button
           onClick={onMenuButtonClick}
