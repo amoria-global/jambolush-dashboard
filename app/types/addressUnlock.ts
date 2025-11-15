@@ -86,6 +86,7 @@ export interface UnlockHistoryEntry {
   amountPaid: number;
   currency: string;
   address: PropertyAddress;
+  location?: string;
   hostContact: HostContactInfo;
   appreciationSubmitted: boolean;
   appreciationLevel?: AppreciationLevel;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, LoadScript, Marker, Autocomplete } from '@react-google-maps/api';
 
 interface AddressComponent {
@@ -20,7 +20,7 @@ interface LocationData {
   addressComponents: AddressComponent;
 }
 
-interface PropertyMapSelectorProps {
+interface TourMapSelectorProps {
   isOpen: boolean;
   onClose: () => void;
   onLocationSelect: (locationData: LocationData) => void;
@@ -47,7 +47,7 @@ const defaultCenter = {
   lng: 29.8739
 };
 
-const PropertyMapSelector: React.FC<PropertyMapSelectorProps> = ({
+const TourMapSelector: React.FC<TourMapSelectorProps> = ({
   isOpen,
   onClose,
   onLocationSelect,
@@ -232,9 +232,9 @@ const PropertyMapSelector: React.FC<PropertyMapSelectorProps> = ({
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Select Property Location</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Select Tour Meeting Point</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Click or tap on the map to select the exact property location
+                Click or tap on the map to select the meeting point location
               </p>
             </div>
             <button
@@ -454,7 +454,7 @@ const PropertyMapSelector: React.FC<PropertyMapSelectorProps> = ({
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                   <p className="text-sm text-gray-600">
-                    Click or tap anywhere on the map to mark the exact location of your property.
+                    Click or tap anywhere on the map to mark the tour meeting point location.
                     Google Maps will automatically detect the coordinates and address.
                   </p>
                 </div>
@@ -488,4 +488,4 @@ const PropertyMapSelector: React.FC<PropertyMapSelectorProps> = ({
   );
 };
 
-export default PropertyMapSelector;
+export default TourMapSelector;

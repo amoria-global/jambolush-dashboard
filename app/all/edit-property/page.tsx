@@ -1,12 +1,7 @@
 'use client';
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import EditPropertyContent from './EditPropertyContent';
-import { Metadata } from 'next';
-const metadata: Metadata = {
-  title: 'Edit Property - Jambolush',
-  description: 'Edit property details and information',
-};
 
 // Loading component for Suspense fallback
 const LoadingPropertyData = () => (
@@ -20,11 +15,21 @@ const LoadingPropertyData = () => (
 
 // Main page component with Suspense boundary
 export default function EditPropertyPage() {
+  useEffect(() => {
+    document.title = 'Edit Property - Jambolush';
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Edit property details and information');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Edit property details and information';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   return (
     <Suspense fallback={<LoadingPropertyData />}>
-      <head>
-        <title>Edit Property - Jambolush</title>
-      </head>
       <EditPropertyContent />
     </Suspense>
   );

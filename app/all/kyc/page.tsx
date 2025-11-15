@@ -634,11 +634,22 @@ const isStepValid = (): boolean => {
     );
   }
 
+  // Set page title and description
+  useEffect(() => {
+    document.title = 'KYC Verification - Jambolush';
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Complete your KYC verification by submitting identity documents and personal information');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Complete your KYC verification by submitting identity documents and personal information';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   return (
     <>
-      <head>
-        <title>KYC Verification - Amoria Global</title>
-      </head>
       <div className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-opacity pt-10 p-8 sm:p-12 lg:p-16 z-50">
         {isModalOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto">

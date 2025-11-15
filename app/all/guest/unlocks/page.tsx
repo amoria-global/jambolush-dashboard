@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 const GuestPage = () => {
     return (
-        <div className="mt-10">
+        <div className="mt-4">
             <GuestUnlockHistory />
         </div>
     );

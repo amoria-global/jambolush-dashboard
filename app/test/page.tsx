@@ -1,6 +1,6 @@
 // pages/email-test.tsx (Next.js) or components/EmailTest.tsx (React)
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface TestResult {
   success: boolean;
@@ -11,6 +11,20 @@ interface TestResult {
 }
 
 export default function EmailTestPage() {
+  // Set page title and description
+  useEffect(() => {
+    document.title = 'Email Test - Jambolush';
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Test email service integration and verify email delivery');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'Test email service integration and verify email delivery';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',

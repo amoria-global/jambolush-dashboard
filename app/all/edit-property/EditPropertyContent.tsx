@@ -215,6 +215,10 @@ const EditPropertyContent: React.FC = () => {
 
   const handleApiError = (error: any): string => {
     console.error('API Error:', error);
+   
+    if (error?.data?.message) {
+      return error.data.message;
+    }
 
     if (error?.response?.data?.message) {
       return error.response.data.message;
@@ -1069,7 +1073,7 @@ const EditPropertyContent: React.FC = () => {
 
       {/* Map selector removed - location cannot be edited */}
 
-      <div className="py-3 px-4">
+      <div className="py-3 px-6 mt-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">

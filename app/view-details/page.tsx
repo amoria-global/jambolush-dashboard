@@ -15,7 +15,7 @@ function ViewDetailsContent() {
 
   const params = parseViewDetailsParams(searchParams);
 
-  // Set page title based on detail type
+  // Set page title and description based on detail type
   useEffect(() => {
     if (params) {
       const { type } = params;
@@ -28,9 +28,33 @@ function ViewDetailsContent() {
         'tour': 'Tour Details',
         'user': 'User Details'
       };
-      document.title = titles[type] || 'View Details';
+      const descriptions: Record<string, string> = {
+        'transaction': 'View detailed transaction information and payment history',
+        'booking': 'View comprehensive booking details and status',
+        'property-booking': 'View property booking information and guest details',
+        'tour-booking': 'View tour booking information and participant details',
+        'property': 'View detailed property information and amenities',
+        'tour': 'View tour details, itinerary, and availability',
+        'user': 'View user profile and account information'
+      };
+      document.title = `${titles[type] || 'View Details'} - Jambolush`;
+
+      const metaDescription = document.querySelector('meta[name="description"]');
+      const description = descriptions[type] || 'View detailed information';
+      if (metaDescription) {
+        metaDescription.setAttribute('content', description);
+      } else {
+        const meta = document.createElement('meta');
+        meta.name = 'description';
+        meta.content = description;
+        document.head.appendChild(meta);
+      }
     } else {
-      document.title = 'Invalid Link';
+      document.title = 'Invalid Link - Jambolush';
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', 'The link you followed is invalid or has expired');
+      }
     }
   }, [params]);
 

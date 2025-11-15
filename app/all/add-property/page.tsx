@@ -104,6 +104,20 @@ interface ImageCategory {
 }
 
 const AddPropertyPage: React.FC = () => {
+  // Set page title and description
+  useEffect(() => {
+    document.title = 'Add Property - Jambolush';
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'List your property on Jambolush and start earning from rentals');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'description';
+      meta.content = 'List your property on Jambolush and start earning from rentals';
+      document.head.appendChild(meta);
+    }
+  }, []);
+
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
   const [imageUploadProgress, setImageUploadProgress] = useState<{ [key: string]: number }>({});
@@ -174,6 +188,9 @@ const AddPropertyPage: React.FC = () => {
     { value: 'shared_room', label: 'Shared Room' }
   ];
 
+  // Minimum total images required across all categories
+  const MIN_TOTAL_IMAGES = 12;
+
   const imageCategories: ImageCategory[] = [
     { name: 'livingRoom', label: 'Living Room', maxImages: 6 },
     { name: 'kitchen', label: 'Kitchen', maxImages: 4 },
@@ -213,6 +230,10 @@ const AddPropertyPage: React.FC = () => {
 
   const handleApiError = (error: any): string => {
     console.error('API Error:', error);
+    
+    if (error?.data?.message) {
+      return error.data.message;
+    }
 
     if (error?.response?.data?.message) {
       return error.response.data.message;
@@ -819,7 +840,10 @@ const AddPropertyPage: React.FC = () => {
     const availableSlots = categoryConfig.maxImages - currentImages.length;
 
     if (availableSlots <= 0) {
-      alert(`Maximum ${categoryConfig.maxImages} images allowed for ${categoryConfig.label}`);
+      setNotification({
+        message: `Maximum ${categoryConfig.maxImages} images allowed for ${categoryConfig.label}`,
+        type: 'error'
+      });
       return;
     }
 
@@ -830,12 +854,18 @@ const AddPropertyPage: React.FC = () => {
       const file = files[i];
 
       if (!file.type.startsWith('image/')) {
-        alert(`${file.name} is not an image file`);
+        setNotification({
+          message: `${file.name} is not an image file`,
+          type: 'error'
+        });
         continue;
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        alert(`${file.name} is too large. Maximum size is 10MB`);
+        setNotification({
+          message: `${file.name} is too large. Maximum size is 10MB`,
+          type: 'error'
+        });
         continue;
       }
 
@@ -855,6 +885,22 @@ const AddPropertyPage: React.FC = () => {
           [category]: [...prev.images[category], ...newImages]
         }
       }));
+
+      // Calculate total images after adding
+      const totalImages = Object.values(formData.images).reduce((sum, arr) => sum + arr.length, 0) + newImages.length;
+      const remaining = Math.max(0, MIN_TOTAL_IMAGES - totalImages);
+
+      if (totalImages < MIN_TOTAL_IMAGES) {
+        setNotification({
+          message: `${newImages.length} image(s) added. ${remaining} more image(s) needed to meet minimum requirement (${totalImages}/${MIN_TOTAL_IMAGES})`,
+          type: 'success'
+        });
+      } else {
+        setNotification({
+          message: `${newImages.length} image(s) added successfully (${totalImages} total)`,
+          type: 'success'
+        });
+      }
     }
   };
 
@@ -925,34 +971,48 @@ const AddPropertyPage: React.FC = () => {
         errors.email = 'Valid email is required';
       }
 
-      // If host not found or not looked up, require name and phone
-      if (!formData.ownerDetails.name || formData.ownerDetails.name.trim().length < 3) {
-        errors.names = 'Host name is required (min 3 characters)';
-      }
+      // If host is found via email verification, skip strict address validation
+      // Only validate essential fields (name and phone)
+      if (hostFound) {
+        // For verified hosts, just ensure basic fields are populated
+        if (!formData.ownerDetails.name || formData.ownerDetails.name.trim().length < 3) {
+          errors.names = 'Host name is required (min 3 characters)';
+        }
 
-      if (!formData.ownerDetails.phone || formData.ownerDetails.phone.length < 10) {
-        errors.phone = 'Valid phone number is required (min 10 characters)';
-      }
+        if (!formData.ownerDetails.phone || formData.ownerDetails.phone.length < 10) {
+          errors.phone = 'Valid phone number is required (min 10 characters)';
+        }
+        // Skip address validation for verified hosts - accept whatever exists in their profile
+      } else {
+        // For manually entered hosts, validate all fields including address
+        if (!formData.ownerDetails.name || formData.ownerDetails.name.trim().length < 3) {
+          errors.names = 'Host name is required (min 3 characters)';
+        }
 
-      // Address fields validation
-      if (!formData.ownerDetails.country || formData.ownerDetails.country.trim().length < 2) {
-        errors.country = 'Country is required';
-      }
+        if (!formData.ownerDetails.phone || formData.ownerDetails.phone.length < 10) {
+          errors.phone = 'Valid phone number is required (min 10 characters)';
+        }
 
-      if (!formData.ownerDetails.city || formData.ownerDetails.city.trim().length < 2) {
-        errors.city = 'City is required';
-      }
+        // Address fields validation (only for manually entered hosts)
+        if (!formData.ownerDetails.country || formData.ownerDetails.country.trim().length < 2) {
+          errors.country = 'Country is required';
+        }
 
-      if (!formData.ownerDetails.district || formData.ownerDetails.district.trim().length < 2) {
-        errors.district = 'District is required';
-      }
+        if (!formData.ownerDetails.city || formData.ownerDetails.city.trim().length < 2) {
+          errors.city = 'City is required';
+        }
 
-      if (!formData.ownerDetails.sector || formData.ownerDetails.sector.trim().length < 2) {
-        errors.sector = 'Cell/Sector is required';
-      }
+        if (!formData.ownerDetails.district || formData.ownerDetails.district.trim().length < 2) {
+          errors.district = 'District is required';
+        }
 
-      if (!formData.ownerDetails.village || formData.ownerDetails.village.trim().length < 2) {
-        errors.village = 'Village is required';
+        if (!formData.ownerDetails.sector || formData.ownerDetails.sector.trim().length < 2) {
+          errors.sector = 'Cell/Sector is required';
+        }
+
+        if (!formData.ownerDetails.village || formData.ownerDetails.village.trim().length < 2) {
+          errors.village = 'Village is required';
+        }
       }
     }
 
@@ -1018,6 +1078,12 @@ const AddPropertyPage: React.FC = () => {
     if (step === 4) {
       if (!formData.video3D) {
         errors.video3D = '3D property video is required';
+      }
+
+      // Validate minimum total images requirement
+      const totalImages = Object.values(formData.images).reduce((sum, arr) => sum + arr.length, 0);
+      if (totalImages < MIN_TOTAL_IMAGES) {
+        errors.images_total = `Minimum ${MIN_TOTAL_IMAGES} images required. You have uploaded ${totalImages} image(s). Please upload ${MIN_TOTAL_IMAGES - totalImages} more image(s).`;
       }
 
       // Validate incomplete image categories
@@ -1124,8 +1190,14 @@ const AddPropertyPage: React.FC = () => {
 
         setTimeout(() => {
           const propertyId = response.data?.id;
-          const viewDetailsUrl = createViewDetailsUrl(propertyId, 'property');
-          router.push(viewDetailsUrl);
+          if (propertyId) {
+            const viewDetailsUrl = createViewDetailsUrl(propertyId, 'property');
+            router.push(viewDetailsUrl);
+          } else {
+            // Fallback to properties list if no ID returned
+            const userType = foundHostData?.userType || 'host';
+            router.push(`/all/${userType}/properties`);
+          }
         }, 2000);
       } else {
         throw new Error(response.data?.message || 'Failed to create property');
@@ -1218,7 +1290,7 @@ const AddPropertyPage: React.FC = () => {
         onLocationSelect={handleLocationSelect}
       />
 
-      <div className="py-3 px-4">
+      <div className="py-3 px-6 mt-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -1916,10 +1988,38 @@ const AddPropertyPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Image Upload - Optional */}
+                {/* Image Upload - Minimum 12 Required */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Property Images (Optional)</h3>
-                  <p className="text-sm text-gray-600 mb-4">Upload high-quality photos of different areas</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Property Images</h3>
+                      <p className="text-sm text-gray-600 mt-1">Upload high-quality photos of different areas</p>
+                    </div>
+                    {(() => {
+                      const totalImages = Object.values(formData.images).reduce((sum, arr) => sum + arr.length, 0);
+                      const remaining = Math.max(0, MIN_TOTAL_IMAGES - totalImages);
+                      const isComplete = totalImages >= MIN_TOTAL_IMAGES;
+
+                      return (
+                        <div className={`px-4 py-2 rounded-lg ${isComplete ? 'bg-green-100 border-2 border-green-500' : 'bg-amber-100 border-2 border-amber-500'}`}>
+                          <p className={`text-sm font-semibold ${isComplete ? 'text-green-800' : 'text-amber-800'}`}>
+                            {totalImages}/{MIN_TOTAL_IMAGES} Images
+                          </p>
+                          {!isComplete && (
+                            <p className="text-xs text-amber-700 mt-1">
+                              {remaining} more needed
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {validationErrors.images_total && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-600 font-medium">{validationErrors.images_total}</p>
+                    </div>
+                  )}
 
                   <div className="space-y-4">
                     {imageCategories.map(category => {

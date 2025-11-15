@@ -64,7 +64,7 @@ const HostAnalyticsPage = () => {
         fetchAnalyticsData();
     }, [timeRange]);
 
-    // Transform revenue data for chart - no fallback data
+    // Transform revenue data for chart
     const transformRevenueData = (revenueData: any) => {
         if (!revenueData?.monthlyRevenue || revenueData.monthlyRevenue.length === 0) {
             return [];
@@ -77,7 +77,7 @@ const HostAnalyticsPage = () => {
         }));
     };
 
-    // Transform booking trends data for chart - no fallback data
+    // Transform booking trends data for chart
     const transformBookingTrends = (bookingTrends: any) => {
         if (!bookingTrends || bookingTrends.length === 0) {
             return [];
@@ -90,13 +90,13 @@ const HostAnalyticsPage = () => {
         }));
     };
 
-    // Transform property revenue breakdown - no fallback data
+    // Transform property revenue breakdown
     const getPropertyRevenueBreakdown = (properties: any) => {
         if (!properties || properties.length === 0) {
             return [];
         }
 
-        const colors = ['#F20C8F', '#083A85', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+        const colors = ['#14B8A6', '#083A85', '#F20C8F', '#6B7280', '#8B5CF6', '#EF4444'];
         const totalRevenue = properties.reduce((sum: number, prop: any) => sum + (prop.totalEarnings || 0), 0);
         
         return properties.map((property: any, index: number) => ({
@@ -109,10 +109,10 @@ const HostAnalyticsPage = () => {
 
     if (loading) {
         return (
-            <div className="mt-20 flex items-center justify-center min-h-screen">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading analytics...</p>
+                    <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-700 font-medium">Loading your insights...</p>
                 </div>
             </div>
         );
@@ -120,15 +120,18 @@ const HostAnalyticsPage = () => {
 
     if (error) {
         return (
-            <div className="mt-20 flex items-center justify-center min-h-screen">
-                <div className="text-center text-red-600">
-                    <i className="bi bi-exclamation-triangle text-4xl mb-4"></i>
-                    <p>{error}</p>
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i className="bi bi-exclamation-triangle text-2xl text-red-500"></i>
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load analytics</h3>
+                    <p className="text-gray-600 mb-4">{error}</p>
                     <button 
                         onClick={() => window.location.reload()} 
-                        className="mt-4 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                        className="px-6 py-2 bg-gradient-to-r from-[#F20C8F] to-pink-500 text-white font-medium rounded-full hover:shadow-lg transition-all duration-200"
                     >
-                        Retry
+                        Try again
                     </button>
                 </div>
             </div>
@@ -140,7 +143,7 @@ const HostAnalyticsPage = () => {
     const bookingTrendsData = transformBookingTrends(analyticsData?.bookingTrends);
     const propertyBreakdown = getPropertyRevenueBreakdown(propertiesData);
 
-    // Overview stats - no fallback values
+    // Overview stats
     const overview = analyticsData?.overview || {};
     const marketComparison = analyticsData?.marketComparison || {};
     const guestInsights = analyticsData?.guestInsights || guestData || {};
@@ -149,12 +152,15 @@ const HostAnalyticsPage = () => {
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                    <p className="font-medium text-gray-900">{label}</p>
+                <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-gray-100">
+                    <p className="font-semibold text-gray-900 mb-2">{label}</p>
                     {payload.map((entry: any, index: number) => (
-                        <p key={index} className="text-sm" style={{ color: entry.color }}>
-                            {entry.name}: {entry.name.toLowerCase().includes('revenue') ? '$' : ''}{entry.value?.toLocaleString() || 0}
-                            {entry.name.toLowerCase().includes('rate') ? '%' : ''}
+                        <p key={index} className="text-sm flex items-center justify-between gap-3">
+                            <span className="text-gray-600">{entry.name}:</span>
+                            <span className="font-medium" style={{ color: entry.color }}>
+                                {entry.name.toLowerCase().includes('revenue') ? '$' : ''}{entry.value?.toLocaleString() || 0}
+                                {entry.name.toLowerCase().includes('rate') ? '%' : ''}
+                            </span>
                         </p>
                     ))}
                 </div>
@@ -164,142 +170,124 @@ const HostAnalyticsPage = () => {
     };
     
     return (
-        <div className="mt-20">
-            <div className="max-w-7xl mx-auto">
+        <div className="py-8">
+            <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
                           
-                {/* Header */}
+
+                {/* Time Range Pills */}
                 <div className="mb-8">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h1 className="text-lg lg:text-3xl font-semibold text-[#083A85] mb-2">
-                                Analytics Dashboard
-                            </h1>
-                            <p className="text-gray-600 text-md">Detailed insights into your property performance</p>
-                        </div>
-                        
-                        {/* Time Range Selector */}
-                        <div className="flex gap-2">
-                            {['week', 'month', 'quarter', 'year'].map((range) => (
-                                <button
-                                    key={range}
-                                    onClick={() => setTimeRange(range)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                        timeRange === range
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    {range.charAt(0).toUpperCase() + range.slice(1)}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="inline-flex bg-white rounded-full p-1 shadow-sm border border-gray-200">
+                        {['week', 'month', 'quarter', 'year'].map((range) => (
+                            <button
+                                key={range}
+                                onClick={() => setTimeRange(range)}
+                                className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                                    timeRange === range
+                                        ? 'bg-gradient-to-r from-[#14B8A6] to-teal-500 text-white shadow-md'
+                                        : 'text-gray-700 hover:text-gray-900'
+                                }`}
+                            >
+                                {range.charAt(0).toUpperCase() + range.slice(1)}
+                            </button>
+                        ))}
                     </div>
                 </div>
                
-                {/* Overview Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 lg:mb-8">
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
-                            <i className="bi bi-currency-dollar" />
-                        </div>
-                        <div className="flex items-center mb-3">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white bg-green-500">
-                                <i className="bi bi-currency-dollar text-md sm:text-base"/>
+                {/* Key Metrics Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl flex items-center justify-center">
+                                <i className="bi bi-currency-dollar text-xl text-teal-600"/>
                             </div>
-                            <span className="text-md sm:text-md text-gray-600 font-medium">Total Revenue</span>
+                            {overview.revenueGrowth !== undefined && (
+                                <span className={`text-sm font-semibold ${overview.revenueGrowth >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                    {overview.revenueGrowth >= 0 ? '+' : ''}{overview.revenueGrowth}%
+                                </span>
+                            )}
                         </div>
-                        <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">
+                        <p className="text-sm text-gray-600 mb-1">Total revenue</p>
+                        <p className="text-2xl font-bold text-gray-900">
                             ${(overview.totalRevenue || earningsData?.totalEarnings || 0).toLocaleString()}
-                        </div>
-                        {overview.revenueGrowth !== undefined && (
-                            <div className={`text-md sm:text-md ${overview.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'} flex items-center font-medium`}>
-                                <i className={`bi ${overview.revenueGrowth >= 0 ? 'bi-arrow-up' : 'bi-arrow-down'} mr-1`} />
-                                {overview.revenueGrowth >= 0 ? '+' : ''}{overview.revenueGrowth}% vs last period
-                            </div>
-                        )}
+                        </p>
                     </div>
 
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
-                            <i className="bi bi-calendar-check" />
-                        </div>
-                        <div className="flex items-center mb-3">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white bg-blue-800">
-                                <i className="bi bi-calendar-check text-md sm:text-base"/>
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center">
+                                <i className="bi bi-calendar-check text-xl text-[#083A85]"/>
                             </div>
-                            <span className="text-md sm:text-md text-gray-600 font-medium">Total Bookings</span>
+                            {overview.bookingGrowth !== undefined && (
+                                <span className={`text-sm font-semibold ${overview.bookingGrowth >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                    {overview.bookingGrowth >= 0 ? '+' : ''}{overview.bookingGrowth}%
+                                </span>
+                            )}
                         </div>
-                        <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">
+                        <p className="text-sm text-gray-600 mb-1">Total bookings</p>
+                        <p className="text-2xl font-bold text-gray-900">
                             {overview.totalBookings || bookingsData?.length || 0}
-                        </div>
-                        {overview.bookingGrowth !== undefined && (
-                            <div className={`text-md sm:text-md ${overview.bookingGrowth >= 0 ? 'text-green-600' : 'text-red-600'} flex items-center font-medium`}>
-                                <i className={`bi ${overview.bookingGrowth >= 0 ? 'bi-arrow-up' : 'bi-arrow-down'} mr-1`} />
-                                {overview.bookingGrowth >= 0 ? '+' : ''}{overview.bookingGrowth}% vs last period
-                            </div>
-                        )}
+                        </p>
                     </div>
 
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
-                            <i className="bi bi-bar-chart" />
-                        </div>
-                        <div className="flex items-center mb-3">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white bg-purple-600">
-                                <i className="bi bi-bar-chart text-md sm:text-base"/>
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl flex items-center justify-center">
+                                <i className="bi bi-bar-chart text-xl text-[#F20C8F]"/>
                             </div>
-                            <span className="text-md sm:text-md text-gray-600 font-medium">Occupancy Rate</span>
+                            {overview.occupancyGrowth !== undefined && (
+                                <span className={`text-sm font-semibold ${overview.occupancyGrowth >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                    {overview.occupancyGrowth >= 0 ? '+' : ''}{overview.occupancyGrowth}%
+                                </span>
+                            )}
                         </div>
-                        <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">
+                        <p className="text-sm text-gray-600 mb-1">Occupancy rate</p>
+                        <p className="text-2xl font-bold text-gray-900">
                             {(overview.occupancyRate || earningsData?.occupancyRate || 0).toFixed(1)}%
-                        </div>
-                        {overview.occupancyGrowth !== undefined && (
-                            <div className={`text-md sm:text-md ${overview.occupancyGrowth >= 0 ? 'text-green-600' : 'text-red-600'} flex items-center font-medium`}>
-                                <i className={`bi ${overview.occupancyGrowth >= 0 ? 'bi-arrow-up' : 'bi-arrow-down'} mr-1`} />
-                                {overview.occupancyGrowth >= 0 ? '+' : ''}{overview.occupancyGrowth}% vs last period
-                            </div>
-                        )}
+                        </p>
                     </div>
 
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                        <div className="absolute top-2 right-2 opacity-5 text-4xl sm:text-5xl lg:text-6xl">
-                            <i className="bi bi-star" />
-                        </div>
-                        <div className="flex items-center mb-3">
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mr-3 text-white bg-amber-500">
-                                <i className="bi bi-star text-md sm:text-base"/>
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl flex items-center justify-center">
+                                <i className="bi bi-star-fill text-xl text-amber-500"/>
                             </div>
-                            <span className="text-md sm:text-md text-gray-600 font-medium">Average Rating</span>
+                            {overview.ratingGrowth !== undefined && (
+                                <span className={`text-sm font-semibold ${overview.ratingGrowth >= 0 ? 'text-teal-600' : 'text-red-500'}`}>
+                                    {overview.ratingGrowth >= 0 ? '+' : ''}{overview.ratingGrowth}
+                                </span>
+                            )}
                         </div>
-                        <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-gray-800">
-                            {overview.averageRating ? overview.averageRating.toFixed(1) : 'N/A'}
-                        </div>
-                        {overview.ratingGrowth !== undefined && (
-                            <div className={`text-md sm:text-md ${overview.ratingGrowth >= 0 ? 'text-green-600' : 'text-red-600'} flex items-center font-medium`}>
-                                <i className={`bi ${overview.ratingGrowth >= 0 ? 'bi-arrow-up' : 'bi-arrow-down'} mr-1`} />
-                                {overview.ratingGrowth >= 0 ? '+' : ''}{overview.ratingGrowth} vs last period
-                            </div>
-                        )}
+                        <p className="text-sm text-gray-600 mb-1">Average rating</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                            {overview.averageRating ? (
+                                <>
+                                    {overview.averageRating.toFixed(1)}
+                                    <span className="text-sm text-gray-500 ml-1">/ 5.0</span>
+                                </>
+                            ) : (
+                                'N/A'
+                            )}
+                        </p>
                     </div>
                 </div>
 
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6 mb-6">
-                    {/* Revenue Trends Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-graph-up mr-2 text-pink-500" />
-                                Revenue Trends
-                            </h3>
-                            <div className="flex gap-2">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                    {/* Revenue Trends */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">Revenue trends</h3>
+                                <p className="text-sm text-gray-600 mt-1">Monthly performance overview</p>
+                            </div>
+                            <div className="flex bg-gray-100 rounded-lg p-1">
                                 {['revenue', 'bookings'].map((metric) => (
                                     <button
                                         key={metric}
                                         onClick={() => setSelectedMetric(metric)}
-                                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
                                             selectedMetric === metric
-                                                ? 'bg-pink-100 text-pink-700'
+                                                ? 'bg-white text-gray-900 shadow-sm'
                                                 : 'text-gray-600 hover:text-gray-900'
                                         }`}
                                     >
@@ -308,134 +296,153 @@ const HostAnalyticsPage = () => {
                                 ))}
                             </div>
                         </div>
-                        <div className="h-48 sm:h-56 lg:h-64">
+                        <div className="h-64">
                             {revenueChartData.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={revenueChartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                        <defs>
+                                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#14B8A6" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <XAxis 
+                                            dataKey="month" 
+                                            tick={{ fontSize: 12, fill: '#6B7280' }} 
+                                            axisLine={{ stroke: '#E5E7EB' }} 
+                                            tickLine={false} 
+                                        />
+                                        <YAxis 
+                                            tick={{ fontSize: 12, fill: '#6B7280' }} 
+                                            axisLine={{ stroke: '#E5E7EB' }} 
+                                            tickLine={false} 
+                                        />
                                         <Tooltip content={<CustomTooltip />} />
                                         <Area
                                             type="monotone"
                                             dataKey={selectedMetric}
-                                            stroke="#F20C8F"
-                                            fill="#F20C8F"
-                                            fillOpacity={0.1}
-                                            strokeWidth={3}
+                                            stroke="#14B8A6"
+                                            fillOpacity={1}
+                                            fill="url(#colorRevenue)"
+                                            strokeWidth={2}
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
-                                    <div className="text-center">
-                                        <i className="bi bi-graph-up text-3xl mb-2" />
-                                        <p>No revenue data available</p>
-                                    </div>
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                    <i className="bi bi-graph-up text-4xl mb-3" />
+                                    <p className="text-sm">No data available for this period</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Booking Performance Chart */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-bar-chart mr-2 text-blue-800" />
-                                Booking Performance
-                            </h3>
-                            <div className="text-md text-gray-500">
-                                <i className="bi bi-three-dots" />
-                            </div>
+                    {/* Booking Performance */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900">Booking performance</h3>
+                            <p className="text-sm text-gray-600 mt-1">Bookings vs cancellations</p>
                         </div>
-                        <div className="h-48 sm:h-56 lg:h-64">
+                        <div className="h-64">
                             {bookingTrendsData.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={bookingTrendsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="date" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                                        <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                                        <XAxis 
+                                            dataKey="date" 
+                                            tick={{ fontSize: 12, fill: '#6B7280' }} 
+                                            axisLine={{ stroke: '#E5E7EB' }} 
+                                            tickLine={false} 
+                                        />
+                                        <YAxis 
+                                            tick={{ fontSize: 12, fill: '#6B7280' }} 
+                                            axisLine={{ stroke: '#E5E7EB' }} 
+                                            tickLine={false} 
+                                        />
                                         <Tooltip content={<CustomTooltip />} />
-                                        <Bar dataKey="bookings" fill="#083A85" radius={[6, 6, 0, 0]} />
-                                        <Bar dataKey="cancellations" fill="#EF4444" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="bookings" fill="#083A85" radius={[8, 8, 0, 0]} />
+                                        <Bar dataKey="cancellations" fill="#F20C8F" radius={[8, 8, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
-                                    <div className="text-center">
-                                        <i className="bi bi-bar-chart text-3xl mb-2" />
-                                        <p>No booking data available</p>
-                                    </div>
+                                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                    <i className="bi bi-bar-chart text-4xl mb-3" />
+                                    <p className="text-sm">No data available for this period</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* Property Performance Table */}
-                <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow mb-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                            <i className="bi bi-house mr-2 text-purple-600" />
-                            Property Performance
-                        </h3>
-                        <button 
-                            className="text-md text-blue-600 hover:text-blue-800 font-medium"
-                            onClick={() => router.push('/host/properties')}
-                        >
-                            View All
-                        </button>
+                {/* Properties Table */}
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-8">
+                    <div className="p-6 border-b border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">Property performance</h3>
+                                <p className="text-sm text-gray-600 mt-1">Your top performing properties</p>
+                            </div>
+                            <button 
+                                className="text-sm font-medium text-[#14B8A6] hover:text-teal-700 transition-colors"
+                                onClick={() => router.push('/host/properties')}
+                            >
+                                View all properties →
+                            </button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="text-left py-3 px-4 font-medium text-gray-700">Property</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-700">Bookings</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-700">Revenue</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-700">Occupancy</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-700">Rating</th>
-                                    <th className="text-left py-3 px-4 font-medium text-gray-700">Avg. Booking</th>
+                            <thead className="bg-gray-50 border-b border-gray-100">
+                                <tr>
+                                    <th className="text-left py-4 px-6 text-xs font-medium text-gray-700 uppercase tracking-wider">Property</th>
+                                    <th className="text-left py-4 px-6 text-xs font-medium text-gray-700 uppercase tracking-wider">Bookings</th>
+                                    <th className="text-left py-4 px-6 text-xs font-medium text-gray-700 uppercase tracking-wider">Revenue</th>
+                                    <th className="text-left py-4 px-6 text-xs font-medium text-gray-700 uppercase tracking-wider">Occupancy</th>
+                                    <th className="text-left py-4 px-6 text-xs font-medium text-gray-700 uppercase tracking-wider">Rating</th>
+                                    <th className="text-left py-4 px-6 text-xs font-medium text-gray-700 uppercase tracking-wider">Avg/Night</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-100">
                                 {propertiesData && propertiesData.length > 0 ? (
                                     propertiesData.slice(0, 5).map((property: any, index: number) => (
-                                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                            <td className="py-3 px-4">
+                                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                            <td className="py-4 px-6">
                                                 <div className="font-medium text-gray-900">{property.propertyName || `Property ${index + 1}`}</div>
                                             </td>
-                                            <td className="py-3 px-4 text-gray-700">{property.bookingsCount || 0}</td>
-                                            <td className="py-3 px-4 text-gray-700">${(property.totalEarnings || 0).toLocaleString()}</td>
-                                            <td className="py-3 px-4">
-                                                <div className="flex items-center">
-                                                    <div className="w-12 bg-gray-200 rounded-full h-2 mr-2">
+                                            <td className="py-4 px-6 text-gray-700">{property.bookingsCount || 0}</td>
+                                            <td className="py-4 px-6 text-gray-900 font-medium">${(property.totalEarnings || 0).toLocaleString()}</td>
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 bg-gray-200 rounded-full h-2">
                                                         <div
-                                                            className="bg-blue-600 h-2 rounded-full"
+                                                            className="bg-gradient-to-r from-[#14B8A6] to-teal-500 h-2 rounded-full transition-all duration-500"
                                                             style={{ width: `${property.occupancyRate || 0}%` }}
                                                         ></div>
                                                     </div>
-                                                    <span className="text-sm text-gray-700">{(property.occupancyRate || 0).toFixed(1)}%</span>
+                                                    <span className="text-sm font-medium text-gray-700 w-12">{(property.occupancyRate || 0).toFixed(0)}%</span>
                                                 </div>
                                             </td>
-                                            <td className="py-3 px-4">
+                                            <td className="py-4 px-6">
                                                 {property.averageRating ? (
-                                                    <div className="flex items-center">
-                                                        <i className="bi bi-star-fill text-yellow-400 mr-1"></i>
-                                                        <span className="text-gray-700">{property.averageRating.toFixed(1)}</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <i className="bi bi-star-fill text-amber-400"></i>
+                                                        <span className="font-medium text-gray-900">{property.averageRating.toFixed(1)}</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-gray-500">N/A</span>
+                                                    <span className="text-gray-400">—</span>
                                                 )}
                                             </td>
-                                            <td className="py-3 px-4 text-gray-700">${(property.averageBookingValue || 0).toFixed(0)}</td>
+                                            <td className="py-4 px-6 text-gray-700">${(property.averageBookingValue || 0).toFixed(0)}</td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={6} className="py-8 text-center text-gray-500">
-                                            <i className="bi bi-house text-3xl mb-2" />
-                                            <p>No property performance data available</p>
+                                        <td colSpan={6} className="py-12 text-center">
+                                            <div className="flex flex-col items-center text-gray-400">
+                                                <i className="bi bi-house text-4xl mb-3" />
+                                                <p className="text-sm">No properties to display</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
@@ -444,80 +451,77 @@ const HostAnalyticsPage = () => {
                     </div>
                 </div>
 
-                {/* Bottom Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-                    {/* Guest Analytics */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow h-max">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-people mr-2 text-blue-600" />
-                                Guest Analytics
-                            </h3>
+                {/* Bottom Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Guest Insights */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100">
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900">Guest insights</h3>
+                            <p className="text-sm text-gray-600 mt-1">Understanding your guests</p>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <p className="text-xl font-bold text-gray-900">{guestInsights.totalGuests || 0}</p>
-                                <p className="text-sm text-gray-600">Total Guests</p>
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            <div className="bg-gray-50 rounded-xl p-4 text-center">
+                                <p className="text-2xl font-bold text-gray-900">{guestInsights.totalGuests || 0}</p>
+                                <p className="text-xs text-gray-600 mt-1">Total guests</p>
                             </div>
-                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <p className="text-xl font-bold text-green-600">{guestInsights.returningGuests || 0}</p>
-                                <p className="text-sm text-gray-600">Returning</p>
+                            <div className="bg-teal-50 rounded-xl p-4 text-center">
+                                <p className="text-2xl font-bold text-teal-600">{guestInsights.returningGuests || 0}</p>
+                                <p className="text-xs text-gray-600 mt-1">Returning</p>
                             </div>
                         </div>
 
                         <div className="space-y-4">
                             {(guestInsights.guestSatisfaction?.averageRating || overview.averageRating) && (
-                                <div>
-                                    <h4 className="font-medium text-gray-900 mb-2">Guest Satisfaction</h4>
+                                <div className="pb-4 border-b border-gray-100">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Guest satisfaction</p>
                                     <div className="flex items-center gap-2">
-                                        <div className="flex text-yellow-400">
+                                        <div className="flex gap-0.5">
                                             {[...Array(5)].map((_, i) => (
-                                                <i key={i} className="bi bi-star-fill text-sm"></i>
+                                                <i key={i} className={`bi bi-star-fill text-sm ${
+                                                    i < Math.floor(guestInsights.guestSatisfaction?.averageRating || overview.averageRating || 0) 
+                                                        ? 'text-amber-400' 
+                                                        : 'text-gray-200'
+                                                }`}></i>
                                             ))}
                                         </div>
-                                        <span className="font-medium">{(guestInsights.guestSatisfaction?.averageRating || overview.averageRating).toFixed(1)}</span>
-                                        <span className="text-gray-600 text-sm">average rating</span>
+                                        <span className="font-semibold text-gray-900">
+                                            {(guestInsights.guestSatisfaction?.averageRating || overview.averageRating).toFixed(1)}
+                                        </span>
                                     </div>
                                 </div>
                             )}
 
                             {guestInsights.averageStayDuration && (
                                 <div>
-                                    <h4 className="font-medium text-gray-900 mb-2">Average Stay</h4>
-                                    <p className="text-xl font-bold text-blue-600">{guestInsights.averageStayDuration.toFixed(1)} days</p>
-                                </div>
-                            )}
-
-                            {!guestInsights.totalGuests && !guestInsights.returningGuests && (
-                                <div className="text-center py-4 text-gray-500">
-                                    <i className="bi bi-people text-2xl mb-2" />
-                                    <p>No guest data available</p>
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Average stay duration</p>
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-2xl font-bold text-gray-900">{guestInsights.averageStayDuration.toFixed(1)}</span>
+                                        <span className="text-sm text-gray-600">nights</span>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Revenue Breakdown */}
-                    <div className="bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow lg:col-span-2">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-semibold flex items-center text-gray-800">
-                                <i className="bi bi-pie-chart mr-2 text-gray-600" />
-                                Revenue by Property
-                            </h3>
+                    {/* Revenue Distribution */}
+                    <div className="bg-white rounded-2xl p-6 border border-gray-100 lg:col-span-2">
+                        <div className="mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900">Revenue distribution</h3>
+                            <p className="text-sm text-gray-600 mt-1">Income breakdown by property</p>
                         </div>
                         {propertyBreakdown.length > 0 ? (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="h-48 sm:h-56">
+                                <div className="h-56">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie
                                                 data={propertyBreakdown}
                                                 cx="50%"
                                                 cy="50%"
-                                                innerRadius={30}
-                                                outerRadius={70}
-                                                paddingAngle={5}
+                                                innerRadius={50}
+                                                outerRadius={80}
+                                                paddingAngle={3}
                                                 dataKey="value"
                                             >
                                                 {propertyBreakdown.map((entry: any, index: number) => (
@@ -530,114 +534,30 @@ const HostAnalyticsPage = () => {
                                 </div>
                                 <div className="space-y-3">
                                     {propertyBreakdown.slice(0, 5).map((property: any, index: number) => (
-                                        <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                        <div key={index} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div
-                                                    className="w-3 h-3 rounded-full"
+                                                    className="w-3 h-3 rounded-full flex-shrink-0"
                                                     style={{ backgroundColor: property.color }}
                                                 ></div>
-                                                <span className="text-sm font-medium text-gray-700">{property.name}</span>
+                                                <span className="text-sm font-medium text-gray-900 truncate max-w-[150px]">
+                                                    {property.name}
+                                                </span>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-sm font-bold text-gray-900">${property.value.toLocaleString()}</div>
-                                                <div className="text-xs text-gray-500">{property.percentage.toFixed(1)}%</div>
+                                                <p className="text-sm font-semibold text-gray-900">${property.value.toLocaleString()}</p>
+                                                <p className="text-xs text-gray-500">{property.percentage.toFixed(0)}%</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                <i className="bi bi-pie-chart text-3xl mb-2" />
-                                <p>No revenue data available</p>
+                            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                                <i className="bi bi-pie-chart text-4xl mb-3" />
+                                <p className="text-sm">No revenue data available</p>
                             </div>
                         )}
-                    </div>
-                </div>
-
-                {/* Market Comparison */}
-                {marketComparison && Object.keys(marketComparison).length > 0 && marketComparison.averagePrice > 0 && (
-                    <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                        <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Market Comparison</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-2">Your Average Price</p>
-                                <p className="text-2xl font-bold text-blue-600">${(marketComparison.myAveragePrice || 0).toFixed(0)}</p>
-                                <p className="text-sm text-gray-500">vs ${(marketComparison.averagePrice || 0).toFixed(0)} market avg</p>
-                            </div>
-                            <div className="text-center p-4 bg-green-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-2">Your Occupancy Rate</p>
-                                <p className="text-2xl font-bold text-green-600">{(marketComparison.myOccupancyRate || 0).toFixed(1)}%</p>
-                                <p className="text-sm text-gray-500">vs {(marketComparison.occupancyRate || 0).toFixed(1)}% market avg</p>
-                            </div>
-                            <div className="text-center p-4 bg-purple-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-2">Market Position</p>
-                                <p className="text-2xl font-bold text-purple-600 capitalize">
-                                    {(marketComparison.marketPosition || 'Unknown').replace('_', ' ')}
-                                </p>
-                                <p className="text-sm text-gray-500">{marketComparison.competitorCount || 0} competitors nearby</p>
-                            </div>
-                        </div>
-                        
-                        {marketComparison.opportunities && marketComparison.opportunities.length > 0 && (
-                            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                                <h4 className="font-medium text-blue-900 mb-3 flex items-center">
-                                    <i className="bi bi-lightbulb mr-2"></i>
-                                    Growth Opportunities
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {marketComparison.opportunities.map((opportunity: string, index: number) => (
-                                        <div key={index} className="text-sm text-blue-800 flex items-start">
-                                            <i className="bi bi-arrow-right mr-2 mt-1 flex-shrink-0"></i>
-                                            <span>{opportunity}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Performance Insights */}
-                <div className="mt-6 bg-white rounded-lg p-4 lg:p-6 shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="text-base lg:text-lg font-semibold mb-4 text-gray-800">Key Performance Insights</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-8">
-                        <div className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
-                                <i className="bi bi-check-circle" />
-                            </div>
-                            <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">
-                                {overview.completedBookings || bookingsData?.filter((b: any) => b.status === 'completed').length || 0}
-                            </div>
-                            <div className="text-md lg:text-md text-gray-600 font-medium">Completed Bookings</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
-                                <i className="bi bi-graph-up" />
-                            </div>
-                            <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">
-                                {overview.conversionRate ? `${overview.conversionRate.toFixed(1)}%` : 'N/A'}
-                            </div>
-                            <div className="text-md lg:text-md text-gray-600 font-medium">Conversion Rate</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
-                                <i className="bi bi-arrow-repeat" />
-                            </div>
-                            <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">
-                                {overview.repeatGuestRate ? `${overview.repeatGuestRate.toFixed(1)}%` : 'N/A'}
-                            </div>
-                            <div className="text-md lg:text-md text-gray-600 font-medium">Repeat Guests</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                            <div className="text-2xl lg:text-3xl mb-2 text-gray-600">
-                                <i className="bi bi-clock" />
-                            </div>
-                            <div className="text-lg lg:text-xl font-bold text-gray-800 mb-1">
-                                {earningsData?.averageNightlyRate ? `${earningsData.averageNightlyRate.toFixed(0)}` : 'N/A'}
-                            </div>
-                            <div className="text-md lg:text-md text-gray-600 font-medium">Avg. Nightly Rate</div>
-                        </div>
                     </div>
                 </div>
             </div>

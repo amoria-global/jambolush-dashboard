@@ -1,6 +1,8 @@
 import api from '@/app/api/apiService';
 import uploadDocumentToSupabase, { deleteDocumentFromSupabase } from '@/app/api/storage';
 import React, { useState, useEffect } from 'react';
+import TourMapSelector from '@/app/components/TourMapSelector';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 // --- Reusable Interfaces ---
 interface TourItineraryItem {
@@ -143,6 +145,7 @@ const EditTourModal: React.FC<EditTourModalProps> = ({ tourId, onClose, onUpdate
   const [tempExclusion, setTempExclusion] = useState('');
   const [tempRequirement, setTempRequirement] = useState('');
   const [tempTag, setTempTag] = useState('');
+  const [showMapSelector, setShowMapSelector] = useState(false);
 
   const categories = ['History', 'Food', 'Photography', 'Adventure', 'Culture', 'Nature', 'Art', 'Architecture', 'Music', 'Shopping'];
   const tourTypes = ['walking', 'driving', 'cycling', 'boat', 'bus', 'train', 'hiking', 'virtual'];
@@ -385,13 +388,27 @@ const EditTourModal: React.FC<EditTourModalProps> = ({ tourId, onClose, onUpdate
     setExistingGalleryImageUrls(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleLocationSelect = (locationData: { latitude: number; longitude: number; address: string; addressComponents: any }) => {
+    setTourData(prev => ({
+      ...prev,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude,
+      meetingPoint: locationData.address,
+      locationAddress: locationData.address,
+      locationCity: locationData.addressComponents.city || prev.locationCity,
+      locationCountry: locationData.addressComponents.country || prev.locationCountry,
+      locationState: locationData.addressComponents.region || prev.locationState,
+      locationZipCode: locationData.addressComponents.postalCode || prev.locationZipCode
+    }));
+  };
+
   const tabs = [
-    { id: 'basic' as ActiveTab, label: 'Basic Info', icon: '📝' },
-    { id: 'images' as ActiveTab, label: 'Images', icon: '📸' },
-    { id: 'location' as ActiveTab, label: 'Location', icon: '📍' },
-    { id: 'details' as ActiveTab, label: 'Details', icon: '⚙️' },
-    { id: 'itinerary' as ActiveTab, label: 'Itinerary', icon: '📋' },
-    { id: 'schedule' as ActiveTab, label: 'Schedule', icon: '📅' }
+    { id: 'basic' as ActiveTab, label: 'Basic Info', icon: 'bi-file-text' },
+    { id: 'images' as ActiveTab, label: 'Images', icon: 'bi-images' },
+    { id: 'location' as ActiveTab, label: 'Location', icon: 'bi-geo-alt' },
+    { id: 'details' as ActiveTab, label: 'Details', icon: 'bi-gear' },
+    { id: 'itinerary' as ActiveTab, label: 'Itinerary', icon: 'bi-list-check' },
+    { id: 'schedule' as ActiveTab, label: 'Schedule', icon: 'bi-calendar-event' }
   ];
 
   if (initialLoading) {
@@ -426,7 +443,7 @@ const EditTourModal: React.FC<EditTourModalProps> = ({ tourId, onClose, onUpdate
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} disabled={loading}
               className={`px-6 py-4 whitespace-nowrap text-base font-medium transition-colors disabled:opacity-50 ${activeTab === tab.id ? 'border-b-2 border-[#083A85] text-[#083A85]' : 'text-gray-500 hover:text-gray-700'}`}>
-              <span className="mr-2">{tab.icon}</span>{tab.label}
+              <i className={`${tab.icon} mr-2`}></i>{tab.label}
             </button>
           ))}
         </div>
@@ -587,8 +604,25 @@ const EditTourModal: React.FC<EditTourModalProps> = ({ tourId, onClose, onUpdate
                 </div>
                 <div>
                     <label className="block text-base font-medium text-gray-900 mb-3">Meeting point</label>
-                    <input type="text" value={tourData.meetingPoint} onChange={(e) => setTourData(prev => ({ ...prev, meetingPoint: e.target.value }))} disabled={loading}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20" placeholder="Where guests should meet you" />
+                    <div className="space-y-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowMapSelector(true)}
+                        disabled={loading}
+                        className="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-[#083A85] hover:bg-gray-50 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-gray-700 font-medium"
+                      >
+                        <i className="bi bi-geo-alt-fill text-[#083A85]"></i>
+                        Select Meeting Point on Map
+                      </button>
+                      <input type="text" value={tourData.meetingPoint} onChange={(e) => setTourData(prev => ({ ...prev, meetingPoint: e.target.value }))} disabled={loading}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-[#083A85] focus:ring-2 focus:ring-[#083A85]/20" placeholder="Or type meeting point manually" />
+                      {tourData.latitude && tourData.longitude && (
+                        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-4 py-2 rounded-lg">
+                          <i className="bi bi-check-circle-fill"></i>
+                          <span>Location selected: {tourData.latitude.toFixed(6)}, {tourData.longitude.toFixed(6)}</span>
+                        </div>
+                      )}
+                    </div>
                 </div>
             </div>
           )}
@@ -706,6 +740,18 @@ const EditTourModal: React.FC<EditTourModalProps> = ({ tourId, onClose, onUpdate
           </div>
         </div>
       </div>
+
+      {/* Map Selector Modal */}
+      <TourMapSelector
+        isOpen={showMapSelector}
+        onClose={() => setShowMapSelector(false)}
+        onLocationSelect={handleLocationSelect}
+        initialLocation={
+          tourData.latitude && tourData.longitude
+            ? { lat: tourData.latitude, lng: tourData.longitude }
+            : undefined
+        }
+      />
     </div>
   );
 };

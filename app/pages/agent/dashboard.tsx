@@ -26,7 +26,6 @@ const EnhancedAgentDashboard = () => {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [transactionsData, setTransactionsData] = useState<any>([]);
   const [earningsData, setEarningsData] = useState<any>([]);
-  const [propertiesData, setPropertiesData] = useState<any>([]);
   const [loading, setLoading] = useState<any>(true);
   const [error, setError] = useState<any>(null);
   const [userName, setUserName] = useState("Agent");
@@ -56,12 +55,6 @@ const EnhancedAgentDashboard = () => {
         // Fetch earnings data with transactions
         const earningsResponse = await api.get("/properties/agent/earnings");
         setEarningsData(earningsResponse.data.data);
-
-        // Fetch agent's properties
-        const propertiesResponse = await api.get(
-          "/properties/agent/properties"
-        );
-        setPropertiesData(propertiesResponse.data.data.properties);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
         setError("Failed to load dashboard data");
@@ -73,7 +66,7 @@ const EnhancedAgentDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  // Transform earnings data for chart
+  // Transform earnings data for chart - matches API monthlyCommissions structure
   const transformEarningsData = (monthlyCommissions: any) => {
     if (!monthlyCommissions || monthlyCommissions.length === 0) return [];
 
@@ -81,19 +74,21 @@ const EnhancedAgentDashboard = () => {
       month: new Date(item.month + "-01").toLocaleDateString("en-US", {
         month: "short",
       }),
-      earnings: item.commission || item.earnings || 0,
+      earnings: item.commission || item.paymentAmount || 0,
+      bookings: item.bookings || 0,
     }));
   };
 
   // Transform transaction performance data for chart
   const transformTransactionData = (transactionBreakdown: any) => {
-    if (!transactionBreakdown || !transactionBreakdown.escrowTransactions) {
+    if (!transactionBreakdown ||
+        (!transactionBreakdown.paymentTransactions && !transactionBreakdown.escrowTransactions)) {
       return [];
     }
 
     const transactions = [
-      ...(transactionBreakdown.escrowTransactions || []),
       ...(transactionBreakdown.paymentTransactions || []),
+      ...(transactionBreakdown.escrowTransactions || []),
     ];
 
     const dayCount: any = {
@@ -105,7 +100,7 @@ const EnhancedAgentDashboard = () => {
       Sat: 0,
       Sun: 0,
     };
-    
+
     transactions.forEach((transaction: any) => {
       const day = new Date(transaction.createdAt).toLocaleDateString("en-US", {
         weekday: "short",
@@ -124,19 +119,19 @@ const EnhancedAgentDashboard = () => {
   // Get transaction types from transaction data
   const getTransactionTypes = (transactionBreakdown: any) => {
     if (!transactionBreakdown ||
-        (!transactionBreakdown.escrowTransactions &&
-         !transactionBreakdown.paymentTransactions)) {
+        (!transactionBreakdown.paymentTransactions &&
+         !transactionBreakdown.escrowTransactions)) {
       return [];
     }
 
     const typeCount: any = {};
     const allTransactions = [
-      ...(transactionBreakdown.escrowTransactions || []),
       ...(transactionBreakdown.paymentTransactions || []),
+      ...(transactionBreakdown.escrowTransactions || []),
     ];
 
     allTransactions.forEach((transaction: any) => {
-      const type = transaction.status || transaction.type || "Other";
+      const type = transaction.type || transaction.status || "Other";
       typeCount[type] = (typeCount[type] || 0) + 1;
     });
 
@@ -148,7 +143,7 @@ const EnhancedAgentDashboard = () => {
       "#EF4444",
       "#8B5CF6",
     ];
-    
+
     return Object.entries(typeCount).map(([name, value], index) => ({
       name,
       value,
@@ -156,61 +151,39 @@ const EnhancedAgentDashboard = () => {
     }));
   };
 
-  // Transform recent transactions for activity section
-  const transformRecentActivity = (transactionBreakdown: any) => {
-    if (!transactionBreakdown ||
-        (!transactionBreakdown.escrowTransactions &&
-         !transactionBreakdown.paymentTransactions)) {
+  // Transform recent activity from API response
+  const transformRecentActivity = (recentActivity: any) => {
+    if (!recentActivity || recentActivity.length === 0) {
       return [];
     }
 
-    const allTransactions = [
-      ...(transactionBreakdown.escrowTransactions || []).map((t: any) => ({
-        ...t,
-        source: "escrow",
-      })),
-      ...(transactionBreakdown.paymentTransactions || []).map((t: any) => ({
-        ...t,
-        source: "payment",
-      })),
-    ];
-
-    return allTransactions
-      .sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 4)
-      .map((transaction: any) => ({
-        client: transaction.clientName || transaction.user?.name || "Client",
-        message:
-          transaction.description ||
-          transaction.notes ||
-          `${transaction.source} transaction ${transaction.status}`,
-        time: new Date(transaction.createdAt).toLocaleTimeString(),
-        type:
-          transaction.status === "RELEASED" ||
-          transaction.status === "completed"
-            ? "commission"
-            : transaction.status,
+    return recentActivity
+      .slice(0, 10)
+      .map((activity: any) => ({
+        client: activity.metadata?.propertyName || activity.description || "Activity",
+        message: activity.description || activity.action,
+        time: new Date(activity.timestamp).toLocaleTimeString(),
+        type: activity.type || "general",
+        icon: activity.type === "booking" ? "calendar-check" : activity.type === "property" ? "house-door" : "activity",
       }));
   };
 
-  // Transform upcoming appointments
-  const transformUpcomingAppointments = (properties: any) => {
-    if (!properties || properties.length === 0) return [];
+  // Transform recent bookings to upcoming appointments
+  const transformUpcomingAppointments = (recentBookings: any) => {
+    if (!recentBookings || recentBookings.length === 0) return [];
 
-    return properties.slice(0, 3).map((property: any) => ({
-      title: property.title || property.name,
-      time: property.nextViewing
-        ? new Date(property.nextViewing).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : null,
-      client: property.interestedClient || "Client",
-      duration: property.viewingDuration || null,
-      location: property.location || property.address,
-      status: property.status || "pending",
+    return recentBookings.slice(0, 5).map((booking: any) => ({
+      title: `Booking #${booking.id.slice(-8)}`,
+      time: new Date(booking.bookingDate).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      client: booking.clientName || "Guest",
+      duration: null,
+      location: "Property Booking",
+      status: booking.commissionStatus || "pending",
+      bookingDate: new Date(booking.bookingDate).toLocaleDateString(),
+      commission: booking.commission,
     }));
   };
 
@@ -373,76 +346,68 @@ const EnhancedAgentDashboard = () => {
     );
   }
 
-  // Prepare data for UI
+  // Prepare data for UI using correct API response structure
   const chartEarningsData = transformEarningsData(
     dashboardData?.monthlyCommissions || earningsData?.monthlyCommissions
   );
   const chartTransactionData = transformTransactionData(
-    transactionsData?.transactionBreakdown ||
-      dashboardData?.transactionBreakdown
+    dashboardData?.transactionBreakdown || transactionsData?.transactionBreakdown
   );
   const transactionTypes = getTransactionTypes(
-    transactionsData?.transactionBreakdown ||
-      dashboardData?.transactionBreakdown
+    dashboardData?.transactionBreakdown || transactionsData?.transactionBreakdown
   );
   const recentActivity = transformRecentActivity(
-    transactionsData?.transactionBreakdown ||
-      dashboardData?.transactionBreakdown
+    dashboardData?.recentActivity || []
   );
   const upcomingAppointments = transformUpcomingAppointments(
-    propertiesData || dashboardData?.upcomingAppointments
+    dashboardData?.recentBookings || []
   );
 
-  // Summary cards data from API
+  // Summary cards data from API - mapped to match response structure
+  const summaryStats = dashboardData?.summaryStats || {};
+  const walletOverview = dashboardData?.walletOverview || {};
+
   const summaryCards = [
     {
-      title: "Active Properties",
-      value: dashboardData?.activeProperties?.toString() || "0",
-      change: dashboardData?.totalProperties 
-        ? `${dashboardData.totalProperties} total` 
-        : "No data",
+      title: "Managed Properties",
+      value: summaryStats?.totalManagedProperties?.toString() || "0",
+      change: summaryStats?.totalManagedProperties
+        ? `${summaryStats.totalManagedProperties} properties`
+        : "No properties",
       icon: "house-door-fill",
-      percentage: dashboardData?.propertyGrowth 
-        ? `+${dashboardData.propertyGrowth}%` 
-        : null,
+      percentage: null,
       bgGradient: "from-pink-500 to-rose-400",
     },
     {
       title: "Total Clients",
-      value: dashboardData?.totalClients?.toString() || "0",
-      change: dashboardData?.activeClients 
-        ? `${dashboardData.activeClients} active` 
-        : "No data",
+      value: summaryStats?.totalClients?.toString() || "0",
+      change: summaryStats?.activeClients
+        ? `${summaryStats.activeClients} active`
+        : "No active clients",
       icon: "people-fill",
-      percentage: dashboardData?.clientGrowth 
-        ? `+${dashboardData.clientGrowth}%` 
-        : null,
+      percentage: null,
       bgGradient: "from-blue-800 to-blue-600",
     },
     {
-      title: "Total Commissions",
-      value: dashboardData?.totalCommissions 
-        ? `$${dashboardData.totalCommissions.toLocaleString()}` 
-        : "$0",
-      change: "All time earnings",
-      icon: "cash-stack",
-      percentage: dashboardData?.commissionGrowth 
-        ? `+${dashboardData.commissionGrowth}%` 
-        : null,
+      title: "Total Bookings",
+      value: summaryStats?.totalBookings?.toString() || "0",
+      change: summaryStats?.totalEarnings
+        ? `$${summaryStats.totalEarnings.toLocaleString()} earned`
+        : "No earnings yet",
+      icon: "calendar-check-fill",
+      percentage: null,
       bgGradient: "from-green-500 to-emerald-400",
     },
     {
-      title: "Success Rate",
-      value: dashboardData?.successRate 
-        ? `${dashboardData.successRate.toFixed(1)}%` 
-        : "0%",
-      change: dashboardData?.pendingDeals 
-        ? `${dashboardData.pendingDeals} pending` 
-        : "No pending deals",
-      icon: "graph-up-arrow",
-      percentage: dashboardData?.successGrowth 
-        ? `+${dashboardData.successGrowth}%` 
-        : null,
+      title: "Wallet Balance",
+      value: walletOverview?.availableBalance
+        ? `$${walletOverview.availableBalance.toFixed(2)}`
+        : "$0.00",
+      change: walletOverview?.pendingBalance
+        ? `$${walletOverview.pendingBalance} pending`
+        : "No pending",
+      icon: "wallet2",
+      percentage: null,
       bgGradient: "from-amber-500 to-orange-400",
     },
   ];
@@ -785,10 +750,7 @@ const EnhancedAgentDashboard = () => {
                 {recentActivity.map((activity: any, index: number) => (
                   <div key={index} onClick={() => router.push("/all/agent/bookings")} className="flex items-start gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                     <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <i className={`bi bi-${
-                        activity.type === 'commission' ? 'cash' :
-                        activity.type === 'PENDING' ? 'clock' : 'activity'
-                      } text-gray-600`} />
+                      <i className={`bi bi-${activity.icon || 'activity'} text-gray-600`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">
@@ -802,11 +764,11 @@ const EnhancedAgentDashboard = () => {
                       </p>
                     </div>
                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      activity.type === 'commission'
+                      activity.type === 'booking'
                         ? 'bg-green-100 text-green-700'
-                        : activity.type === 'PENDING'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-blue-100 text-blue-700'
+                        : activity.type === 'property'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700'
                     }`}>
                       {activity.type}
                     </span>

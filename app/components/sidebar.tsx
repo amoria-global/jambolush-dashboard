@@ -166,9 +166,12 @@ const SideBar: React.FC<SideBarProps> = ({ isSidebarOpen, toggleSidebar }) => {
     const handleLogout = async () => {
         if (isLoggingOut) return; // Prevent multiple logout calls
 
+        setIsLoggingOut(true);
+
+        // Wait 5 seconds before redirecting to jambolush.com/all/login
         setTimeout(() => {
-            window.location.href = frontend_url + `/all/login?redirect=` + encodeURIComponent(window.location.href);
-        }, 100);
+            window.location.href = 'https://jambolush.com/all/login?redirect=' + encodeURIComponent(window.location.href);
+        }, 5000);
     };
 
     // Initialize authentication on component mount
